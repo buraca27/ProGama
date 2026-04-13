@@ -1,6 +1,10 @@
 {
     "compilerOptions": {
+<<<<<<< HEAD
         "baseUrl": ".",
+=======
+        "baseUrl": "localhost",
+>>>>>>> origin/team-b/rafael-oliveira
         "paths": {
             "@/*": ["resources/js/*"],
             "ziggy-js": ["./vendor/tightenco/ziggy"]

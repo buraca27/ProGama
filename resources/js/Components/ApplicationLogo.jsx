@@ -1,5 +1,6 @@
 export default function ApplicationLogo(props) {
     return (
+<<<<<<< HEAD
         <svg
             {...props}
             viewBox="0 0 316 316"
@@ -9,3 +10,12 @@ export default function ApplicationLogo(props) {
         </svg>
     );
 }
+=======
+        <img 
+            {...props}
+            src="/images/icone.png"
+            alt="Logo ProGama"
+        />
+    );
+}
+>>>>>>> origin/team-b/rafael-oliveira
