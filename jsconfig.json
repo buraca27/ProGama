@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
         "baseUrl": "localhost",
+        "ignoreDeprecations": "6.0",
         "paths": {
             "@/*": ["resources/js/*"],
             "ziggy-js": ["./vendor/tightenco/ziggy"]

@@ -1,5 +1,9 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+<<<<<<< HEAD
+import PrimaryButton from '@/Components/PrimaryButton';
+=======
+>>>>>>> origin/team-b/rafael-oliveira
 import TextInput from '@/Components/TextInput';
 import { Transition } from '@headlessui/react';
 import { useForm } from '@inertiajs/react';
@@ -46,12 +50,22 @@ export default function UpdatePasswordForm({ className = '' }) {
     return (
         <section className={className}>
             <header>
+<<<<<<< HEAD
+                <h2 className="text-lg font-medium text-gray-900">
+                    Update Password
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-600">
+                    Ensure your account is using a long, random password to stay
+                    secure.
+=======
                 <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                     Atualizar Palavra-passe
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                     Garanta que a sua conta está a usar uma palavra-passe longa e aleatória para se manter segura.
+>>>>>>> origin/team-b/rafael-oliveira
                 </p>
             </header>
 
@@ -59,7 +73,11 @@ export default function UpdatePasswordForm({ className = '' }) {
                 <div>
                     <InputLabel
                         htmlFor="current_password"
+<<<<<<< HEAD
+                        value="Current Password"
+=======
                         value="Palavra-passe Atual"
+>>>>>>> origin/team-b/rafael-oliveira
                     />
 
                     <TextInput
@@ -70,7 +88,11 @@ export default function UpdatePasswordForm({ className = '' }) {
                             setData('current_password', e.target.value)
                         }
                         type="password"
+<<<<<<< HEAD
+                        className="mt-1 block w-full"
+=======
                         className="mt-1 block w-full dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300"
+>>>>>>> origin/team-b/rafael-oliveira
                         autoComplete="current-password"
                     />
 
@@ -81,7 +103,11 @@ export default function UpdatePasswordForm({ className = '' }) {
                 </div>
 
                 <div>
+<<<<<<< HEAD
+                    <InputLabel htmlFor="password" value="New Password" />
+=======
                     <InputLabel htmlFor="password" value="Nova Palavra-passe" />
+>>>>>>> origin/team-b/rafael-oliveira
 
                     <TextInput
                         id="password"
@@ -89,7 +115,11 @@ export default function UpdatePasswordForm({ className = '' }) {
                         value={data.password}
                         onChange={(e) => setData('password', e.target.value)}
                         type="password"
+<<<<<<< HEAD
+                        className="mt-1 block w-full"
+=======
                         className="mt-1 block w-full dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300"
+>>>>>>> origin/team-b/rafael-oliveira
                         autoComplete="new-password"
                     />
 
@@ -99,7 +129,11 @@ export default function UpdatePasswordForm({ className = '' }) {
                 <div>
                     <InputLabel
                         htmlFor="password_confirmation"
+<<<<<<< HEAD
+                        value="Confirm Password"
+=======
                         value="Confirmar Palavra-passe"
+>>>>>>> origin/team-b/rafael-oliveira
                     />
 
                     <TextInput
@@ -109,7 +143,11 @@ export default function UpdatePasswordForm({ className = '' }) {
                             setData('password_confirmation', e.target.value)
                         }
                         type="password"
+<<<<<<< HEAD
+                        className="mt-1 block w-full"
+=======
                         className="mt-1 block w-full dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300"
+>>>>>>> origin/team-b/rafael-oliveira
                         autoComplete="new-password"
                     />
 
@@ -120,6 +158,19 @@ export default function UpdatePasswordForm({ className = '' }) {
                 </div>
 
                 <div className="flex items-center gap-4">
+<<<<<<< HEAD
+                    <PrimaryButton disabled={processing}>Save</PrimaryButton>
+
+                    <Transition
+                        show={recentlySuccessful}
+                        enter="transition ease-in-out"
+                        enterFrom="opacity-0"
+                        leave="transition ease-in-out"
+                        leaveTo="opacity-0"
+                    >
+                        <p className="text-sm text-gray-600">
+                            Saved.
+=======
                     <button 
                         type="submit"
                         disabled={processing}
@@ -137,10 +188,15 @@ export default function UpdatePasswordForm({ className = '' }) {
                     >
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                             Guardado.
+>>>>>>> origin/team-b/rafael-oliveira
                         </p>
                     </Transition>
                 </div>
             </form>
         </section>
     );
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> origin/team-b/rafael-oliveira
