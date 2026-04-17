@@ -60,6 +60,10 @@ Route::get('/dashboard', function (Request $request) {
 
 // CRIAR
 Route::post('/dashboard/utilizadores', function (Request $request) {
+    if ((int) $request->user()->id_role !== 1) {
+        abort(403);
+    }
+
     $request->validate([
         'name' => 'required|string|max:255',
         'email' => 'required|string|email|max:255|unique:users',
@@ -97,17 +101,17 @@ Route::post('/dashboard/utilizadores', function (Request $request) {
         </head>
         <body style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f0f4f8; margin: 0; padding: 40px 10px;">
             <div style="background-color: #ffffff; padding: 0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); overflow: hidden; max-width: 550px; margin: 0 auto; border: 1px solid #e2e8f0;">
-                
+
                 <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 30px; text-align: center;">
                     <h2 style="color: #ffffff; margin: 0; font-size: 26px; letter-spacing: -0.5px;">Bem-vindo ao ProGama! </h2>
                 </div>
-                
+
                 <div style="padding: 40px 30px;">
                     <p style="color: #475569; font-size: 17px; line-height: 1.6; margin-top: 0;">Olá, <strong>{$request->name}</strong>!</p>
                     <p style="color: #475569; font-size: 16px; line-height: 1.6;">A tua conta institucional está pronta. Criámos um acesso seguro para ti. Podes copiar a tua password temporária abaixo:</p>
 
                     <div style="margin: 30px 0; background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 25px;">
-                        
+
                         <div style="margin-bottom: 20px;">
                             <span style="display: block; color: #94a3b8; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px;">Email Institucional</span>
                             <div style="color: #1e293b; font-size: 18px; font-weight: 600; word-break: break-all;">
@@ -119,7 +123,7 @@ Route::post('/dashboard/utilizadores', function (Request $request) {
                             <span style="display: block; color: #94a3b8; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px;">Password Provisória</span>
                             <div style="position: relative; background-color: #ffffff; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center;">
                                 <code style="font-family: 'Courier New', Courier, monospace; font-size: 22px; font-weight: bold; color: #2563eb; letter-spacing: 2px; -webkit-user-select: all; user-select: all;">{$passwordPadrao}</code>
-                                
+
                                 <p style="margin: 10px 0 0 0; color: #64748b; font-size: 11px;">
                                     💡 <strong>Dica:</strong> Dá um duplo clique em cima da password para a selecionares inteira.
                                 </p>
@@ -203,11 +207,11 @@ Route::delete('/dashboard/utilizadores/{id}', function (Request $request, $id) {
         </head>
         <body style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f0f4f8; margin: 0; padding: 40px 10px;">
             <div style="background-color: #ffffff; padding: 0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); overflow: hidden; max-width: 550px; margin: 0 auto; border: 1px solid #e2e8f0;">
-                
+
                 <div style="background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%); padding: 30px; text-align: center;">
                     <h2 style="color: #ffffff; margin: 0; font-size: 26px; letter-spacing: -0.5px;">Aviso de Encerramento</h2>
                 </div>
-                
+
                 <div style="padding: 40px 30px;">
                     <p style="color: #475569; font-size: 17px; line-height: 1.6; margin-top: 0;">Olá, <strong>{$user->name}</strong>.</p>
                     <p style="color: #475569; font-size: 16px; line-height: 1.6;">Este email serve para informar que a tua conta na plataforma ProGama foi terminada definitivamente pela Secretaria.</p>
