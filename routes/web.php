@@ -57,13 +57,9 @@ Route::get('/dashboard', function (Request $request) {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // --- 3. GESTÃO DE UTILIZADORES (CRIAR, EDITAR, APAGAR) ---
-
+Route::middleware(['auth', 'admin'])->group(function () {
 // CRIAR
 Route::post('/dashboard/utilizadores', function (Request $request) {
-    if ((int) $request->user()->id_role !== 1) {
-        abort(403);
-    }
-
     $request->validate([
         'name' => 'required|string|max:255',
         'email' => 'required|string|email|max:255|unique:users',
@@ -80,7 +76,7 @@ Route::post('/dashboard/utilizadores', function (Request $request) {
     DB::table('users')->insert([
         'name' => $request->name,
         'email' => strtolower($request->email),
-        'email_pessoal' => strtolower($request->email_pessoal),
+        'email_pessoal' => $request->filled('email_pessoal') ? strtolower($request->email_pessoal) : null,
         'nmr_processo_interno' => $request->numero_interno,
         'foto_perfil' => $request->foto_perfil,
         'password' => Hash::make($passwordPadrao),
@@ -177,21 +173,18 @@ HTML;
     }
 
     return redirect()->route('dashboard')->with('success', 'Utilizador criado com sucesso.');
-})->middleware(['auth'])->name('utilizadores.store');
+})->name('utilizadores.store');
 
 // EDITAR UTILIZADOR
 Route::put('/dashboard/utilizadores/{id}', function (Request $request, $id) {
-    if (auth()->user()->id_role !== 1)
-        abort(403);
     $request->validate(['name' => 'required|string|max:255', 'role' => 'required|integer|in:1,2,3']);
     User::findOrFail($id)->update(['name' => $request->name, 'id_role' => $request->role]);
+
     return redirect()->route('dashboard')->with('success', 'Utilizador editado com sucesso.'); // CORRIGIDO PARA EVITAR 404
-})->middleware(['auth'])->name('utilizadores.update');
+})->name('utilizadores.update');
 
 // APAGAR UTILIZADOR E REMOVER DO CPANEL
 Route::delete('/dashboard/utilizadores/{id}', function (Request $request, $id) {
-    if (auth()->user()->id_role !== 1)
-        abort(403);
     $user = User::findOrFail($id);
     $emailInstitucional = $user->email;
     $emailPessoal = $user->email_pessoal;
@@ -259,36 +252,32 @@ HTML;
     }
 
     $user->delete();
+
     return redirect('/dashboard')->with('success', 'Utilizador e email apagados com sucesso.');
-})->middleware(['auth'])->name('utilizadores.destroy');
+})->name('utilizadores.destroy');
 
 // --- 4. GESTÃO DE TURMAS ---
 Route::post('/dashboard/turmas', function (Request $request) {
-    if (auth()->user()->id_role !== 1)
-        abort(403);
     $validated = $request->validate(['nome' => 'required|string|max:100', 'ano_letivo' => 'required|string|max:20']);
-    Turma::create($validated);
+    $turma = Turma::create($validated);
+
     return redirect()->route('dashboard')->with('success', 'Turma criada.'); // CORRIGIDO PARA EVITAR 404
-})->middleware(['auth'])->name('turmas.store');
+})->name('turmas.store');
 
 Route::put('/dashboard/turmas/{id}', function (Request $request, $id) {
-    if (auth()->user()->id_role !== 1)
-        abort(403);
     $validated = $request->validate(['nome' => 'required|string|max:100', 'ano_letivo' => 'required|string|max:20']);
     Turma::findOrFail($id)->update($validated);
-    return redirect()->route('dashboard')->with('success', 'Turma atualizada.'); // CORRIGIDO PARA EVITAR 404
-})->middleware(['auth'])->name('turmas.update');
 
-Route::delete('/dashboard/turmas/{id}', function ($id) {
-    if (auth()->user()->id_role !== 1)
-        abort(403);
+    return redirect()->route('dashboard')->with('success', 'Turma atualizada.'); // CORRIGIDO PARA EVITAR 404
+})->name('turmas.update');
+
+Route::delete('/dashboard/turmas/{id}', function (Request $request, $id) {
     Turma::findOrFail($id)->delete();
+
     return redirect()->route('dashboard')->with('success', 'Turma apagada.'); // CORRIGIDO PARA EVITAR 404
-})->middleware(['auth'])->name('turmas.destroy');
+})->name('turmas.destroy');
 
 Route::post('/dashboard/turmas/{id}/assign', function (Request $request, $id) {
-    if (auth()->user()->id_role !== 1)
-        abort(403);
     $turma = Turma::findOrFail($id);
     User::where('id_turma', $turma->id)->update(['id_turma' => null]);
     if ($request->has('alunos_ids') && is_array($request->alunos_ids)) {
@@ -299,8 +288,10 @@ Route::post('/dashboard/turmas/{id}/assign', function (Request $request, $id) {
     } else {
         $turma->professores()->sync([]);
     }
+
     return redirect()->route('dashboard')->with('success', 'Atribuições guardadas!'); // CORRIGIDO PARA EVITAR 404
-})->middleware(['auth'])->name('turmas.assign');
+})->name('turmas.assign');
+});
 
 // --- 5. ROTAS DE PERFIL E AUTH ---
 Route::middleware('auth')->group(function () {
