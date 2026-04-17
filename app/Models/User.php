@@ -10,40 +10,44 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
+        'email_pessoal',
+        'nmr_processo_interno',
+        'foto_perfil',
         'password',
+        'id_role',
+        'id_nivel',
+        'id_turma',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    // --- RELAÇÕES DE TURMAS ---
+
+    // Para os Alunos (Role 3) - 1 Turma
+    public function turma()
+    {
+        return $this->belongsTo(Turma::class, 'id_turma');
+    }
+
+    // Para os Professores (Role 2) - Várias Turmas
+    public function turmasLecionadas()
+    {
+        return $this->belongsToMany(Turma::class, 'professor_turma', 'professor_id', 'turma_id');
     }
 }

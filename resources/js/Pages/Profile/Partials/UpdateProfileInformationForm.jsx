@@ -1,26 +1,36 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import TextInput from '@/Components/TextInput';
-import { Transition } from '@headlessui/react';
-import { Link, useForm, usePage } from '@inertiajs/react';
+import InputError from "@/Components/InputError";
+import InputLabel from "@/Components/InputLabel";
+import PrimaryButton from "@/Components/PrimaryButton";
+import TextInput from "@/Components/TextInput";
+import { Link, useForm, usePage } from "@inertiajs/react";
+import { useRef } from "react";
+import { compressImageToBase64 } from "@/utils";
 
 export default function UpdateProfileInformation({
     mustVerifyEmail,
     status,
-    className = '',
+    className = "",
 }) {
     const user = usePage().props.auth.user;
+    const fileInputRef = useRef(null);
 
     const { data, setData, patch, errors, processing, recentlySuccessful } =
         useForm({
             name: user.name,
             email: user.email,
+            foto_perfil: user.foto_perfil || "",
         });
+
+    const handleFotoUpload = (e) => {
+        const file = e.target.files[0];
+        compressImageToBase64(file, (base64String) => {
+            setData("foto_perfil", base64String);
+        });
+    };
 
     const submit = (e) => {
         e.preventDefault();
-
-        patch(route('profile.update'));
+        patch(route("profile.update"));
     };
 
     return (
@@ -29,88 +39,95 @@ export default function UpdateProfileInformation({
                 <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                     Informação do Perfil
                 </h2>
-
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Atualize a informação do perfil e o endereço de email da sua conta.
+                    Atualiza as informações e o endereço de email da tua conta.
                 </p>
             </header>
 
             <form onSubmit={submit} className="mt-6 space-y-6">
-                <div>
-                    <InputLabel htmlFor="name" value="Nome" />
+                {/* ÁREA DA FOTOGRAFIA */}
+                <div className="flex items-center gap-4">
+                    <div
+                        onClick={() => fileInputRef.current.click()}
+                        className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                        title="Clica para alterar a foto"
+                    >
+                        {data.foto_perfil ? (
+                            <img
+                                src={data.foto_perfil}
+                                alt="Perfil"
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <span className="text-2xl font-bold text-gray-500">
+                                {data.name.charAt(0)}
+                            </span>
+                        )}
+                    </div>
+                    <div>
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current.click()}
+                            className="text-sm font-bold text-blue-600 dark:text-blue-400"
+                        >
+                            Alterar Fotografia
+                        </button>
+                        <p className="text-xs text-gray-500">
+                            Imagens pesadas serão automaticamente otimizadas.
+                        </p>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFotoUpload}
+                            accept="image/*"
+                            className="hidden"
+                        />
+                    </div>
+                </div>
 
+                <div>
+                    <InputLabel htmlFor="name" value="Nome Completo" />
                     <TextInput
                         id="name"
-                        className="mt-1 block w-full dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300"
+                        className="mt-1 block w-full"
                         value={data.name}
-                        onChange={(e) => setData('name', e.target.value)}
+                        onChange={(e) => setData("name", e.target.value)}
                         required
                         isFocused
                         autoComplete="name"
                     />
-
                     <InputError className="mt-2" message={errors.name} />
                 </div>
 
                 <div>
                     <InputLabel htmlFor="email" value="Email" />
-
                     <TextInput
                         id="email"
                         type="email"
-                        className="mt-1 block w-full dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300"
+                        className="mt-1 block w-full"
                         value={data.email}
-                        onChange={(e) => setData('email', e.target.value)}
+                        onChange={(e) => setData("email", e.target.value)}
                         required
                         autoComplete="username"
+                        disabled
                     />
-
+                    <p className="text-xs text-gray-500 mt-1">
+                        O email institucional não pode ser alterado por ti.
+                    </p>
                     <InputError className="mt-2" message={errors.email} />
                 </div>
 
-                {mustVerifyEmail && user.email_verified_at === null && (
-                    <div>
-                        <p className="mt-2 text-sm text-gray-800 dark:text-gray-200">
-                            O seu endereço de email não está verificado.
-                            <Link
-                                href={route('verification.send')}
-                                method="post"
-                                as="button"
-                                className="rounded-md text-sm text-gray-600 dark:text-gray-400 underline hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                            >
-                                Clique aqui para reenviar o email de verificação.
-                            </Link>
-                        </p>
-
-                        {status === 'verification-link-sent' && (
-                            <div className="mt-2 text-sm font-medium text-green-600 dark:text-green-400">
-                                Um novo link de verificação foi enviado para o seu endereço de email.
-                            </div>
-                        )}
-                    </div>
-                )}
-
                 <div className="flex items-center gap-4">
-                    {/* BOTÃO CORRIGIDO AQUI */}
-                    <button 
-                        type="submit"
-                        disabled={processing}
-                        className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 shadow-sm transition duration-150 ease-in-out hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:ring-offset-gray-800"
-                    >
-                        Guardar
-                    </button>
-
-                    <Transition
-                        show={recentlySuccessful}
-                        enter="transition ease-in-out duration-300"
-                        enterFrom="opacity-0"
-                        leave="transition ease-in-out duration-300"
-                        leaveTo="opacity-0"
-                    >
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Guardado.
+                    <PrimaryButton disabled={processing}>
+                        Guardar Alterações
+                    </PrimaryButton>
+                    
+                    {/* AQUI FOI CORRIGIDO: Substituí o Transition por um render condicional simples */}
+                    {recentlySuccessful && (
+                        <p className="text-sm text-green-600 dark:text-green-400 font-bold">
+                            Guardado com sucesso!
                         </p>
-                    </Transition>
+                    )}
                 </div>
             </form>
         </section>
