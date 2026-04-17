@@ -46,4 +46,18 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Relação: Um professor pode lecionar múltiplas turmas
+     * (Apenas para utilizadores com role de professor)
+     */
+    public function turmas_professor()
+    {
+        return $this->belongsToMany(
+            'App\Models\Turma',
+            'Professor_Turma',
+            'id_professor',
+            'id_turma'
+        );
+    }
 }

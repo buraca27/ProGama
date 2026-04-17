@@ -34,15 +34,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-<<<<<<< HEAD
-=======
             // Partilha os dados flash com o Inertia
             'flash' => [
                 'novaCredencial' => $request->session()->get('novaCredencial'),
                 'success'        => $request->session()->get('success'),
                 'error'          => $request->session()->get('error'),
             ],
->>>>>>> origin/team-b/rafael-oliveira
         ];
     }
 }

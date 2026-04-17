@@ -131,6 +131,19 @@ return new class extends Migration
         });
 
         // ==========================================
+        // TABELA PIVOT: Professores podem lecionar múltiplas turmas
+        // ==========================================
+        Schema::create('Professor_Turma', function (Blueprint $table) {
+            $table->unsignedBigInteger('id_professor');
+            $table->unsignedBigInteger('id_turma');
+
+            $table->primary(['id_professor', 'id_turma']);
+            $table->foreign('id_professor')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('id_turma')->references('id')->on('Turmas')->onDelete('cascade');
+            $table->timestamps();
+        });
+
+        // ==========================================
         // 3. TABELAS DE LIGAÇÃO (Segundo Nível - Dependem de Users)
         // ==========================================
         Schema::create('Grupo_Alunos', function (Blueprint $table) {

@@ -24,13 +24,47 @@ $logoUrl = asset('images/icone.png');
 Route::get('/dashboard', function (Request $request) {
     $user = $request->user();
 
-    $listaUtilizadores = DB::table('users')->orderBy('created_at', 'desc')->get();
+    // 1. Definimos a lista como uma coleção vazia por defeito
+    $listaUtilizadores = collect();
 
-    $estatisticas = [
-        'total_users'    => DB::table('users')->count(),
-        'total_turmas'   => tryCatchCount('Turmas'),
-        'total_desafios' => tryCatchCount('Desafios'),
-    ];
+    // 2. Lógica para o ADMIN (vê toda a gente)
+    if ($user->can('viewList', User::class)) {
+        $listaUtilizadores = \App\Models\User::select('id', 'name', 'email', 'id_role', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+    // 3. Lógica para o ALUNO (vê colegas da sua turma e professores dessa turma)
+    elseif ($user->can('viewTurmaUsers', User::class)) {
+
+        if ($user->id_turma) {
+            $listaUtilizadores = \App\Models\User::select('id', 'name', 'email', 'id_role')
+                ->where('id_turma', $user->id_turma)  // Mesma turma
+                ->whereIn('id_role', [2, 3])  // Alunos (3) e Professores (2)
+                ->orderBy('name', 'asc')
+                ->get();
+        } else {
+            // Logging: Aluno sem turma tentou ver utilizadores
+            \Log::warning("Utilizador {$user->id} (role: {$user->id_role}) tentou ver lista de utilizadores mas não tem turma associada");
+        }
+    }
+    // 4. Caso não tenha permissão para ver lista
+    else {
+        // Logging: Tentativa de acesso não autorizado
+        \Log::warning("Utilizador {$user->id} (role: {$user->id_role}) tentou aceder à lista de utilizadores sem permissão");
+    }
+
+    // 5. Estatísticas - apenas Admin vê
+    $estatisticas = [];
+    if ($user->can('viewStats', User::class)) {
+        $estatisticas = [
+            'total_users'    => DB::table('users')->count(),
+            'total_turmas'   => tryCatchCount('Turmas'),
+            'total_desafios' => tryCatchCount('Desafios'),
+        ];
+    } else {
+        // Logging: Tentativa de ver estatísticas sem permissão
+        \Log::info("Utilizador {$user->id} (role: {$user->id_role}) tentou ver estatísticas sem permissão - recebeu array vazio");
+    }
 
     $roleMap  = [1 => 'admin', 2 => 'professor', 3 => 'aluno'];
     $cargoReal = $roleMap[$user->id_role] ?? 'admin';
@@ -44,6 +78,12 @@ Route::get('/dashboard', function (Request $request) {
 
 // --- 3. GESTÃO DE UTILIZADORES E CPANEL (POST) ---
 Route::post('/dashboard/utilizadores', function (Request $request) {
+
+    // 0. Verificar permissões ANTES de qualquer processamento
+    if (!$request->user()->can('create', User::class)) {
+        \Log::warning("Utilizador {$request->user()->id} (role: {$request->user()->id_role}) tentou criar utilizador sem permissão");
+        abort(403, 'Não tem permissão para criar utilizadores.');
+    }
 
     // 1. Validação PRIMEIRO (sempre)
     $request->validate([
@@ -167,7 +207,14 @@ Route::post('/dashboard/utilizadores', function (Request $request) {
         });
     }
 
-    // 6. Redirecionar
+    // 6. Logging da criação
+    if ($cpanelOk) {
+        \Log::info("Utilizador criado com sucesso: {$request->email} (role: {$request->role}) por {$request->user()->id}");
+    } else {
+        \Log::warning("Utilizador criado mas cPanel falhou: {$request->email} (role: {$request->role}) por {$request->user()->id}");
+    }
+
+    // 7. Redirecionar
     $msg = $cpanelOk
         ? 'Utilizador e Email criados com sucesso.'
         : 'Utilizador criado, mas falhou a criação do email no cPanel. Verifica o log.';
@@ -175,10 +222,31 @@ Route::post('/dashboard/utilizadores', function (Request $request) {
     return redirect()->route('dashboard')->with('success', $msg);
 })->middleware(['auth'])->name('utilizadores.store');
 
-// --- 4. ROTA DE SEGURANÇA ---
-Route::get('/dashboard/utilizadores', function () {
-    return redirect()->route('dashboard');
-})->middleware(['auth']);
+// --- 4.1 GESTÃO DE UTILIZADORES - ELIMINAR ---
+Route::delete('/dashboard/utilizadores/{user}', function (Request $request, User $user) {
+
+    // Verificar permissões
+    if (!$request->user()->can('delete', $user)) {
+        \Log::warning("Utilizador {$request->user()->id} tentou eliminar utilizador {$user->id} sem permissão");
+        abort(403, 'Não tem permissão para eliminar este utilizador.');
+    }
+
+    // Não permitir eliminar a si próprio através desta rota (usar perfil)
+    if ($request->user()->id === $user->id) {
+        \Log::warning("Utilizador {$request->user()->id} tentou usar rota admin para eliminar a si próprio");
+        abort(403, 'Use o seu perfil para eliminar a sua própria conta.');
+    }
+
+    $userName = $user->name;
+    $userId = $user->id;
+
+    // Eliminar utilizador
+    $user->delete();
+
+    \Log::info("Admin {$request->user()->id} ({$request->user()->name}) eliminou utilizador {$userId} ({$userName})");
+
+    return redirect()->route('dashboard')->with('success', "Utilizador {$userName} eliminado com sucesso.");
+})->middleware(['auth'])->name('utilizadores.destroy');
 
 // --- 5. ROTAS DE PERFIL E AUTH ---
 Route::middleware('auth')->group(function () {
