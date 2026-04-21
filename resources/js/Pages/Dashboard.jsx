@@ -85,7 +85,7 @@ export default function Dashboard({ auth, userRoleReal, estatisticas, utilizador
     const [userToView, setUserToView] = useState(null); // <-- Novo estado para ver detalhes
     const [userToEdit, setUserToEdit] = useState(null);
     const [userToDelete, setUserToDelete] = useState(null);
-    const [deleteUserStep, setDeleteUserStep] = useState(0); 
+    const [deleteUserStep, setDeleteUserStep] = useState(0);
 
     const [turmaToEdit, setTurmaToEdit] = useState(null);
     const [turmaToDelete, setTurmaToDelete] = useState(null);
@@ -258,7 +258,7 @@ const confirmDeleteUser = () => {
                                     <h3 className="text-2xl font-bold text-blue-900 dark:text-blue-300">
                                         {turma.nome} <span className="text-base font-normal text-gray-500 ml-2">({turma.ano_letivo})</span>
                                     </h3>
-                                    
+
                                     {/* Botões Admin ou Contagem Alunos */}
                                     {userRole === "admin" ? (
                                         <div className="flex gap-2">
@@ -363,10 +363,10 @@ const confirmDeleteUser = () => {
                         {showNovoUserForm && (
                             <form onSubmit={submitNovoUtilizador} className="mb-8 bg-blue-50/50 dark:bg-gray-700/50 border border-blue-100 dark:border-gray-600 p-6 rounded-xl">
                                 <h4 className="font-bold text-blue-900 dark:text-blue-300 mb-4 flex items-center gap-2"> Criar Credenciais Institucionais</h4>
-                                
+
                                 {/* UPLOAD FOTO SECRETARIA */}
                                 <div className="mb-6 flex items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                                    <div 
+                                    <div
                                         onClick={() => fileInputRefSecretaria.current.click()}
                                         className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden cursor-pointer border-2 border-dashed border-gray-400 dark:border-gray-500"
                                     >
@@ -380,9 +380,9 @@ const confirmDeleteUser = () => {
                                         <button type="button" onClick={() => fileInputRefSecretaria.current.click()} className="text-sm font-bold text-blue-600 dark:text-blue-400">Definir Fotografia (Opcional)</button>
                                         <p className="text-xs text-gray-500">A imagem será comprimida automaticamente.</p>
                                     </div>
-                                    <input 
+                                    <input
                                         type="file" ref={fileInputRefSecretaria} className="hidden" accept="image/*"
-                                        onChange={handleFotoUpload} 
+                                        onChange={handleFotoUpload}
                                     />
                                 </div>
 
@@ -465,7 +465,21 @@ const confirmDeleteUser = () => {
                                             <td className="py-3 px-4 flex justify-end gap-3 items-center">
                                                 <button onClick={() => setUserToView(u)} className="text-blue-600 hover:text-blue-800 dark:hover:text-blue-400 text-sm font-bold transition-colors mt-1">Ver</button>
                                                 <button onClick={() => setUserToEdit(u)} className="text-amber-600 hover:text-amber-800 dark:hover:text-amber-400 text-sm font-bold transition-colors mt-1">Editar</button>
-                                                <button onClick={() => { setUserToDelete(u); setDeleteUserStep(1); }} className="text-red-600 hover:text-red-800 dark:hover:text-red-400 text-sm font-bold transition-colors mt-1">Apagar</button>
+                                                <button
+    onClick={() => {
+        console.log("Dados do Utilizador:", u); // <-- Abre a consola do browser (F12) e vê se existe o objeto 'can'
+
+        if (u.can?.delete === false) {
+            alert("Ação Bloqueada: Não podes apagar a tua própria conta porque és o único Administrador no sistema.");
+        } else {
+            setUserToDelete(u);
+            setDeleteUserStep(1);
+        }
+    }}
+    className="..."
+>
+    Apagar
+</button>
                                             </td>
                                         </tr>
                                     ))}
@@ -505,13 +519,13 @@ const confirmDeleteUser = () => {
     };
 
     return (
-        <AuthenticatedLayout 
-            activeView={activeView} 
-            onViewChange={setActiveView} 
+        <AuthenticatedLayout
+            activeView={activeView}
+            onViewChange={setActiveView}
             header={<h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">ProGama Workspace</h2>}
         >
             <Head title="Dashboard" />
-            
+
             {renderContent()}
 
             {/* ========================================== */}
@@ -535,7 +549,7 @@ const confirmDeleteUser = () => {
                                 {userToView.id_role === 1 ? 'Secretaria' : userToView.id_role === 2 ? 'Professor' : 'Aluno'}
                             </span>
                         </div>
-                        
+
                         <div className="space-y-3 text-sm">
                             <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
                                 <span className="text-gray-500 dark:text-gray-400 font-medium">Email Inst.:</span>
@@ -596,13 +610,13 @@ const confirmDeleteUser = () => {
             {userToDelete && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-lg border border-red-200 dark:border-red-900">
-                        
+
                         {deleteUserStep === 1 && (
                             <>
                                 <div className="text-red-500 mb-4 text-4xl">⚠️</div>
                                 <h2 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">Aviso 1: Apagar Utilizador?</h2>
                                 <p className="text-gray-600 dark:text-gray-400 mb-6">
-                                    Estás prestes a apagar <strong>{userToDelete.name}</strong> ({userToDelete.email}). 
+                                    Estás prestes a apagar <strong>{userToDelete.name}</strong> ({userToDelete.email}).
                                     Esta ação irá remover permanentemente todos os registos do utilizador da base de dados.
                                 </p>
                                 <div className="flex justify-end gap-3">
