@@ -1,9 +1,8 @@
 // resources/js/Pages/Profile/Partials/UpdateThemeForm.jsx
-// import { useEffect, useState } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function UpdateThemeForm({ className = '' }) {
-    // const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
     useEffect(() => {
         if (theme === 'dark') {

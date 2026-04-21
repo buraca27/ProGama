@@ -25,8 +25,8 @@ class ProfileUpdateRequest extends FormRequest
                 'email',
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
-                'foto_perfil' => ['nullable', 'string'],
             ],
+            'foto_perfil' => ['nullable', 'string'],
         ];
     }
 }
