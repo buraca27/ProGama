@@ -1,5 +1,5 @@
 import React from "react";
-import PlaceholderView from "./PlaceholderView";
+import PlaceholderView from "../UI/PlaceholderView";
 
 export default function SettingsView() {
     return (

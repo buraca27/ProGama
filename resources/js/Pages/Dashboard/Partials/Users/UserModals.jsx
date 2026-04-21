@@ -1,5 +1,5 @@
 // resources/js/Pages/Dashboard/Partials/UserModals.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 export default function UserModals({
     userToView,
@@ -13,7 +13,23 @@ export default function UserModals({
     confirmDeleteUser,
     submitEditUser,
 }) {
+    // Estado local para evitar cliques duplos na eliminação
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Reset do estado de carregamento quando o modal fecha ou muda de utilizador
+    useEffect(() => {
+        if (!userToDelete) {
+            setIsDeleting(false);
+        }
+    }, [userToDelete]);
+
     if (!userToView && !userToEdit && !userToDelete) return null;
+
+    // Função para lidar com a confirmação final
+    const handleConfirmDelete = () => {
+        setIsDeleting(true);
+        confirmDeleteUser();
+    };
 
     return (
         <>
@@ -125,7 +141,7 @@ export default function UserModals({
                         <label className="block mb-6 text-sm font-medium text-gray-700 dark:text-gray-300">
                             Cargo no Sistema:
                             <select
-                                value={userToEdit.id_role}
+                                value={userToEdit?.id_role || 3}
                                 onChange={(e) =>
                                     setUserToEdit({
                                         ...userToEdit,
@@ -158,7 +174,7 @@ export default function UserModals({
                 </div>
             )}
 
-            {/* MODAL APAGAR UTILIZADOR (DUPLO AVISO) */}
+            {/* MODAL APAGAR UTILIZADOR */}
             {userToDelete && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-lg border border-red-200 dark:border-red-900">
@@ -207,15 +223,47 @@ export default function UserModals({
                                 <div className="flex justify-end gap-3">
                                     <button
                                         onClick={() => setUserToDelete(null)}
-                                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold transition-colors"
+                                        disabled={isDeleting}
+                                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold transition-colors disabled:opacity-50"
                                     >
                                         Abortar
                                     </button>
                                     <button
-                                        onClick={confirmDeleteUser}
-                                        className="px-4 py-2 bg-red-700 text-white rounded font-bold uppercase shadow-sm transition-colors"
+                                        onClick={handleConfirmDelete}
+                                        disabled={isDeleting}
+                                        className={`px-4 py-2 text-white rounded font-bold uppercase shadow-sm transition-all ${
+                                            isDeleting
+                                                ? "bg-red-900 cursor-not-allowed opacity-70"
+                                                : "bg-red-700 hover:bg-red-800 shadow-red-500/20"
+                                        }`}
                                     >
-                                        Sim, Apagar Tudo
+                                        {isDeleting ? (
+                                            <span className="flex items-center gap-2">
+                                                <svg
+                                                    className="animate-spin h-4 w-4 text-white"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <circle
+                                                        className="opacity-25"
+                                                        cx="12"
+                                                        cy="12"
+                                                        r="10"
+                                                        stroke="currentColor"
+                                                        strokeWidth="4"
+                                                    ></circle>
+                                                    <path
+                                                        className="opacity-75"
+                                                        fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                    ></path>
+                                                </svg>
+                                                A processar...
+                                            </span>
+                                        ) : (
+                                            "Sim, Apagar Tudo"
+                                        )}
                                     </button>
                                 </div>
                             </>

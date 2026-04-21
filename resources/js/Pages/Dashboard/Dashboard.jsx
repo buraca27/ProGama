@@ -7,13 +7,13 @@ import { Head, router } from "@inertiajs/react";
 // =============================================================================
 // IMPORTS DAS VISTAS (PARTIALS)
 // =============================================================================
-import StatsGrid from "./Partials/StatsGrid";
-import UsersView from "./Partials/UsersView";
-import UserModals from "./Partials/UserModals";
-import TurmasView from "./Partials/TurmasView";
-import PlaceholderView from "./Partials/PlaceholderView";
-import ProfileView from "./Partials/ProfileView";
-import SettingsView from "./Partials/SettingsView";
+import StatsGrid from "./Partials/UI/StatsGrid";
+import UsersView from "./Partials/Users/UsersView";
+import UserModals from "./Partials/Users/UserModals";
+import TurmasView from "./Partials/Turmas/TurmasView";
+import PlaceholderView from "./Partials/UI/PlaceholderView";
+import ProfileView from "./Partials/Profile/ProfileView";
+import SettingsView from "./Partials/Profile/SettingsView";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Dados vindos do Laravel) ---
@@ -90,6 +90,7 @@ export default function Dashboard(props) {
                 --------------------------------------------------------- */}
                 {activeView === "utilizadores" && (
                     <UsersView
+                        auth={auth} // <--- ADICIONA ESTA LINHA AQUI
                         utilizadores={utilizadores}
                         showNovoUserForm={showNovoUserForm}
                         setShowNovoUserForm={setShowNovoUserForm}
