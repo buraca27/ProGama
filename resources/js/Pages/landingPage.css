@@ -1,0 +1,251 @@
+.header-centered {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 5%;
+    background-color: #ffffff;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.logo-img {
+    height: 85px;
+    width: auto;
+}
+
+.mascote-img {
+    height: 80px;
+    width: auto;
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Links de Navegação */
+.nav-link {
+    text-decoration: none;
+    color: #555;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    display: inline-block;
+    position: relative;
+}
+
+
+.nav-link:hover {
+    color: #3a88ed;
+    transform: scale(1.15);
+}
+
+
+.nav-link:hover {
+    text-shadow: 0px 2px 4px rgba(58, 136, 237, 0.1);
+}
+
+
+.nav-bar-center {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+}
+
+/* Bloco da Direita: Botão de Login */
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.login-btn {
+    background-color: #3a88ed;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 50px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(58, 136, 237, 0.2);
+}
+
+.login-btn:hover {
+    background-color: #2a72d1;
+    transform: scale(1.05);
+    box-shadow: 0 6px 15px rgba(58, 136, 237, 0.3);
+}
+
+/* Animação para a Mascote não ficar estática */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+    100% { transform: translateY(0px); }
+}
+
+/* Responsividade */
+@media (max-width: 900px) {
+    .nav-bar-center {
+        display: none; /* Esconde menu em ecrãs pequenos (ideal seria um menu hambúrguer) */
+    }
+}
+
+/* CONTEÚDO PRINCIPAL */
+.main-content {
+    width: 100%;
+    margin: 0 auto;
+    padding: 0;
+}
+
+.container-restrito {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #004aad;
+    margin-bottom: 20px;
+    border-left: 5px solid #004aad;
+    padding-left: 15px;
+}
+
+
+
+/* RODAPÉ */
+.footer {
+    text-align: center;
+    padding: 40px;
+    color: #777;
+    font-size: 0.9rem;
+    background: #fff;
+    margin-top: 60px;
+}
+
+/* 3. A Hero Section com largura total e design moderno */
+.hero-section {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 70vh;
+    background: linear-gradient(135deg, #46b3e5 0%, #3a88ed 100%);
+    padding: 60px 10%;
+    box-sizing: border-box;
+    color: white;
+}
+
+.hero-content h1 {
+    flex: 1;
+    font-size: 3.2rem;
+    font-weight: 800;
+    line-height: 1.2;
+    max-width: 500px;
+}
+
+.hero-visual {
+    flex: 1.5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.hero-visual img {
+    max-width: 900px;
+    width: 100%; /* Garante que ela se mantém responsiva */
+    height: auto;
+    border-radius: 30px;
+    filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.3));
+}
+
+/* Responsividade da imagem */
+@media (max-width: 768px) {
+    .hero-section {
+        flex-direction: column;
+        text-align: center;
+        padding: 40px 5%;
+    }
+    .hero-content h1 {
+        font-size: 2.2rem;
+    }
+}
+
+/* Features */
+
+.features-grid {
+    width: 100%;
+    padding: 60px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #ffffff;
+}
+
+
+.features-grid h1 {
+    color: #3a88ed;
+    font-weight: bold;
+    margin-bottom: 40px;
+    font-size: 2.5rem;
+}
+.features-grid h3 {
+    color: #3a88ed;
+    font-weight: bold;
+}
+
+.features-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 30px;
+    width: 100%;
+    max-width: 1200px;
+    padding: 0 20px;
+}
+
+
+.feature-item {
+    background: #ffffff;
+    flex: 0 1 350px;
+    padding: 40px 20px;
+    border-radius: 20px;
+    text-align: center;
+    border: 2px solid #eef2f7;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 10px 30px rgba(58, 136, 237, 0.08);
+}
+
+.feature-item:hover {
+    transform: translateY(-10px);
+    border-color: #3a88ed;
+}
+
+.feature-item .mascote-img{
+    height: 200px;
+    width: auto;
+}
+
+/* Responsividade: Apenas em telemóveis pequenos é que ficam um debaixo do outro */
+@media (max-width: 700px) {
+    .features-container {
+        flex-direction: column;
+        align-items: center;
+    }
+    .feature-item {
+        width: 100%;
+        max-width: 350px;
+    }
+}
+
+
