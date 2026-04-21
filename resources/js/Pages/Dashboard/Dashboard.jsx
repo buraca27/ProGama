@@ -65,14 +65,14 @@ export default function Dashboard(props) {
             activeView={activeView}
             onViewChange={setActiveView}
             header={
-                <h2 className="font-semibold text-xl text-gray-800 dark:text-gray-200">
+                <h2 className=" font-semibold text-xl text-gray-800 dark:text-gray-200">
                     ProGama Workspace
                 </h2>
             }
         >
             <Head title="Dashboard" />
 
-            <div className="py-2">
+            <div className="">
                 {/* ---------------------------------------------------------
                     1. VISTA PRINCIPAL (ESTATÍSTICAS)
                 --------------------------------------------------------- */}
