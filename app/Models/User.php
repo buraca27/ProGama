@@ -22,6 +22,9 @@ class User extends Authenticatable
         'id_role',
         'id_nivel',
         'id_turma',
+        'must_change_password',
+        'nif',
+        'data_nascimento',
     ];
 
     protected $hidden = [

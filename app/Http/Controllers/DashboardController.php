@@ -33,7 +33,7 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard/Dashboard', [
             'userRoleReal' => $cargoReal,
             'estatisticas' => $estatisticas,
-            'utilizadores' => DB::table('users')->orderBy('created_at', 'desc')->get(),
+            'utilizadores' => User::with(['turma', 'turmasLecionadas'])->orderBy('created_at', 'desc')->get(),
             'turmas' => $turmas,
         ]);
     }

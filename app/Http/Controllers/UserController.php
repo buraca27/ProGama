@@ -21,8 +21,10 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'role' => 'required|string|in:aluno,professor,secretaria',
             'password' => 'required|string|min:10',
+            'nif' => 'required|string|size:9|unique:users',
+            'data_nascimento' => 'required|date',
             'email_pessoal' => 'nullable|email',
-            'foto_perfil' => 'nullable|string', // Validação para a string Base64
+            'foto_perfil' => 'nullable|string',
         ]);
 
         $roleId = match ($request->role) {
@@ -43,10 +45,12 @@ class UserController extends Controller
                 'email' => $emailFormatado,
                 'email_pessoal' => strtolower($request->email_pessoal ?? null),
                 'nmr_processo_interno' => $request->numero_interno,
+                'nif' => $request->nif,
+                'data_nascimento' => $request->data_nascimento,
                 'password' => Hash::make($password),
                 'id_role' => $roleId,
                 'id_nivel' => 1,
-                'foto_perfil' => $request->foto_perfil, // Agora a foto é gravada!
+                'foto_perfil' => $request->foto_perfil,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

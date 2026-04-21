@@ -1,11 +1,11 @@
 // resources/js/Pages/Dashboard/Partials/UserModals.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { usePage } from "@inertiajs/react";
-import { compressImageToBase64 } from "@/utils"; // <-- ADICIONA ISTO
+import { compressImageToBase64 } from "@/utils";
 
 export default function UserModals({
     authUser,
-    utilizadores, // <-- NOVA PROP RECEBIDA AQUI
+    utilizadores,
     userToView,
     setUserToView,
     userToEdit,
@@ -59,6 +59,19 @@ export default function UserModals({
         userToDelete.id_role === 1 &&
         utilizadores?.filter((u) => u.id_role === 1).length <= 1;
 
+    // Função para calcular a idade
+    const calcularIdade = (data) => {
+        if (!data) return null;
+        const hoje = new Date();
+        const nascimento = new Date(data);
+        let idade = hoje.getFullYear() - nascimento.getFullYear();
+        const m = hoje.getMonth() - nascimento.getMonth();
+        if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
+            idade--;
+        }
+        return idade;
+    };
+
     return (
         <>
             {/* MODAL VER UTILIZADOR */}
@@ -102,6 +115,7 @@ export default function UserModals({
                             </span>
                         </div>
 
+                        {/* SECÇÃO DE DETALHES ATUALIZADA */}
                         <div className="space-y-3 text-sm">
                             <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
                                 <span className="text-gray-500 dark:text-gray-400 font-medium">
@@ -119,6 +133,87 @@ export default function UserModals({
                                     {userToView.email_pessoal || "N/A"}
                                 </span>
                             </div>
+
+                            {/* --- NOVOS CAMPOS ADICIONADOS --- */}
+                            <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
+                                <span className="text-gray-500 dark:text-gray-400 font-medium">
+                                    NIF:
+                                </span>
+                                <span className="text-gray-900 dark:text-gray-200 font-bold">
+                                    {userToView.nif || "N/A"}
+                                </span>
+                            </div>
+                            <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
+                                <span className="text-gray-500 dark:text-gray-400 font-medium">
+                                    Data de Nascimento:
+                                </span>
+                                <span className="text-gray-900 dark:text-gray-200 font-bold">
+                                    {userToView.data_nascimento ? (
+                                        <>
+                                            {new Date(
+                                                userToView.data_nascimento,
+                                            ).toLocaleDateString("pt-PT")}{" "}
+                                            <span className="text-gray-500 dark:text-gray-400 font-normal text-xs ml-1">
+                                                (
+                                                {calcularIdade(
+                                                    userToView.data_nascimento,
+                                                )}{" "}
+                                                anos)
+                                            </span>
+                                        </>
+                                    ) : (
+                                        "N/A"
+                                    )}
+                                </span>
+                            </div>
+
+                            {/* --------------------------------- */}
+                            {userToView.id_role === 3 && (
+                                <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
+                                    <span className="text-gray-500 dark:text-gray-400 font-medium">
+                                        Nº Processo Interno:
+                                    </span>
+                                    <span className="text-gray-900 dark:text-gray-200 font-bold">
+                                        {userToView.nmr_processo_interno ||
+                                            "N/A"}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* --------------------------------- */}
+                            {userToView.id_role === 3 && (
+                                <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
+                                    <span className="text-gray-500 dark:text-gray-400 font-medium">
+                                        Turma Atual:
+                                    </span>
+                                    <span className="text-gray-900 dark:text-gray-200 font-bold">
+                                        {/* Assumindo que a tua tabela de turmas tem um campo chamado 'nome' ou 'designacao' */}
+                                        {userToView.turma
+                                            ? userToView.turma.nome
+                                            : "Sem Turma Atribuída"}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* --------------------------------- */}
+                            {userToView.id_role === 2 && (
+                                <div className="flex flex-col border-b border-gray-100 dark:border-gray-700 pb-2">
+                                    <span className="text-gray-500 dark:text-gray-400 font-medium mb-1">
+                                        Turmas / Disciplinas Lecionadas:
+                                    </span>
+                                    <span className="text-gray-900 dark:text-gray-200 font-bold text-right">
+                                        {/* O Laravel converte 'turmasLecionadas' para snake_case 'turmas_lecionadas' quando envia para JSON */}
+                                        {userToView.turmas_lecionadas &&
+                                        userToView.turmas_lecionadas.length > 0
+                                            ? userToView.turmas_lecionadas
+                                                  .map((t) => t.nome)
+                                                  .join(", ")
+                                            : "Nenhuma atribuída"}
+                                    </span>
+                                </div>
+                            )}
+                            {/* --------------------------------- */}
+
                             <div className="flex justify-between">
                                 <span className="text-gray-500 dark:text-gray-400 font-medium">
                                     Criado em:
@@ -153,27 +248,67 @@ export default function UserModals({
                             Editar Utilizador
                         </h2>
 
-                        {/* NOVO: SECÇÃO DE FOTO NO EDITAR */}
+                        {/* SECÇÃO DE FOTO NO EDITAR (COM O X DE REMOVER) */}
                         <div className="flex flex-col items-center mb-6">
-                            <div
-                                onClick={() => fileEditRef.current.click()}
-                                className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden cursor-pointer border-4 border-dashed border-gray-300 hover:border-blue-500 transition-colors relative group"
-                            >
-                                {userToEdit.foto_perfil ? (
-                                    <>
-                                        <img
-                                            src={userToEdit.foto_perfil}
-                                            className="w-full h-full object-cover group-hover:opacity-40 transition-opacity"
-                                            alt="Preview"
-                                        />
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold bg-black/50">
-                                            Mudar Foto
-                                        </div>
-                                    </>
-                                ) : (
-                                    <span className="text-3xl opacity-50">
-                                        📷
-                                    </span>
+                            <div className="relative">
+                                <div
+                                    onClick={() => fileEditRef.current.click()}
+                                    className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden cursor-pointer border-4 border-dashed border-gray-300 hover:border-blue-500 transition-colors relative group"
+                                >
+                                    {userToEdit.foto_perfil ? (
+                                        <>
+                                            <img
+                                                src={userToEdit.foto_perfil}
+                                                className="w-full h-full object-cover group-hover:opacity-40 transition-opacity"
+                                                alt="Preview"
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold bg-black/50">
+                                                Mudar Foto
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <span className="text-3xl opacity-50">
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="h-10 w-10 text-gray-400 dark:text-gray-500 opacity-70"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                                                />
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                                                />
+                                            </svg>{" "}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* BOTÃO X (REMOVER FOTO) */}
+                                {userToEdit.foto_perfil && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // Evita abrir o seletor de imagens
+                                            setUserToEdit({
+                                                ...userToEdit,
+                                                foto_perfil: null,
+                                            });
+                                            if (fileEditRef.current)
+                                                fileEditRef.current.value = "";
+                                        }}
+                                        className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold hover:bg-red-600 shadow-md transform translate-x-1/4 -translate-y-1/4 z-10 border-2 border-white dark:border-gray-800"
+                                        title="Remover Foto"
+                                    >
+                                        ✖
+                                    </button>
                                 )}
                             </div>
                             <input

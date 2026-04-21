@@ -19,8 +19,7 @@ Route::get('/', function () {
 });
 
 // --- 2. ÁREA AUTENTICADA ---
-Route::middleware(['auth', 'verified'])->group(function () {
-
+Route::middleware(['auth', 'verified', 'force_password_change'])->group(function () {
     // Dashboard Principal
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

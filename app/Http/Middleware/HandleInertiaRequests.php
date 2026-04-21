@@ -34,11 +34,10 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            // Partilha os dados flash com o Inertia
             'flash' => [
-                'novaCredencial' => $request->session()->get('novaCredencial'),
-                'success'        => $request->session()->get('success'),
-                'error'          => $request->session()->get('error'),
+                'success' => fn() => $request->session()->get('success'),
+                'error' => fn() => $request->session()->get('error'),
+                'warning' => fn() => $request->session()->get('warning'),
             ],
         ];
     }
