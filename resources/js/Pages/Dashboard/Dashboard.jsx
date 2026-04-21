@@ -5,15 +5,15 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 
 // =============================================================================
-// IMPORTS DAS VISTAS (PARTIALS)
+// IMPORTS DAS VISTAS (Components)
 // =============================================================================
-import StatsGrid from "./Partials/UI/StatsGrid";
-import UsersView from "./Partials/Users/UsersView";
-import UserModals from "./Partials/Users/UserModals";
-import TurmasView from "./Partials/Turmas/TurmasView";
-import PlaceholderView from "./Partials/UI/PlaceholderView";
-import ProfileView from "./Partials/Profile/ProfileView";
-import SettingsView from "./Partials/Profile/SettingsView";
+import StatsGrid from "./Components/UI/StatsGrid";
+import UsersView from "./Components/Users/UsersView";
+import UserModals from "./Components/Users/UserModals";
+import TurmasView from "./Components/Turmas/TurmasView";
+import PlaceholderView from "./Components/UI/PlaceholderView";
+import ProfileView from "./Components/Profile/ProfileView";
+import SettingsView from "./Components/Profile/SettingsView";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Dados vindos do Laravel) ---
