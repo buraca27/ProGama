@@ -4,31 +4,46 @@ import React, { useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 
-// --- Partials do Perfil (Breeze) ---
-import UpdateProfileInformationForm from "@/Pages/Profile/Partials/UpdateProfileInformationForm";
-import UpdatePasswordForm from "@/Pages/Profile/Partials/UpdatePasswordForm";
-import DeleteUserForm from "@/Pages/Profile/Partials/DeleteUserForm";
-import UpdateThemeForm from "@/Pages/Profile/Partials/UpdateThemeForm";
-
-// --- Partials do Dashboard (Os teus novos componentes) ---
+// =============================================================================
+// IMPORTS DAS VISTAS (PARTIALS)
+// =============================================================================
 import StatsGrid from "./Partials/StatsGrid";
-import CreateUserForm from "./Partials/CreateUserForm";
-import UserTable from "./Partials/UserTable";
+import UsersView from "./Partials/UsersView";
 import UserModals from "./Partials/UserModals";
 import TurmasView from "./Partials/TurmasView";
 import PlaceholderView from "./Partials/PlaceholderView";
+import ProfileView from "./Partials/ProfileView";
+import SettingsView from "./Partials/SettingsView";
 
 export default function Dashboard(props) {
-    const { auth, userRoleReal, estatisticas, utilizadores, turmas } = props;
+    // --- Desestruturação das Props (Dados vindos do Laravel) ---
+    const {
+        auth,
+        userRoleReal,
+        estatisticas,
+        utilizadores,
+        turmas,
+        status,
+        mustVerifyEmail,
+    } = props;
+
+    // =============================================================================
+    // ESTADOS DE NAVEGAÇÃO E INTERFACE
+    // =============================================================================
     const [activeView, setActiveView] = useState("dashboard");
     const [showNovoUserForm, setShowNovoUserForm] = useState(false);
 
-    // Estados dos Modais
+    // =============================================================================
+    // ESTADOS DOS MODAIS (GESTÃO DE UTILIZADORES)
+    // =============================================================================
     const [userToView, setUserToView] = useState(null);
     const [userToEdit, setUserToEdit] = useState(null);
     const [userToDelete, setUserToDelete] = useState(null);
     const [deleteUserStep, setDeleteUserStep] = useState(0);
 
+    // =============================================================================
+    // FUNÇÕES DE AÇÃO (ROUTING / API)
+    // =============================================================================
     const submitEditUser = (e) => {
         e.preventDefault();
         router.put(`/dashboard/utilizadores/${userToEdit.id}`, userToEdit, {
@@ -56,8 +71,11 @@ export default function Dashboard(props) {
             }
         >
             <Head title="Dashboard" />
+
             <div className="py-2">
-                {/* 1. VISTA PRINCIPAL */}
+                {/* ---------------------------------------------------------
+                    1. VISTA PRINCIPAL (ESTATÍSTICAS)
+                --------------------------------------------------------- */}
                 {activeView === "dashboard" && (
                     <StatsGrid
                         userRole={userRoleReal}
@@ -67,42 +85,24 @@ export default function Dashboard(props) {
                     />
                 )}
 
-                {/* 2. GESTÃO DE UTILIZADORES */}
+                {/* ---------------------------------------------------------
+                    2. GESTÃO DE UTILIZADORES (ADMIN)
+                --------------------------------------------------------- */}
                 {activeView === "utilizadores" && (
-                    <div className="max-w-7xl mx-auto space-y-6">
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                                    Gestão de Utilizadores
-                                </h3>
-                                <button
-                                    onClick={() =>
-                                        setShowNovoUserForm(!showNovoUserForm)
-                                    }
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg"
-                                >
-                                    {showNovoUserForm ? "Fechar" : "+ Novo"}
-                                </button>
-                            </div>
-                            {showNovoUserForm && (
-                                <CreateUserForm
-                                    onSuccess={() => setShowNovoUserForm(false)}
-                                />
-                            )}
-                            <UserTable
-                                utilizadores={utilizadores}
-                                onView={setUserToView}
-                                onEdit={setUserToEdit}
-                                onDelete={(u) => {
-                                    setUserToDelete(u);
-                                    setDeleteUserStep(1);
-                                }}
-                            />
-                        </div>
-                    </div>
+                    <UsersView
+                        utilizadores={utilizadores}
+                        showNovoUserForm={showNovoUserForm}
+                        setShowNovoUserForm={setShowNovoUserForm}
+                        setUserToView={setUserToView}
+                        setUserToEdit={setUserToEdit}
+                        setUserToDelete={setUserToDelete}
+                        setDeleteUserStep={setDeleteUserStep}
+                    />
                 )}
 
-                {/* 3. VISTAS DE TURMAS E DISCIPLINAS */}
+                {/* ---------------------------------------------------------
+                    3. VISTAS DE TURMAS E DISCIPLINAS (TODOS OS ROLES)
+                --------------------------------------------------------- */}
                 {(activeView === "turmas" ||
                     activeView === "minhas-turmas" ||
                     activeView === "disciplinas") && (
@@ -114,44 +114,24 @@ export default function Dashboard(props) {
                     />
                 )}
 
-                {/* 4. VISTA DO PERFIL */}
+                {/* ---------------------------------------------------------
+                    4. VISTA DO PERFIL (BREEZE / INERTIA)
+                --------------------------------------------------------- */}
                 {activeView === "perfil" && (
-                    <div className="max-w-7xl mx-auto space-y-6">
-                        <div className="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-xl border border-gray-100 dark:border-gray-700">
-                            <UpdateThemeForm className="max-w-xl" />
-                        </div>
-                        <div className="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-xl border border-gray-100 dark:border-gray-700">
-                            <UpdateProfileInformationForm
-                                mustVerifyEmail={props.mustVerifyEmail}
-                                status={props.status}
-                                className="max-w-xl"
-                            />
-                        </div>
-                        <div className="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-xl border border-gray-100 dark:border-gray-700">
-                            <UpdatePasswordForm className="max-w-xl" />
-                        </div>
-                        <div className="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-xl border border-gray-100 dark:border-gray-700">
-                            <DeleteUserForm className="max-w-xl" />
-                        </div>
-                    </div>
+                    <ProfileView
+                        mustVerifyEmail={mustVerifyEmail}
+                        status={status}
+                    />
                 )}
 
-                {/* 5. DEFINIÇÕES DE SISTEMA */}
-                {activeView === "definicoes" && (
-                    <div className="max-w-7xl mx-auto">
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                                Definições do Sistema
-                            </h3>
-                            <PlaceholderView
-                                title="Configurações Avançadas"
-                                icon="⚙️"
-                            />
-                        </div>
-                    </div>
-                )}
+                {/* ---------------------------------------------------------
+                    5. DEFINIÇÕES DE SISTEMA
+                --------------------------------------------------------- */}
+                {activeView === "definicoes" && <SettingsView />}
 
-                {/* 6. VISTAS EM CONSTRUÇÃO (PROFESSOR & ALUNO) */}
+                {/* ---------------------------------------------------------
+                    6. VISTAS EM CONSTRUÇÃO (PLACEHOLDERS)
+                --------------------------------------------------------- */}
                 {activeView === "tarefas" && (
                     <PlaceholderView title="Atribuir Tarefas" icon="📝" />
                 )}
@@ -165,6 +145,10 @@ export default function Dashboard(props) {
                     <PlaceholderView title="Boletim de Notas" icon="🎓" />
                 )}
             </div>
+
+            {/* =============================================================================
+                COMPONENTES GLOBAIS (MODAIS)
+            ============================================================================= */}
             <UserModals
                 userToView={userToView}
                 setUserToView={setUserToView}
