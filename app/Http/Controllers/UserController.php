@@ -22,6 +22,7 @@ class UserController extends Controller
             'role' => 'required|string|in:aluno,professor,secretaria',
             'password' => 'required|string|min:10',
             'email_pessoal' => 'nullable|email',
+            'foto_perfil' => 'nullable|string', // Validação para a string Base64
         ]);
 
         $roleId = match ($request->role) {
@@ -36,7 +37,7 @@ class UserController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. Gravação na Base de Dados
+            // 1. Gravação na Base de Dados (Incluindo a Foto)
             DB::table('users')->insert([
                 'name' => $request->name,
                 'email' => $emailFormatado,
@@ -45,27 +46,32 @@ class UserController extends Controller
                 'password' => Hash::make($password),
                 'id_role' => $roleId,
                 'id_nivel' => 1,
+                'foto_perfil' => $request->foto_perfil, // Agora a foto é gravada!
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
             // 2. Criação no Host (cPanel)
+            // Chamamos apenas uma vez para evitar duplicados
             $this->manageCPanel($emailFormatado, $password, 'add_pop');
 
             DB::commit();
 
-            // 3. Envio de Email de Boas-vindas (Travão interno se e-mail pessoal for null)
+            // 3. Envio de Email de Boas-vindas
+            // O travão interno na função impede o envio se o email_pessoal for null
             $this->sendWelcomeEmail($request, $password);
 
             return redirect()->route('dashboard')->with('success', 'Utilizador criado com sucesso.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Erro ao criar utilizador: " . $e->getMessage());
-            return redirect()->back()->withErrors(['error' => 'Falha ao criar conta: ' . $e->getMessage()]);
+            Log::error("Erro crítico ao criar utilizador: " . $e->getMessage());
+
+            return redirect()->back()->withErrors([
+                'error' => 'Falha ao criar conta: ' . $e->getMessage()
+            ]);
         }
     }
-
     /**
      * EDIÇÃO DE UTILIZADOR
      */

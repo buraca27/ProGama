@@ -1,8 +1,8 @@
 import React from "react";
-import UpdateProfileInformationForm from "@/Pages/Profile/Partials/UpdateProfileInformationForm";
-import UpdatePasswordForm from "@/Pages/Profile/Partials/UpdatePasswordForm";
-import DeleteUserForm from "@/Pages/Profile/Partials/DeleteUserForm";
-import UpdateThemeForm from "@/Pages/Profile/Partials/UpdateThemeForm";
+import UpdateProfileInformationForm from "./UpdateProfileInformationForm";
+import UpdatePasswordForm from "./UpdatePasswordForm";
+import DeleteUserForm from "./DeleteUserForm";
+import UpdateThemeForm from "./UpdateThemeForm";
 
 export default function ProfileView({ mustVerifyEmail, status }) {
     return (

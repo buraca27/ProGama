@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import { useForm, usePage } from "@inertiajs/react";
 import { compressImageToBase64 } from "@/utils";
+import { router } from "@inertiajs/react";
 
 export default function CreateUserForm({ onSuccess }) {
     const fileInputRef = useRef(null);
@@ -84,16 +85,17 @@ export default function CreateUserForm({ onSuccess }) {
         // 1. Geramos o email antes de tudo
         const emailFinal = getEmailGerado();
 
-        // 2. Usamos o transform para garantir que o Laravel recebe 'name' e 'email'
+        // 2. Usamos o transform para injetar os dados dinâmicos antes de enviar
         transform((data) => ({
             ...data,
-            email: emailFinal, // Injeta o email gerado aqui
+            email: emailFinal,
             name:
                 data.role === "aluno"
                     ? data.name
                     : `${data.firstName} ${data.lastName}`,
         }));
 
+        // 3. Usamos o post que vem do useForm (NÃO o router.post)
         post(route("utilizadores.store"), {
             preserveScroll: true,
             onSuccess: () => {
