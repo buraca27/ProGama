@@ -4,10 +4,34 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\{DB, Hash, Mail, Http, Log};
 
 class UserController extends Controller
 {
+    public function index(Request $request)
+    {
+        Gate::authorize('viewList', User::class);
+
+        $users = User::orderBy('created_at', 'desc')->get()->map(function ($user) use ($request) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'id_role' => $user->id_role,
+                'foto_perfil' => $user->foto_perfil,
+                'created_at' => $user->created_at,
+                'email_pessoal' => $user->email_pessoal,
+                'can' => [
+                    'update' => $request->user()->can('update', $user),
+                    'delete' => $request->user()->can('delete', $user),
+                ],
+            ];
+        });
+
+        return response()->json(['users' => $users]);
+    }
+
     /**
      * CRIAÇÃO DE UTILIZADOR
      */
@@ -77,12 +101,16 @@ class UserController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $user = User::findOrFail($id);
+
+        Gate::authorize('update', $user);
+
         $request->validate([
             'name' => 'required|string|max:255',
             'role' => 'required|integer|in:1,2,3'
         ]);
 
-        User::findOrFail($id)->update([
+        $user->update([
             'name' => $request->name,
             'id_role' => $request->role
         ]);
@@ -93,9 +121,9 @@ class UserController extends Controller
     /**
      * ELIMINAÇÃO DE UTILIZADOR
      */
-    public function destroy($id)
+    public function destroy(User $user)
     {
-        $user = User::findOrFail($id);
+        Gate::authorize('delete', $user);
 
         // Notifica e remove do Host antes de apagar da BD
         $this->sendTerminationEmail($user);

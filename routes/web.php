@@ -29,9 +29,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Utilizadores (Criar, Editar, Apagar)
         Route::prefix('dashboard/utilizadores')->name('utilizadores.')->group(function () {
+            Route::get('/', [UserController::class, 'index'])->name('index');
             Route::post('/', [UserController::class, 'store'])->name('store');
-            Route::put('/{id}', [UserController::class, 'update'])->name('update');
-            Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
+            Route::put('/{user}', [UserController::class, 'update'])->name('update');
+            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
         });
 
         // Turmas (Criar, Editar, Apagar, Atribuir)

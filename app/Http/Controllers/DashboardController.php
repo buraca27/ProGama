@@ -14,6 +14,22 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
+        $listaUtilizadores = User::orderBy('created_at', 'desc')->get()->map(function ($u) use ($request) {
+            return [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'id_role' => $u->id_role,
+                'foto_perfil' => $u->foto_perfil,
+                'created_at' => $u->created_at,
+                'email_pessoal' => $u->email_pessoal,
+                'can' => [
+                    'update' => $request->user()->can('update', $u),
+                    'delete' => $request->user()->can('delete', $u),
+                ],
+            ];
+        });
+
         $estatisticas = [
             'total_users' => DB::table('users')->count(),
             'total_turmas' => $this->tryCatchCount('turmas'),
@@ -33,7 +49,7 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard/Dashboard', [
             'userRoleReal' => $cargoReal,
             'estatisticas' => $estatisticas,
-            'utilizadores' => DB::table('users')->orderBy('created_at', 'desc')->get(),
+            'utilizadores' => $listaUtilizadores,
             'turmas' => $turmas,
         ]);
     }

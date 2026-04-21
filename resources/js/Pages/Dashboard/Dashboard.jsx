@@ -46,9 +46,19 @@ export default function Dashboard(props) {
     // =============================================================================
     const submitEditUser = (e) => {
         e.preventDefault();
-        router.put(`/dashboard/utilizadores/${userToEdit.id}`, userToEdit, {
-            onSuccess: () => setUserToEdit(null),
-        });
+        router.put(
+            `/dashboard/utilizadores/${userToEdit.id}`,
+            {
+                name: userToEdit.name,
+                role: userToEdit.id_role,
+            },
+            {
+                onSuccess: () => setUserToEdit(null),
+                onError: () => {
+                    alert("Nao foi possivel guardar as alteracoes do utilizador.");
+                },
+            },
+        );
     };
 
     const confirmDeleteUser = () => {

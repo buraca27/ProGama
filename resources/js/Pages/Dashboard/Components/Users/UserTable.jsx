@@ -69,13 +69,30 @@ export default function UserTable({ utilizadores, onView, onEdit, onDelete }) {
                                         Ver
                                     </button>
                                     <button
-                                        onClick={() => onEdit(u)}
+                                        onClick={() => {
+                                            if (u.can?.update === false) {
+                                                alert(
+                                                    "Ação bloqueada: não podes editar esta conta.",
+                                                );
+                                                return;
+                                            }
+
+                                            onEdit(u);
+                                        }}
                                         className="text-amber-600 hover:text-amber-800 dark:hover:text-amber-400 text-sm font-bold transition-colors"
                                     >
                                         Editar
                                     </button>
                                     <button
-                                        onClick={() => onDelete(u)}
+                                        onClick={() => {
+                                            if (u.can?.delete === false) {
+                                                alert(
+                                                    "Ação Bloqueada: Não podes apagar a tua própria conta porque és o único Administrador no sistema.",
+                                                );
+                                            } else {
+                                                onDelete(u);
+                                            }
+                                        }}
                                         className="text-red-600 hover:text-red-800 dark:hover:text-red-400 text-sm font-bold transition-colors"
                                     >
                                         Apagar
