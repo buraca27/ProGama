@@ -17,24 +17,33 @@ return new class extends Migration
             $table->timestamp('data_criacao')->useCurrent();
         });
 
-        Schema::create('Turma_Disciplinas', function (Blueprint $table) {
+        // 2. TABELA PIVOT: DISCIPLINAS <-> TURMAS
+        Schema::create('disciplina_turma', function (Blueprint $table) {
+            $table->unsignedBigInteger('id_disciplina');
             $table->unsignedBigInteger('id_turma');
+
+            $table->foreign('id_disciplina')->references('id')->on('Disciplinas')->onDelete('cascade');
+            $table->foreign('id_turma')->references('id')->on('Turmas')->onDelete('cascade');
+
+            $table->primary(['id_disciplina', 'id_turma']);
+        });
+
+        // 3. TABELA PIVOT: DISCIPLINAS <-> PROFESSORES
+        Schema::create('disciplina_professor', function (Blueprint $table) {
             $table->unsignedBigInteger('id_disciplina');
             $table->unsignedBigInteger('id_professor');
 
-            
-            $table->foreign('id_turma')->references('id')->on('Turmas')->onDelete('cascade');
             $table->foreign('id_disciplina')->references('id')->on('Disciplinas')->onDelete('cascade');
             $table->foreign('id_professor')->references('id')->on('users')->onDelete('cascade');
 
-            $table->primary(['id_turma', 'id_disciplina']);
+            $table->primary(['id_disciplina', 'id_professor']);
         });
     }
 
     public function down(): void
     {
-        
-        Schema::dropIfExists('Turma_Disciplinas');
+        Schema::dropIfExists('disciplina_professor');
+        Schema::dropIfExists('disciplina_turma');
         Schema::dropIfExists('Disciplinas');
     }
 };
