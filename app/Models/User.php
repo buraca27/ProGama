@@ -53,4 +53,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Turma::class, 'professor_turma', 'professor_id', 'turma_id');
     }
+
+    public function historicoAtividades()
+    {
+        return $this->hasMany(HistoricoAtividade::class, 'id_aluno');
+    }
 }
