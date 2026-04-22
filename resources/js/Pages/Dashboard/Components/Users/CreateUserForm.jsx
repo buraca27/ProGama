@@ -5,7 +5,6 @@ import { router } from "@inertiajs/react";
 
 export default function CreateUserForm({ onSuccess }) {
     const fileInputRef = useRef(null);
-    // Recupera o auth via usePage para evitar erros de undefined
     const { auth } = usePage().props;
 
     // 1. Lógica de Gerar Password Forte
@@ -16,43 +15,31 @@ export default function CreateUserForm({ onSuccess }) {
         const syms = "!@#$%";
         const rand = (str) => str[Math.floor(Math.random() * str.length)];
         const base = [
-            rand(upper),
-            rand(upper),
-            rand(lower),
-            rand(lower),
-            rand(nums),
-            rand(nums),
-            rand(nums),
-            rand(syms),
+            rand(upper), rand(upper), rand(lower), rand(lower),
+            rand(nums), rand(nums), rand(nums), rand(syms),
         ];
-        return (
-            base.sort(() => Math.random() - 0.5).join("") +
-            rand(nums) +
-            rand(upper)
-        );
+        return base.sort(() => Math.random() - 0.5).join("") + rand(nums) + rand(upper);
     };
 
     const { data, setData, post, processing, reset, transform, errors } =
         useForm({
-            name: "", // Usado para Aluno
-            firstName: "", // Usado para Staff
-            lastName: "", // Usado para Staff
+            name: "", 
+            firstName: "", 
+            lastName: "", 
             numero_interno: "",
             ano_entrada: new Date().getFullYear().toString(),
             role: "aluno",
             password: gerarPassword(),
             email_pessoal: "",
             foto_perfil: "",
+            nif: "",             // ADICIONADO AQUI
+            data_nascimento: "", // ADICIONADO AQUI
         });
 
     // 2. Lógica de Geração de Email Dinâmico
     const getEmailGerado = () => {
         const clean = (str) =>
-            str
-                .trim()
-                .toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "");
+            str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
         if (data.role === "professor" || data.role === "secretaria") {
             if (!data.firstName || !data.lastName) return "A aguardar nomes...";
@@ -82,29 +69,23 @@ export default function CreateUserForm({ onSuccess }) {
     const submit = (e) => {
         e.preventDefault();
 
-        // 1. Geramos o email antes de tudo
         const emailFinal = getEmailGerado();
 
-        // 2. Usamos o transform para injetar os dados dinâmicos antes de enviar
         transform((data) => ({
             ...data,
             email: emailFinal,
-            name:
-                data.role === "aluno"
-                    ? data.name
-                    : `${data.firstName} ${data.lastName}`,
+            name: data.role === "aluno" ? data.name : `${data.firstName} ${data.lastName}`,
         }));
 
-        // 3. Usamos o post que vem do useForm (NÃO o router.post)
         post(route("utilizadores.store"), {
             preserveScroll: true,
             onSuccess: () => {
                 reset();
                 onSuccess();
-                alert("Conta institucional criada com sucesso!");
             },
         });
     };
+
     return (
         <form
             onSubmit={submit}
@@ -114,36 +95,61 @@ export default function CreateUserForm({ onSuccess }) {
                 🚀 Nova Conta Institucional
             </h4>
 
-            {/* FOTO UPLOAD */}
-            <div className="mb-6 flex items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 w-fit">
-                <div
-                    onClick={() => fileInputRef.current.click()}
-                    className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors"
-                >
-                    {data.foto_perfil ? (
-                        <img
-                            src={data.foto_perfil}
-                            className="w-full h-full object-cover"
-                            alt="Preview"
-                        />
-                    ) : (
-                        <span className="text-2xl opacity-50">📷</span>
-                    )}
+            {/* FOTO UPLOAD CENTRADO */}
+            <div className="mb-6 flex justify-center w-full">
+                <div className="flex flex-col items-center gap-3 bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 w-full sm:w-auto shadow-sm">
+                    <div className="relative">
+                        <div
+                            onClick={() => fileInputRef.current.click()}
+                            className="w-20 h-20 rounded-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center overflow-hidden cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors"
+                        >
+                            {data.foto_perfil ? (
+                                <img
+                                    src={data.foto_perfil}
+                                    className="w-full h-full object-cover"
+                                    alt="Preview"
+                                />
+                            ) : (
+                                <span className="text-2xl opacity-50 text-gray-500 dark:text-gray-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400 dark:text-gray-500 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </span>
+                            )}
+                        </div>
+
+                        {data.foto_perfil && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setData("foto_perfil", null);
+                                    if (fileInputRef.current) fileInputRef.current.value = "";
+                                }}
+                                className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600 shadow-md transform translate-x-1/4 -translate-y-1/4 z-10 border-2 border-white dark:border-gray-800"
+                                title="Remover Foto"
+                            >
+                                ✖
+                            </button>
+                        )}
+                    </div>
+
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleFotoUpload}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current.click()}
+                        className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                        {data.foto_perfil ? "Alterar Fotografia" : "Adicionar Foto de Perfil"}
+                    </button>
                 </div>
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFotoUpload}
-                />
-                <button
-                    type="button"
-                    onClick={() => fileInputRef.current.click()}
-                    className="text-sm font-bold text-blue-600 hover:underline"
-                >
-                    {data.foto_perfil ? "Alterar Foto" : "Definir Foto"}
-                </button>
             </div>
 
             {/* INPUTS DE IDENTIDADE */}
@@ -171,9 +177,7 @@ export default function CreateUserForm({ onSuccess }) {
                             <input
                                 type="text"
                                 value={data.firstName}
-                                onChange={(e) =>
-                                    setData("firstName", e.target.value)
-                                }
+                                onChange={(e) => setData("firstName", e.target.value)}
                                 required
                                 className="w-full rounded-md border-gray-300 dark:bg-gray-800 dark:text-white focus:ring-blue-500"
                                 placeholder="Ex: Rui"
@@ -186,9 +190,7 @@ export default function CreateUserForm({ onSuccess }) {
                             <input
                                 type="text"
                                 value={data.lastName}
-                                onChange={(e) =>
-                                    setData("lastName", e.target.value)
-                                }
+                                onChange={(e) => setData("lastName", e.target.value)}
                                 required
                                 className="w-full rounded-md border-gray-300 dark:bg-gray-800 dark:text-white focus:ring-blue-500"
                                 placeholder="Ex: Santos"
@@ -196,7 +198,7 @@ export default function CreateUserForm({ onSuccess }) {
                         </div>
                     </>
                 )}
-
+                
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
                         Tipo de Conta
@@ -219,11 +221,39 @@ export default function CreateUserForm({ onSuccess }) {
                     <input
                         type="email"
                         value={data.email_pessoal}
-                        onChange={(e) =>
-                            setData("email_pessoal", e.target.value)
-                        }
+                        onChange={(e) => setData("email_pessoal", e.target.value)}
                         className="w-full rounded-md border-gray-300 dark:bg-gray-800 dark:text-white focus:ring-blue-500"
                         placeholder="Ex: user@gmail.com"
+                    />
+                </div>
+            </div>
+
+            {/* NOVOS CAMPOS: NIF E DATA DE NASCIMENTO */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                        NIF
+                    </label>
+                    <input
+                        type="text"
+                        value={data.nif}
+                        onChange={(e) => setData("nif", e.target.value)}
+                        required
+                        maxLength={9}
+                        className="w-full rounded-md border-gray-300 dark:bg-gray-800 dark:text-white focus:ring-blue-500"
+                        placeholder="Ex: 123456789"
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                        Data de Nascimento
+                    </label>
+                    <input
+                        type="date"
+                        value={data.data_nascimento}
+                        onChange={(e) => setData("data_nascimento", e.target.value)}
+                        required
+                        className="w-full rounded-md border-gray-300 dark:bg-gray-800 dark:text-white focus:ring-blue-500"
                     />
                 </div>
             </div>
@@ -238,9 +268,7 @@ export default function CreateUserForm({ onSuccess }) {
                         <input
                             type="text"
                             value={data.numero_interno}
-                            onChange={(e) =>
-                                setData("numero_interno", e.target.value)
-                            }
+                            onChange={(e) => setData("numero_interno", e.target.value)}
                             required
                             className="w-full rounded-md border-gray-300 dark:bg-gray-800 dark:text-white"
                             placeholder="Ex: 12345"
@@ -253,9 +281,7 @@ export default function CreateUserForm({ onSuccess }) {
                         <input
                             type="text"
                             value={data.ano_entrada}
-                            onChange={(e) =>
-                                setData("ano_entrada", e.target.value)
-                            }
+                            onChange={(e) => setData("ano_entrada", e.target.value)}
                             required
                             className="w-full rounded-md border-gray-300 dark:bg-gray-800 dark:text-white"
                         />

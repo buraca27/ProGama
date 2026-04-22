@@ -1,14 +1,24 @@
 import ApplicationLogo from "@/Components/ApplicationLogo";
 import ResponsiveNavLink from "@/Components/ResponsiveNavLink";
 import { Link, usePage } from "@inertiajs/react";
+import Modal from "@/Components/Modal";
+import UpdatePasswordForm from "@/Pages/Dashboard/Components/Profile/UpdatePasswordForm";
+import Toast from "@/Components/Toast";
 
 export default function AuthenticatedLayout({
+    user,
     header,
     children,
     activeView,
     onViewChange,
 }) {
-    const user = usePage().props.auth.user;
+    const { auth, flash } = usePage().props;
+
+    // Verifica se o utilizador tem de mudar a password
+    const mustChangePassword = auth.user.must_change_password;
+
+    // Evita o conflito de declaração com a prop 'user'
+    const currentUser = auth.user;
     const userRole = usePage().props.userRoleReal || "admin";
 
     // Componente reutilizável para os botões do Menu
@@ -115,7 +125,7 @@ export default function AuthenticatedLayout({
                 <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50/50 dark:bg-gray-800">
                     <div className="mb-3 px-3">
                         <div className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-                            {user.name}
+                            {currentUser.name}
                         </div>
                         <div className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">
                             {userRole === "admin" ? "Secretaria" : userRole}
@@ -165,6 +175,22 @@ export default function AuthenticatedLayout({
                     </div>
                 </main>
             </div>
+
+            {/* --- 3. MODAL DE ALTERAÇÃO DE PASSWORD OBRIGATÓRIA --- */}
+            <Modal show={mustChangePassword} closeable={false}>
+                <div className="p-6 bg-white dark:bg-gray-800">
+                    <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        Bem-vindo(a) ao ProGama! 🚀
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 mb-6">
+                        Como este é o teu primeiro acesso, precisas de definir
+                        uma nova palavra-passe de segurança para continuares.
+                    </p>
+
+                    <UpdatePasswordForm className="max-w-full" />
+                </div>
+            </Modal>
+            <Toast flash={flash} />
         </div>
     );
 }

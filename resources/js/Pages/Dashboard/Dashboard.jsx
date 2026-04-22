@@ -32,6 +32,11 @@ export default function Dashboard(props) {
     // =============================================================================
     const [activeView, setActiveView] = useState("dashboard");
     const [showNovoUserForm, setShowNovoUserForm] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [sortConfig, setSortConfig] = useState({
+        key: null,
+        direction: "asc",
+    });
 
     // =============================================================================
     // ESTADOS DOS MODAIS (GESTÃO DE UTILIZADORES)
@@ -46,19 +51,9 @@ export default function Dashboard(props) {
     // =============================================================================
     const submitEditUser = (e) => {
         e.preventDefault();
-        router.put(
-            `/dashboard/utilizadores/${userToEdit.id}`,
-            {
-                name: userToEdit.name,
-                role: userToEdit.id_role,
-            },
-            {
-                onSuccess: () => setUserToEdit(null),
-                onError: () => {
-                    alert("Nao foi possivel guardar as alteracoes do utilizador.");
-                },
-            },
-        );
+        router.put(`/dashboard/utilizadores/${userToEdit.id}`, userToEdit, {
+            onSuccess: () => setUserToEdit(null),
+        });
     };
 
     const confirmDeleteUser = () => {
@@ -74,11 +69,6 @@ export default function Dashboard(props) {
         <AuthenticatedLayout
             activeView={activeView}
             onViewChange={setActiveView}
-            header={
-                <h2 className=" font-semibold text-xl text-gray-800 dark:text-gray-200">
-                    ProGama Workspace
-                </h2>
-            }
         >
             <Head title="Dashboard" />
 
@@ -161,6 +151,8 @@ export default function Dashboard(props) {
                 COMPONENTES GLOBAIS (MODAIS)
             ============================================================================= */}
             <UserModals
+                authUser={auth.user} 
+                utilizadores={utilizadores}
                 userToView={userToView}
                 setUserToView={setUserToView}
                 userToEdit={userToEdit}

@@ -4,34 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\{DB, Hash, Mail, Http, Log};
 
 class UserController extends Controller
 {
-    public function index(Request $request)
-    {
-        Gate::authorize('viewList', User::class);
-
-        $users = User::orderBy('created_at', 'desc')->get()->map(function ($user) use ($request) {
-            return [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'id_role' => $user->id_role,
-                'foto_perfil' => $user->foto_perfil,
-                'created_at' => $user->created_at,
-                'email_pessoal' => $user->email_pessoal,
-                'can' => [
-                    'update' => $request->user()->can('update', $user),
-                    'delete' => $request->user()->can('delete', $user),
-                ],
-            ];
-        });
-
-        return response()->json(['users' => $users]);
-    }
-
     /**
      * CRIAÇÃO DE UTILIZADOR
      */
@@ -45,8 +21,10 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'role' => 'required|string|in:aluno,professor,secretaria',
             'password' => 'required|string|min:10',
+            'nif' => 'required|string|size:9|unique:users',
+            'data_nascimento' => 'required|date',
             'email_pessoal' => 'nullable|email',
-            'foto_perfil' => 'nullable|string', // Validação para a string Base64
+            'foto_perfil' => 'nullable|string',
         ]);
 
         $roleId = match ($request->role) {
@@ -67,10 +45,12 @@ class UserController extends Controller
                 'email' => $emailFormatado,
                 'email_pessoal' => strtolower($request->email_pessoal ?? null),
                 'nmr_processo_interno' => $request->numero_interno,
+                'nif' => $request->nif,
+                'data_nascimento' => $request->data_nascimento,
                 'password' => Hash::make($password),
                 'id_role' => $roleId,
                 'id_nivel' => 1,
-                'foto_perfil' => $request->foto_perfil, // Agora a foto é gravada!
+                'foto_perfil' => $request->foto_perfil,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -96,34 +76,56 @@ class UserController extends Controller
             ]);
         }
     }
+
     /**
      * EDIÇÃO DE UTILIZADOR
      */
     public function update(Request $request, $id)
     {
-        $user = User::findOrFail($id);
-
-        Gate::authorize('update', $user);
-
         $request->validate([
             'name' => 'required|string|max:255',
-            'role' => 'required|integer|in:1,2,3'
+            'id_role' => 'required|integer|in:1,2,3',
+            'foto_perfil' => 'nullable|string' // Permitir atualizar a foto
         ]);
 
-        $user->update([
+        $user = User::findOrFail($id);
+
+        // REGRA: O utilizador não pode alterar o seu próprio cargo
+        if (auth()->id() == $user->id && $request->id_role != $user->id_role) {
+            return redirect()->back()->withErrors([
+                'error' => 'Ação negada: Não tens permissão para alterar o teu próprio cargo.'
+            ]);
+        }
+
+        // Prepara os dados para atualizar
+        $dataToUpdate = [
             'name' => $request->name,
-            'id_role' => $request->role
-        ]);
+            'id_role' => $request->id_role
+        ];
 
-        return redirect()->route('dashboard')->with('success', 'Utilizador editado.');
+        // Atualiza a foto se ela for enviada no pedido
+        if ($request->has('foto_perfil')) {
+            $dataToUpdate['foto_perfil'] = $request->foto_perfil;
+        }
+
+        $user->update($dataToUpdate);
+
+        return redirect()->route('dashboard')->with('success', 'Utilizador editado com sucesso.');
     }
 
     /**
      * ELIMINAÇÃO DE UTILIZADOR
      */
-    public function destroy(User $user)
+    public function destroy($id)
     {
-        Gate::authorize('delete', $user);
+        $user = User::findOrFail($id);
+
+        // REGRA: Não permitir apagar o último administrador do sistema
+        if ($user->id_role == 1 && User::where('id_role', 1)->count() <= 1) {
+            return redirect()->back()->withErrors([
+                'error' => 'Ação negada: Não é possível apagar o último administrador do sistema.'
+            ]);
+        }
 
         // Notifica e remove do Host antes de apagar da BD
         $this->sendTerminationEmail($user);

@@ -1,7 +1,17 @@
-// resources/js/Pages/Dashboard/Partials/UserTable.jsx
 import React from "react";
 
-export default function UserTable({ utilizadores, onView, onEdit, onDelete }) {
+export default function UserTable({ utilizadores, onView, onEdit, onDelete, requestSort, sortConfig }) {
+    
+    // Função para mostrar a setinha correspondente na coluna
+    const getSortIcon = (key) => {
+        if (!sortConfig || sortConfig.key !== key) {
+            return <span className="ml-1 opacity-20 group-hover:opacity-100 transition-opacity">↕</span>;
+        }
+        return sortConfig.direction === 'asc' 
+            ? <span className="ml-1 text-blue-600 dark:text-blue-400 font-bold">↑</span> 
+            : <span className="ml-1 text-blue-600 dark:text-blue-400 font-bold">↓</span>;
+    };
+
     return (
         <div className="overflow-x-auto mt-4">
             <table className="w-full text-left border-collapse">
@@ -10,22 +20,34 @@ export default function UserTable({ utilizadores, onView, onEdit, onDelete }) {
                         <th className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm w-12">
                             Foto
                         </th>
-                        <th className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm">
-                            Nome
+                        
+                        {/* CABEÇALHOS CLICÁVEIS */}
+                        <th 
+                            onClick={() => requestSort('name')} 
+                            className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer group hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors select-none"
+                        >
+                            Nome {getSortIcon('name')}
                         </th>
-                        <th className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm">
-                            Email Institucional
+                        <th 
+                            onClick={() => requestSort('email')} 
+                            className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer group hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors select-none"
+                        >
+                            Email Institucional {getSortIcon('email')}
                         </th>
-                        <th className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm">
-                            Cargo
+                        <th 
+                            onClick={() => requestSort('id_role')} 
+                            className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer group hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors select-none"
+                        >
+                            Cargo {getSortIcon('id_role')}
                         </th>
+                        
                         <th className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-right">
                             Ações
                         </th>
                     </tr>
                 </thead>
                 <tbody>
-                    {utilizadores &&
+                    {utilizadores && utilizadores.length > 0 ? (
                         utilizadores.map((u) => (
                             <tr
                                 key={u.id}
@@ -69,37 +91,27 @@ export default function UserTable({ utilizadores, onView, onEdit, onDelete }) {
                                         Ver
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            if (u.can?.update === false) {
-                                                alert(
-                                                    "Ação bloqueada: não podes editar esta conta.",
-                                                );
-                                                return;
-                                            }
-
-                                            onEdit(u);
-                                        }}
+                                        onClick={() => onEdit(u)}
                                         className="text-amber-600 hover:text-amber-800 dark:hover:text-amber-400 text-sm font-bold transition-colors"
                                     >
                                         Editar
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            if (u.can?.delete === false) {
-                                                alert(
-                                                    "Ação Bloqueada: Não podes apagar a tua própria conta porque és o único Administrador no sistema.",
-                                                );
-                                            } else {
-                                                onDelete(u);
-                                            }
-                                        }}
+                                        onClick={() => onDelete(u)}
                                         className="text-red-600 hover:text-red-800 dark:hover:text-red-400 text-sm font-bold transition-colors"
                                     >
                                         Apagar
                                     </button>
                                 </td>
                             </tr>
-                        ))}
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan="5" className="text-center py-10 text-gray-500 dark:text-gray-400 italic bg-gray-50 dark:bg-gray-800/50">
+                                Nenhum utilizador encontrado com esses termos de pesquisa. 🔍
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
         </div>
