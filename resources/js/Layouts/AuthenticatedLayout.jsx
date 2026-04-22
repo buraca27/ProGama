@@ -1,16 +1,27 @@
 import ApplicationLogo from "@/Components/ApplicationLogo";
 import ResponsiveNavLink from "@/Components/ResponsiveNavLink";
 import { Link, usePage } from "@inertiajs/react";
+import Modal from "@/Components/Modal";
+import UpdatePasswordForm from "@/Pages/Dashboard/Components/Profile/UpdatePasswordForm";
+import Toast from "@/Components/Toast";
 
 export default function AuthenticatedLayout({
+    user,
     header,
     children,
     activeView,
     onViewChange,
 }) {
-    const user = usePage().props.auth.user;
+    const { auth, flash } = usePage().props;
+
+    // Verifica se o utilizador tem de mudar a password
+    const mustChangePassword = auth.user.must_change_password;
+
+    // Evita o conflito de declaração com a prop 'user'
+    const currentUser = auth.user;
     const userRole = usePage().props.userRoleReal || "admin";
 
+    // Componente reutilizável para os botões do Menu
     const MenuButton = ({ id, label }) => (
         <button
             onClick={() => onViewChange && onViewChange(id)}
@@ -26,16 +37,17 @@ export default function AuthenticatedLayout({
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden transition-colors duration-200">
-            {/* --- BARRA LATERAL ESQUERDA --- */}
-            <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col justify-between hidden md:flex shadow-sm z-20 transition-colors duration-200">
+            {/* --- 1. BARRA LATERAL ESQUERDA (ASIDE) --- */}
+            <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col justify-between hidden md:flex z-20 transition-colors duration-200">
                 <div>
-                    <div className="h-16 flex items-center px-6 border-b border-gray-100 dark:border-gray-700">
-                        <Link href="/">
+                    {/* Cabeçalho do Logo: Altura h-16 fixa para alinhar com o Header */}
+                    <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-700">
+                        <Link href="/" className="flex items-center">
                             <ApplicationLogo className="block h-8 w-auto fill-current text-blue-600 dark:text-blue-400" />
+                            <span className="ml-3 font-extrabold text-xl text-gray-900 dark:text-gray-100 tracking-tight">
+                                ProGama
+                            </span>
                         </Link>
-                        <span className="ml-3 font-extrabold text-xl text-gray-900 dark:text-gray-100 tracking-tight">
-                            ProGama
-                        </span>
                     </div>
 
                     <nav className="mt-6 px-4 space-y-1">
@@ -108,15 +120,15 @@ export default function AuthenticatedLayout({
                         )}
                     </nav>
                 </div>
-                
-                {/* Perfil e Logout */}
-                <div className="border-t border-gray-100 dark:border-gray-700 p-4 bg-gray-50/50 dark:bg-gray-800">
+
+                {/* Perfil e Logout (Fundo da Sidebar) */}
+                <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50/50 dark:bg-gray-800">
                     <div className="mb-3 px-3">
-                        <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                            {user.name}
+                        <div className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                            {currentUser.name}
                         </div>
-                        <div className="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">
-                            {userRole}
+                        <div className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase mt-1">
+                            {userRole === "admin" ? "Secretaria" : userRole}
                         </div>
                     </div>
                     <div className="space-y-1">
@@ -137,7 +149,7 @@ export default function AuthenticatedLayout({
                             method="post"
                             href={route("logout")}
                             as="button"
-                            className="rounded-lg text-red-600 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 focus:bg-red-50 dark:focus:bg-red-900/30"
+                            className="rounded-lg text-red-600 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 w-full text-left py-2 px-4 text-sm font-medium"
                         >
                             Terminar Sessão
                         </ResponsiveNavLink>
@@ -145,17 +157,40 @@ export default function AuthenticatedLayout({
                 </div>
             </aside>
 
-            {/* --- CONTEÚDO PRINCIPAL --- */}
+            {/* --- 2. ÁREA DE CONTEÚDO (DIREITA) --- */}
             <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Header: h-16 e border-b para encaixe perfeito com a Sidebar */}
                 {header && (
-                    <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-100 dark:border-gray-700 z-10 transition-colors duration-200">
-                        <div className="px-8 py-5">{header}</div>
+                    <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center z-10 transition-colors duration-200">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+                            <div className="flex items-center">{header}</div>
+                        </div>
                     </header>
                 )}
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 md:p-8 transition-colors duration-200">
-                    {children}
+
+                {/* Main Content Area */}
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        {children}
+                    </div>
                 </main>
             </div>
+
+            {/* --- 3. MODAL DE ALTERAÇÃO DE PASSWORD OBRIGATÓRIA --- */}
+            <Modal show={mustChangePassword} closeable={false}>
+                <div className="p-6 bg-white dark:bg-gray-800">
+                    <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        Bem-vindo(a) ao ProGama! 🚀
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 mb-6">
+                        Como este é o teu primeiro acesso, precisas de definir
+                        uma nova palavra-passe de segurança para continuares.
+                    </p>
+
+                    <UpdatePasswordForm className="max-w-full" />
+                </div>
+            </Modal>
+            <Toast flash={flash} />
         </div>
     );
 }

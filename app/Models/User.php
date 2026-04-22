@@ -10,35 +10,28 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
+        'email_pessoal',
+        'nmr_processo_interno',
+        'foto_perfil',
         'password',
+        'id_role',
+        'id_nivel',
+        'id_turma',
+        'must_change_password',
+        'nif',
+        'data_nascimento',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -47,17 +40,21 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Relação: Um professor pode lecionar múltiplas turmas
-     * (Apenas para utilizadores com role de professor)
-     */
-    public function turmas_professor()
+    // --- RELAÇÕES DE TURMAS ---
+
+    // Para os Alunos (Role 3) - 1 Turma
+    public function turma()
     {
-        return $this->belongsToMany(
-            'App\Models\Turma',
-            'Professor_Turma',
-            'id_professor',
-            'id_turma'
-        );
+        return $this->belongsTo(Turma::class, 'id_turma');
+    }
+
+    // Para os Professores (Role 2) - Várias Turmas
+    public function turmasLecionadas()
+    {
+        return $this->belongsToMany(Turma::class, 'professor_turma', 'professor_id', 'turma_id');
+    }
+    public function historicoAtividades()
+    {
+        return $this->hasMany(HistoricoAtividade::class, 'id_aluno');
     }
 }

@@ -2,15 +2,7 @@
 import { useEffect, useState } from 'react';
 
 export default function UpdateThemeForm({ className = '' }) {
-    const [theme, setTheme] = useState(() => {
-        const storedTheme = localStorage.getItem('theme');
-
-        if (storedTheme) {
-            return storedTheme;
-        }
-
-        return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-    });
+    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
     useEffect(() => {
         if (theme === 'dark') {

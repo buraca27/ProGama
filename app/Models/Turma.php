@@ -1,39 +1,22 @@
 <?php
-
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Turma extends Model
 {
-    use HasFactory;
-
     protected $table = 'Turmas';
+    protected $fillable = ['nome', 'ano_letivo'];
 
-    protected $fillable = [
-        'nome',
-        'ano_letivo',
-    ];
-
-    /**
-     * Relação: Uma turma pode ter múltiplos alunos
-     */
+    // Obter os alunos da turma
     public function alunos()
     {
-        return $this->hasMany(User::class, 'id_turma', 'id');
+        return $this->hasMany(User::class, 'id_turma')->where('id_role', 3);
     }
 
-    /**
-     * Relação: Uma turma pode ter múltiplos professores
-     */
+    // Obter os professores da turma
     public function professores()
     {
-        return $this->belongsToMany(
-            User::class,
-            'Professor_Turma',
-            'id_turma',
-            'id_professor'
-        );
+        return $this->belongsToMany(User::class, 'professor_turma', 'turma_id', 'professor_id')->where('id_role', 2);
     }
 }
