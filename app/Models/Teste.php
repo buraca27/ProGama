@@ -29,4 +29,9 @@ class Teste extends Model
             ->withPivot('valor_pontuacao')
             ->withTimestamps();
     }
+
+    public function atribuicoes()
+    {
+        return $this->hasMany(TesteAtribuicao::class, 'id_teste');
+    }
 }

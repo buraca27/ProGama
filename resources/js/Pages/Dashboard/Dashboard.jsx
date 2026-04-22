@@ -14,6 +14,8 @@ import TurmasView from "./Components/Turmas/TurmasView";
 import PlaceholderView from "./Components/UI/PlaceholderView";
 import ProfileView from "./Components/Profile/ProfileView";
 import SettingsView from "./Components/Profile/SettingsView";
+import TestesView from "./Components/Professores/TestesView";
+import TarefasView from "./Components/Professores/TarefasView";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Dados vindos do Laravel) ---
@@ -25,6 +27,10 @@ export default function Dashboard(props) {
         turmas,
         status,
         mustVerifyEmail,
+        perguntasProfessor,
+        testesProfessor,
+        tarefasProfessor,
+        categorias,
     } = props;
 
     // =============================================================================
@@ -133,8 +139,23 @@ export default function Dashboard(props) {
                 {/* ---------------------------------------------------------
                     6. VISTAS EM CONSTRUÇÃO (PLACEHOLDERS)
                 --------------------------------------------------------- */}
+                {/* ---------------------------------------------------------
+                    6. TESTES E AVALIAÇÕES (PROFESSOR)
+                --------------------------------------------------------- */}
+                {activeView === "testes" && (
+                    <TestesView
+                        perguntasProfessor={perguntasProfessor || []}
+                        testesProfessor={testesProfessor || []}
+                        categorias={categorias || []}
+                    />
+                )}
+
                 {activeView === "tarefas" && (
-                    <PlaceholderView title="Atribuir Tarefas" icon="📝" />
+                    <TarefasView
+                        testesProfessor={testesProfessor || []}
+                        turmas={turmas || []}
+                        tarefasProfessor={tarefasProfessor || []}
+                    />
                 )}
                 {activeView === "avaliacoes" && (
                     <PlaceholderView title="Avaliações e Notas" icon="📈" />

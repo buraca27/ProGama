@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Turma;
 use App\Models\User;
+use App\Models\Pergunta;
+use App\Models\Teste;
+use App\Models\TesteAtribuicao;
+use App\Models\Categoria;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -35,6 +39,25 @@ class DashboardController extends Controller
             'estatisticas' => $estatisticas,
             'utilizadores' => DB::table('users')->orderBy('created_at', 'desc')->get(),
             'turmas' => $turmas,
+            'perguntasProfessor' => $cargoReal === 'professor'
+                ? Pergunta::with('opcoes')
+                    ->where('id_formador_criador', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                : [],
+            'testesProfessor' => $cargoReal === 'professor'
+                ? Teste::with('perguntas')
+                    ->where('id_formador', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                : [],
+            'tarefasProfessor' => $cargoReal === 'professor'
+                ? TesteAtribuicao::with(['teste', 'turma'])
+                    ->whereHas('teste', fn ($q) => $q->where('id_formador', $user->id))
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                : [],
+            'categorias' => Categoria::orderBy('nome')->get(),
         ]);
     }
 

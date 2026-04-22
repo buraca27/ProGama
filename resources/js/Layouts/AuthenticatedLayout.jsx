@@ -78,6 +78,10 @@ export default function AuthenticatedLayout({
                                     label="As Minhas Turmas"
                                 />
                                 <MenuButton
+                                    id="testes"
+                                    label="Testes e Avaliações"
+                                />
+                                <MenuButton
                                     id="tarefas"
                                     label="Atribuir Tarefas"
                                 />
