@@ -11,6 +11,7 @@ import StatsGrid from "./Components/UI/StatsGrid";
 import UsersView from "./Components/Users/UsersView";
 import UserModals from "./Components/Users/UserModals";
 import TurmasView from "./Components/Turmas/TurmasView";
+import DisciplinasView from "./Components/Disciplinas/DisciplinasView";
 import PlaceholderView from "./Components/UI/PlaceholderView";
 import ProfileView from "./Components/Profile/ProfileView";
 import SettingsView from "./Components/Profile/SettingsView";
@@ -23,6 +24,7 @@ export default function Dashboard(props) {
         estatisticas,
         utilizadores,
         turmas,
+        disciplinas,
         status,
         mustVerifyEmail,
     } = props;
@@ -104,10 +106,19 @@ export default function Dashboard(props) {
                 {/* ---------------------------------------------------------
                     3. VISTAS DE TURMAS E DISCIPLINAS (TODOS OS ROLES)
                 --------------------------------------------------------- */}
-                {(activeView === "turmas" ||
-                    activeView === "minhas-turmas" ||
-                    activeView === "disciplinas") && (
+                {(activeView === "turmas" || activeView === "minhas-turmas") && (
                     <TurmasView
+                        turmas={turmas}
+                        utilizadores={utilizadores}
+                        userRole={userRoleReal}
+                        auth={auth}
+                    />
+                )}
+
+                {/* VISTA DE DISCIPLINAS */}
+                {activeView === "disciplinas" && (
+                    <DisciplinasView
+                        disciplinas={disciplinas}
                         turmas={turmas}
                         utilizadores={utilizadores}
                         userRole={userRoleReal}

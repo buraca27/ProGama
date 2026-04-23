@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TurmaController;
+use App\Http\Controllers\DisciplinaController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -40,6 +41,15 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::delete('/{id}', [TurmaController::class, 'destroy'])->name('destroy');
             Route::post('/{id}/assign', [TurmaController::class, 'assign'])->name('assign');
         });
+
+        // Disciplinas (Criar, Editar, Apagar) <-- 2. Adiciona este bloco
+        Route::prefix('dashboard/disciplinas')->name('disciplinas.')->group(function () {
+            Route::post('/', [DisciplinaController::class, 'store'])->name('store');
+            Route::put('/{id}', [DisciplinaController::class, 'update'])->name('update');
+            Route::delete('/{id}', [DisciplinaController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/assign', [DisciplinaController::class, 'assign'])->name('assign');
+        });
+
     });
 
     // --- 4. PERFIL DO UTILIZADOR ---
