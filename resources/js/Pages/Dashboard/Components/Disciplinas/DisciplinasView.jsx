@@ -190,9 +190,16 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
                             )}
                         </div>
 
+                        {/* DESCRIÇÃO DA DISCIPLINA */}
+                        {disciplina.descricao && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
+                                {disciplina.descricao}
+                            </p>
+                        )}
+
                         {/* ÁREA DE ADMIN: Editor de Atribuições */}
                         {userRole === "admin" && (
-                            <div className="mt-4">
+                            <div className={`mt-4 ${!disciplina.descricao ? "border-t border-gray-100 dark:border-gray-700 pt-4" : ""}`}>
                                 <DisciplinasAdminEditor
                                     disciplina={disciplina}
                                     utilizadores={utilizadores}

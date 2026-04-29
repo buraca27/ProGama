@@ -27,13 +27,14 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     // --- 3. GESTÃO ADMINISTRATIVA (Apenas Admin) ---
     Route::middleware(['admin'])->group(function () {
 
-        // Utilizadores (Criar, Editar, Apagar)
+        // Utilizadores (Criar, Editar, Apagar, Reset Passwords)
         Route::prefix('dashboard/utilizadores')->name('utilizadores.')->group(function () {
+            Route::post('/reset-all', [UserController::class, 'sendPasswordResetAll'])->name('reset-all');
+            Route::post('/{id}/reset-password', [UserController::class, 'sendPasswordReset'])->name('reset-password');
             Route::post('/', [UserController::class, 'store'])->name('store');
             Route::put('/{id}', [UserController::class, 'update'])->name('update');
             Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
         });
-
         // Turmas (Criar, Editar, Apagar, Atribuir)
         Route::prefix('dashboard/turmas')->name('turmas.')->group(function () {
             Route::post('/', [TurmaController::class, 'store'])->name('store');

@@ -164,6 +164,7 @@ export default function Dashboard(props) {
             <UserModals
                 authUser={auth.user} 
                 utilizadores={utilizadores}
+                turmas={turmas}
                 userToView={userToView}
                 setUserToView={setUserToView}
                 userToEdit={userToEdit}

@@ -1,8 +1,19 @@
-// resources/js/Pages/Profile/Partials/UpdateThemeForm.jsx
 import { useEffect, useState } from 'react';
 
 export default function UpdateThemeForm({ className = '' }) {
-    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+    // 1. Atualizamos a forma como o tema inicial é calculado
+    const [theme, setTheme] = useState(() => {
+        // Se já existir uma preferência gravada, usamos essa
+        if (localStorage.getItem('theme')) {
+            return localStorage.getItem('theme');
+        }
+        // Se não existir, verificamos se o Windows/Mac do utilizador está em Dark Mode
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+        }
+        // Caso contrário, fallback para dark
+        return 'dark';
+    });
 
     useEffect(() => {
         if (theme === 'dark') {
