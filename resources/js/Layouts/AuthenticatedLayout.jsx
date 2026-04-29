@@ -164,6 +164,10 @@ export default function AuthenticatedLayout({
                                     id="definicoes"
                                     label="Definições do Sistema"
                                 />
+                                <MenuButton
+                                    id="disciplinas"
+                                    label="Gestão de Disciplinas"
+                                />
                             </>
                         )}
 
