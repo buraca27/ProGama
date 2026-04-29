@@ -4,6 +4,7 @@ import { Link, usePage } from "@inertiajs/react";
 import Modal from "@/Components/Modal";
 import UpdatePasswordForm from "@/Pages/Dashboard/Components/Profile/UpdatePasswordForm";
 import Toast from "@/Components/Toast";
+import { useEffect, useMemo, useState } from "react";
 
 export default function AuthenticatedLayout({
     user,
@@ -20,11 +21,92 @@ export default function AuthenticatedLayout({
     // Evita o conflito de declaração com a prop 'user'
     const currentUser = auth.user;
     const userRole = usePage().props.userRoleReal || "admin";
+    const [dirtyEditors, setDirtyEditors] = useState({});
+    const [pendingView, setPendingView] = useState(null);
+    const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+
+    const dirtyLabels = useMemo(
+        () => Object.values(dirtyEditors).filter(Boolean),
+        [dirtyEditors],
+    );
+    const dirtyDisciplinas = useMemo(
+        () =>
+            dirtyLabels
+                .filter((label) => label.startsWith("disciplina "))
+                .map((label) => label.replace(/^disciplina\s+/, "")),
+        [dirtyLabels],
+    );
+    const dirtyTurmas = useMemo(
+        () =>
+            dirtyLabels
+                .filter((label) => label.startsWith("turma "))
+                .map((label) => label.replace(/^turma\s+/, "")),
+        [dirtyLabels],
+    );
+    const dirtyOutros = useMemo(
+        () =>
+            dirtyLabels.filter(
+                (label) =>
+                    !label.startsWith("disciplina ") && !label.startsWith("turma "),
+            ),
+        [dirtyLabels],
+    );
+    const hasUnsavedChanges = dirtyLabels.length > 0;
+
+    useEffect(() => {
+        const handleDirtyEditor = (event) => {
+            const { editorKey, isDirty, label } = event.detail;
+
+            setDirtyEditors((current) => {
+                if (!isDirty) {
+                    const next = { ...current };
+                    delete next[editorKey];
+                    return next;
+                }
+
+                return {
+                    ...current,
+                    [editorKey]: label,
+                };
+            });
+        };
+
+        window.addEventListener("dashboard:editor-dirty", handleDirtyEditor);
+
+        return () => {
+            window.removeEventListener("dashboard:editor-dirty", handleDirtyEditor);
+        };
+    }, []);
+
+    const handleViewChange = (nextView) => {
+        if (!onViewChange || nextView === activeView) {
+            return;
+        }
+
+        if (!hasUnsavedChanges) {
+            onViewChange(nextView);
+            return;
+        }
+
+        setPendingView(nextView);
+        setShowUnsavedModal(true);
+    };
+
+    const discardChangesAndChangeView = () => {
+        if (!pendingView || !onViewChange) {
+            setShowUnsavedModal(false);
+            return;
+        }
+
+        setShowUnsavedModal(false);
+        onViewChange(pendingView);
+        setPendingView(null);
+    };
 
     // Componente reutilizável para os botões do Menu
     const MenuButton = ({ id, label }) => (
         <button
-            onClick={() => onViewChange && onViewChange(id)}
+            onClick={() => handleViewChange(id)}
             className={`flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 text-left font-medium text-sm ${
                 activeView === id
                     ? "bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400 shadow-sm"
@@ -137,9 +219,7 @@ export default function AuthenticatedLayout({
                     </div>
                     <div className="space-y-1">
                         <button
-                            onClick={() =>
-                                onViewChange && onViewChange("perfil")
-                            }
+                            onClick={() => handleViewChange("perfil")}
                             className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                                 activeView === "perfil"
                                     ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
@@ -192,6 +272,69 @@ export default function AuthenticatedLayout({
                     </p>
 
                     <UpdatePasswordForm className="max-w-full" />
+                </div>
+            </Modal>
+
+            <Modal show={showUnsavedModal} maxWidth="md" onClose={() => setShowUnsavedModal(false)}>
+                <div className="p-6 bg-white dark:bg-gray-800">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                        Alteracoes por guardar
+                    </h2>
+                    {dirtyDisciplinas.length > 0 && (
+                        <div className="mt-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Tens alteracoes nas seguintes disciplinas:
+                            </p>
+                            <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
+                                {dirtyDisciplinas.map((nome, index) => (
+                                    <li key={`disciplina-${nome}-${index}`}>{nome}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    {dirtyTurmas.length > 0 && (
+                        <div className="mt-3">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Tens alteracoes nas seguintes turmas:
+                            </p>
+                            <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
+                                {dirtyTurmas.map((nome, index) => (
+                                    <li key={`turma-${nome}-${index}`}>{nome}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    {dirtyOutros.length > 0 && (
+                        <div className="mt-3">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Outros itens com alteracoes:
+                            </p>
+                            <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
+                                {dirtyOutros.map((label, index) => (
+                                    <li key={`outro-${label}-${index}`}>{label}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowUnsavedModal(false);
+                                setPendingView(null);
+                            }}
+                            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={discardChangesAndChangeView}
+                            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                        >
+                            Descartar alteracoes
+                        </button>
+                    </div>
                 </div>
             </Modal>
             <Toast flash={flash} />

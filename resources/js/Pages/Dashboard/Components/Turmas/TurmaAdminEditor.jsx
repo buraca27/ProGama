@@ -1,6 +1,7 @@
 // resources/js/Pages/Dashboard/Partials/TurmaAdminEditor.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { router } from "@inertiajs/react";
+import Modal from "@/Components/Modal";
 
 function InfoTooltip({ person, role }) {
     const [pos, setPos] = useState(null);
@@ -49,6 +50,8 @@ function InfoTooltip({ person, role }) {
 }
 
 export default function TurmaAdminEditor({ turma, utilizadores }) {
+    const editorKey = `turma-${turma.id}`;
+    const buildSelectionKey = (items) => [...items].sort((a, b) => a - b).join(",");
     const todosAlunos = utilizadores.filter((u) => u.id_role === 3);
     const todosProfessores = utilizadores.filter((u) => u.id_role === 2);
 
@@ -60,6 +63,15 @@ export default function TurmaAdminEditor({ turma, utilizadores }) {
     );
     const [alunoSearch, setAlunoSearch] = useState("");
     const [docenteSearch, setDocenteSearch] = useState("");
+    const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+    const [savedProfsKey, setSavedProfsKey] = useState(
+        buildSelectionKey(turma.professores?.map((p) => p.id) || []),
+    );
+    const [savedAlunosKey, setSavedAlunosKey] = useState(
+        buildSelectionKey(turma.alunos?.map((a) => a.id) || []),
+    );
+    const pendingVisitRef = useRef(null);
+    const shouldBypassGuardRef = useRef(false);
 
     const filteredAlunos = todosAlunos.filter((a) => {
         const search = alunoSearch.toLowerCase();
@@ -83,14 +95,93 @@ export default function TurmaAdminEditor({ turma, utilizadores }) {
         return safeName.includes(search) || safeEmail.includes(search);
     });
 
+    const isDirty =
+        buildSelectionKey(selectedProfs) !== savedProfsKey ||
+        buildSelectionKey(selectedAlunos) !== savedAlunosKey;
+
+    useEffect(() => {
+        setSavedProfsKey(buildSelectionKey(turma.professores?.map((p) => p.id) || []));
+        setSavedAlunosKey(buildSelectionKey(turma.alunos?.map((a) => a.id) || []));
+    }, [turma.alunos, turma.professores]);
+
+    useEffect(() => {
+        if (!isDirty) return;
+
+        const handleBeforeUnload = (e) => {
+            e.preventDefault();
+            e.returnValue = '';
+        };
+
+        const handleInertiaBefore = (event) => {
+            if (shouldBypassGuardRef.current) {
+                shouldBypassGuardRef.current = false;
+                return;
+            }
+
+            if ((event.detail.visit.method || "get").toLowerCase() !== "get") {
+                return;
+            }
+
+            event.preventDefault();
+            pendingVisitRef.current = event.detail.visit;
+            setShowUnsavedModal(true);
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        document.addEventListener('inertia:before', handleInertiaBefore);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            document.removeEventListener('inertia:before', handleInertiaBefore);
+        };
+    }, [isDirty]);
+
+    useEffect(() => {
+        if (!isDirty) {
+            pendingVisitRef.current = null;
+            setShowUnsavedModal(false);
+        }
+    }, [isDirty]);
+
+    useEffect(() => {
+        window.dispatchEvent(
+            new CustomEvent("dashboard:editor-dirty", {
+                detail: {
+                    editorKey,
+                    isDirty,
+                    label: `turma ${turma.nome}`,
+                },
+            }),
+        );
+
+        return () => {
+            window.dispatchEvent(
+                new CustomEvent("dashboard:editor-dirty", {
+                    detail: {
+                        editorKey,
+                        isDirty: false,
+                        label: `turma ${turma.nome}`,
+                    },
+                }),
+            );
+        };
+    }, [editorKey, isDirty, turma.nome]);
+
     const handleSave = () => {
+        shouldBypassGuardRef.current = true;
         router.post(
             `/dashboard/turmas/${turma.id}/assign`,
             {
                 alunos_ids: selectedAlunos,
                 professores_ids: selectedProfs,
             },
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setSavedProfsKey(buildSelectionKey(selectedProfs));
+                    setSavedAlunosKey(buildSelectionKey(selectedAlunos));
+                },
+            },
         );
     };
 
@@ -100,6 +191,20 @@ export default function TurmaAdminEditor({ turma, utilizadores }) {
         } else {
             setList([...list, id]);
         }
+    };
+
+    const discardChangesAndLeave = () => {
+        const pendingVisit = pendingVisitRef.current;
+
+        setShowUnsavedModal(false);
+        pendingVisitRef.current = null;
+
+        if (!pendingVisit) {
+            return;
+        }
+
+        shouldBypassGuardRef.current = true;
+        router.visit(pendingVisit.url, pendingVisit);
     };
 
     return (
@@ -215,10 +320,40 @@ export default function TurmaAdminEditor({ turma, utilizadores }) {
             </div>
             <button
                 onClick={handleSave}
-                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition-colors w-full md:w-auto shadow-sm"
+                disabled={!isDirty}
+                className={`mt-4 px-6 py-2 rounded-lg font-bold transition-colors w-full md:w-auto shadow-sm ${
+                    isDirty
+                        ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                }`}
             >
-                Guardar Atribuições
+                {isDirty ? "Guardar Atribuições" : "Sem alterações"}
             </button>
+
+            <Modal show={showUnsavedModal} maxWidth="md" onClose={() => setShowUnsavedModal(false)}>
+                <div className="p-6">
+                    <h3 className="text-lg font-bold text-gray-900">Alteracoes por guardar</h3>
+                    <p className="mt-2 text-sm text-gray-600">
+                        Fizeste alteracoes na turma "{turma.nome}" que ainda nao foram guardadas. Se saires agora, vais perder essas atribuicoes.
+                    </p>
+                    <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                        <button
+                            type="button"
+                            onClick={() => setShowUnsavedModal(false)}
+                            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={discardChangesAndLeave}
+                            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                        >
+                            Descartar alteracoes
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
