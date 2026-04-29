@@ -49,6 +49,52 @@ function InfoTooltip({ person, role }) {
     );
 }
 
+function InfoTooltip({ person, role }) {
+    const [pos, setPos] = useState(null);
+    const isAluno = role === "aluno";
+
+    return (
+        <div
+            className="shrink-0 ml-auto"
+            onMouseEnter={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setPos({ top: rect.top, left: rect.left });
+            }}
+            onMouseLeave={() => setPos(null)}
+        >
+            <span className="text-gray-400 hover:text-blue-500 cursor-default select-none text-sm">ⓘ</span>
+            {pos && (
+                <div
+                    style={{
+                        position: "fixed",
+                        top: Math.max(8, pos.top - 140),
+                        left: Math.max(8, pos.left - 200),
+                        zIndex: 9999,
+                    }}
+                    className="w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl p-3 pointer-events-none"
+                >
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden ${isAluno ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300" : "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"}`}>
+                            {person.foto_perfil
+                                ? <img src={person.foto_perfil} className="w-full h-full object-cover" alt="" />
+                                : person.name.charAt(0)
+                            }
+                        </div>
+                        <span className="font-bold text-gray-900 dark:text-gray-100 text-xs truncate">{person.name}</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{person.email}</p>
+                    {(person.nmr_processo_interno || person.numero_interno) && (
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1"># {person.nmr_processo_interno ?? person.numero_interno}</p>
+                    )}
+                    <span className={`mt-2 inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isAluno ? "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/40" : "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40"}`}>
+                        {isAluno ? "Aluno" : "Docente"}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function TurmaAdminEditor({ turma, utilizadores }) {
     const editorKey = `turma-${turma.id}`;
     const buildSelectionKey = (items) => [...items].sort((a, b) => a - b).join(",");

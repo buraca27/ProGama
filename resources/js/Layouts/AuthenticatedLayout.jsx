@@ -153,12 +153,16 @@ export default function AuthenticatedLayout({
                                     label="Gestão de Turmas"
                                 />
                                 <MenuButton
-                                    id="definicoes"
-                                    label="Definições do Sistema"
-                                />
-                                <MenuButton
                                     id="disciplinas"
                                     label="Gestão de Disciplinas"
+                                />
+                                <MenuButton
+                                    id="categorias"
+                                    label="Gestão de Categorias"
+                                />
+                                <MenuButton
+                                    id="definicoes"
+                                    label="Definições do Sistema"
                                 />
                             </>
                         )}

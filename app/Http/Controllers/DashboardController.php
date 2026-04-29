@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Turma;
 use App\Models\Disciplina;
+use App\Models\Categoria;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,7 @@ class DashboardController extends Controller
             default => [],
         };
         $disciplinas = Disciplina::with(['professores', 'turmas'])->get();
+        $categorias  = Categoria::withCount(['desafios', 'testes'])->get();
 
         return Inertia::render('Dashboard/Dashboard', [
             'userRoleReal' => $cargoReal,
@@ -39,6 +41,7 @@ class DashboardController extends Controller
             'utilizadores' => User::with(['turma', 'turmasLecionadas'])->orderBy('created_at', 'desc')->get(),
             'turmas' => $turmas,
             'disciplinas' => $disciplinas,
+            'categorias' => $categorias,
         ]);
     }
     public function store(Request $request)

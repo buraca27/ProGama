@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 
+
 // =============================================================================
 // IMPORTS DAS VISTAS (Components)
 // =============================================================================
@@ -15,6 +16,7 @@ import DisciplinasView from "./Components/Disciplinas/DisciplinasView";
 import PlaceholderView from "./Components/UI/PlaceholderView";
 import ProfileView from "./Components/Profile/ProfileView";
 import SettingsView from "./Components/Profile/SettingsView";
+import CategoriasView from "./Components/Categorias/CategoriasView";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Dados vindos do Laravel) ---
@@ -25,6 +27,7 @@ export default function Dashboard(props) {
         utilizadores,
         turmas,
         disciplinas,
+        categorias,
         status,
         mustVerifyEmail,
     } = props;
@@ -126,6 +129,15 @@ export default function Dashboard(props) {
                     />
                 )}
 
+                {/* VISTA DE CATEGORIAS */}
+                {activeView === "categorias" && (
+                    <CategoriasView
+                        categorias={categorias}
+                        userRole={userRoleReal}
+                        auth={auth}
+                    />
+                )}
+
                 {/* ---------------------------------------------------------
                     4. VISTA DO PERFIL (BREEZE / INERTIA)
                 --------------------------------------------------------- */}
@@ -164,6 +176,7 @@ export default function Dashboard(props) {
             <UserModals
                 authUser={auth.user} 
                 utilizadores={utilizadores}
+                turmas={turmas}
                 userToView={userToView}
                 setUserToView={setUserToView}
                 userToEdit={userToEdit}

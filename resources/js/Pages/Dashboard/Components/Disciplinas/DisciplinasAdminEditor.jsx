@@ -154,7 +154,7 @@ export default function DisciplinasAdminEditor({ disciplina, utilizadores, turma
     };
 
     return (
-        <div className="mt-6 border-t pt-4 border-gray-200 dark:border-gray-700">
+        <div className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Coluna Professores */}
                 <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-gray-100 dark:border-gray-800">

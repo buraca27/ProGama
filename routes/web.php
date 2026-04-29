@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TurmaController;
 use App\Http\Controllers\DisciplinaController;
+use App\Http\Controllers\CategoriaController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -27,13 +28,14 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     // --- 3. GESTÃO ADMINISTRATIVA (Apenas Admin) ---
     Route::middleware(['admin'])->group(function () {
 
-        // Utilizadores (Criar, Editar, Apagar)
+        // Utilizadores (Criar, Editar, Apagar, Reset Passwords)
         Route::prefix('dashboard/utilizadores')->name('utilizadores.')->group(function () {
+            Route::post('/reset-all', [UserController::class, 'sendPasswordResetAll'])->name('reset-all');
+            Route::post('/{id}/reset-password', [UserController::class, 'sendPasswordReset'])->name('reset-password');
             Route::post('/', [UserController::class, 'store'])->name('store');
             Route::put('/{id}', [UserController::class, 'update'])->name('update');
             Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
         });
-
         // Turmas (Criar, Editar, Apagar, Atribuir)
         Route::prefix('dashboard/turmas')->name('turmas.')->group(function () {
             Route::post('/', [TurmaController::class, 'store'])->name('store');
@@ -49,6 +51,13 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::delete('/{id}', [DisciplinaController::class, 'destroy'])->name('destroy');
             Route::post('/{id}/assign', [DisciplinaController::class, 'assign'])->name('assign');
         });
+
+        // Categorias (Criar, Editar, Apagar)
+        Route::prefix('dashboard/categorias')->name('categorias.')->group(function () {
+        Route::post('/', [CategoriaController::class, 'store'])->name('store');
+        Route::put('/{id}', [CategoriaController::class, 'update'])->name('update');
+        Route::delete('/{id}', [CategoriaController::class, 'destroy'])->name('destroy');
+    });
 
     });
 

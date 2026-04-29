@@ -1,4 +1,5 @@
 import React from "react";
+import { router } from "@inertiajs/react";
 
 export default function UserTable({ utilizadores, onView, onEdit, onDelete, requestSort, sortConfig }) {
     
@@ -20,8 +21,6 @@ export default function UserTable({ utilizadores, onView, onEdit, onDelete, requ
                         <th className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm w-12">
                             Foto
                         </th>
-                        
-                        {/* CABEÇALHOS CLICÁVEIS */}
                         <th 
                             onClick={() => requestSort('name')} 
                             className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer group hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors select-none"
@@ -40,7 +39,6 @@ export default function UserTable({ utilizadores, onView, onEdit, onDelete, requ
                         >
                             Cargo {getSortIcon('id_role')}
                         </th>
-                        
                         <th className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-right">
                             Ações
                         </th>
@@ -84,6 +82,18 @@ export default function UserTable({ utilizadores, onView, onEdit, onDelete, requ
                                     </span>
                                 </td>
                                 <td className="py-3 px-4 flex justify-end gap-3 items-center">
+                                    <button
+                                        onClick={() => {
+                                            if (confirm(`Enviar pedido de recuperação de password para ${u.name}? (Será enviado para o email pessoal).`)) {
+                                                router.post(route('utilizadores.reset-password', u.id));
+                                            }
+                                        }}
+                                        title="Enviar pedido de reset para o Email Pessoal"
+                                        className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 text-sm font-bold transition-colors"
+                                    >
+                                        Reset PW
+                                    </button>
+                                    <span className="text-gray-300 dark:text-gray-600">|</span>
                                     <button
                                         onClick={() => onView(u)}
                                         className="text-blue-600 hover:text-blue-800 dark:hover:text-blue-400 text-sm font-bold transition-colors"
