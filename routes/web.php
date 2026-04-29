@@ -12,10 +12,11 @@ use Inertia\Inertia;
 use App\Models\Turma;
 use App\Models\User;
 
-//TEste Landing Page Tiago
+//Teste Landing Page Tiago
 Route::get('/landing-page', function () {
-    return Inertia::render('LandingPage');
+    return Inertia::render('LandinPage/LandingPage');
 });
+
 // --- 1. LANDING PAGE ---
 Route::get('/', function () {
     return Inertia::render('Welcome', [
