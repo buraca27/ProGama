@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TurmaController;
 use App\Http\Controllers\DisciplinaController;
+use App\Http\Controllers\CategoriaController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -50,6 +51,13 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::delete('/{id}', [DisciplinaController::class, 'destroy'])->name('destroy');
             Route::post('/{id}/assign', [DisciplinaController::class, 'assign'])->name('assign');
         });
+
+        // Categorias (Criar, Editar, Apagar)
+        Route::prefix('dashboard/categorias')->name('categorias.')->group(function () {
+        Route::post('/', [CategoriaController::class, 'store'])->name('store');
+        Route::put('/{id}', [CategoriaController::class, 'update'])->name('update');
+        Route::delete('/{id}', [CategoriaController::class, 'destroy'])->name('destroy');
+    });
 
     });
 
