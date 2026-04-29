@@ -6,6 +6,9 @@ use App\Models\Turma;
 use App\Models\Disciplina;
 use App\Models\Categoria;
 use App\Models\User;
+use App\Models\Pergunta;
+use App\Models\Teste;
+use App\Models\TesteAtribuicao;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -18,9 +21,9 @@ class DashboardController extends Controller
 
         $estatisticas = [
             'total_users' => DB::table('users')->count(),
-            'total_turmas' => $this->tryCatchCount('turmas'),
-            'total_desafios' => $this->tryCatchCount('desafios'),
-            'total_disciplinas' => $this->tryCatchCount('disciplinas'),
+            'total_turmas' => $this->tryCatchCount('Turmas'),
+            'total_desafios' => $this->tryCatchCount('Desafios'),
+            'total_disciplinas' => $this->tryCatchCount('Disciplinas'),
         ];
 
         $roleMap = [1 => 'admin', 2 => 'professor', 3 => 'aluno'];
@@ -33,7 +36,7 @@ class DashboardController extends Controller
             default => [],
         };
         $disciplinas = Disciplina::with(['professores', 'turmas'])->get();
-        $categorias  = Categoria::withCount(['desafios', 'testes'])->get();
+        $categorias  = Categoria::withCount(['desafios', 'testes'])->orderBy('nome')->get();
 
         return Inertia::render('Dashboard/Dashboard', [
             'userRoleReal' => $cargoReal,
@@ -41,6 +44,23 @@ class DashboardController extends Controller
             'utilizadores' => User::with(['turma', 'turmasLecionadas'])->orderBy('created_at', 'desc')->get(),
             'turmas' => $turmas,
             'disciplinas' => $disciplinas,
+            'perguntasProfessor' => $cargoReal === 'professor'
+                ? Pergunta::with('opcoes')
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                : [],
+            'testesProfessor' => $cargoReal === 'professor'
+                ? Teste::with('perguntas')
+                    ->where('id_formador', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                : [],
+            'tarefasProfessor' => $cargoReal === 'professor'
+                ? TesteAtribuicao::with(['teste', 'turma'])
+                    ->whereHas('teste', fn ($q) => $q->where('id_formador', $user->id))
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                : [],
             'categorias' => $categorias,
         ]);
     }

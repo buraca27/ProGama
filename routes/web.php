@@ -6,6 +6,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\TurmaController;
 use App\Http\Controllers\DisciplinaController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\ProfessorTesteController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -24,6 +25,16 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified', 'force_password_change'])->group(function () {
     // Dashboard Principal
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // --- 2.1. ÁREA PROFESSOR (PERGUNTAS / TESTES) ---
+    Route::prefix('dashboard/professor')->name('professor.')->group(function () {
+        Route::post('/perguntas', [ProfessorTesteController::class, 'storePergunta'])->name('perguntas.store');
+        Route::put('/perguntas/{id}', [ProfessorTesteController::class, 'updatePergunta'])->name('perguntas.update');
+
+        Route::post('/testes', [ProfessorTesteController::class, 'storeTeste'])->name('testes.store');
+        Route::put('/testes/{id}', [ProfessorTesteController::class, 'updateTeste'])->name('testes.update');
+        Route::post('/tarefas', [ProfessorTesteController::class, 'storeTarefa'])->name('tarefas.store');
+    });
 
     // --- 3. GESTÃO ADMINISTRATIVA (Apenas Admin) ---
     Route::middleware(['admin'])->group(function () {
