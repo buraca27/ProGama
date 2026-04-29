@@ -13,22 +13,22 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
     // ==========================================
     // LÓGICA DO FORMULÁRIO DE CRIAR TURMAS
     // ==========================================
-    const { 
-        data: turmaD, 
-        setData: setTurmaD, 
-        post: postTurma, 
-        processing: processingTurma, 
-        reset: resetTurma 
-    } = useForm({ 
-        nome: "", 
-        ano_letivo: new Date().getFullYear() + "/" + (new Date().getFullYear() + 1) 
+    const {
+        data: turmaD,
+        setData: setTurmaD,
+        post: postTurma,
+        processing: processingTurma,
+        reset: resetTurma
+    } = useForm({
+        nome: "",
+        ano_letivo: new Date().getFullYear() + "/" + (new Date().getFullYear() + 1)
     });
 
     const submitNovaTurma = (e) => {
         e.preventDefault();
-        postTurma(route("turmas.store"), { 
-            preserveScroll: true, 
-            onSuccess: () => resetTurma() 
+        postTurma(route("turmas.store"), {
+            preserveScroll: true,
+            onSuccess: () => resetTurma()
         });
     };
 
@@ -37,9 +37,9 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
     // ==========================================
     const submitEditTurma = (e) => {
         e.preventDefault();
-        router.put(`/dashboard/turmas/${turmaToEdit.id}`, { 
-            nome: turmaToEdit.nome, 
-            ano_letivo: turmaToEdit.ano_letivo 
+        router.put(`/dashboard/turmas/${turmaToEdit.id}`, {
+            nome: turmaToEdit.nome,
+            ano_letivo: turmaToEdit.ano_letivo
         }, {
             preserveScroll: true,
             onSuccess: () => setTurmaToEdit(null)
@@ -66,43 +66,43 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
 
     return (
         <div className="max-w-7xl mx-auto space-y-6">
-            
+
             {/* ---------------------------------------------------------
                 1. FORMULÁRIO DE CRIAÇÃO (APENAS PARA ADMIN)
             --------------------------------------------------------- */}
             {userRole === "admin" && (
-                <form 
-                    onSubmit={submitNovaTurma} 
+                <form
+                    onSubmit={submitNovaTurma}
                     className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex flex-col md:flex-row gap-4 items-end"
                 >
                     <div className="flex-1 w-full">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Nome da Turma
                         </label>
-                        <input 
-                            type="text" 
-                            value={turmaD.nome} 
-                            onChange={e => setTurmaD("nome", e.target.value)} 
-                            required 
-                            placeholder="Ex: TPSI 10" 
-                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
+                        <input
+                            type="text"
+                            value={turmaD.nome}
+                            onChange={e => setTurmaD("nome", e.target.value)}
+                            required
+                            placeholder="Ex: TPSI 10"
+                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
                     <div className="flex-1 w-full">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Ano Letivo
                         </label>
-                        <input 
-                            type="text" 
-                            value={turmaD.ano_letivo} 
-                            onChange={e => setTurmaD("ano_letivo", e.target.value)} 
-                            required 
-                            placeholder="Ex: 2026/2027" 
-                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500" 
+                        <input
+                            type="text"
+                            value={turmaD.ano_letivo}
+                            onChange={e => setTurmaD("ano_letivo", e.target.value)}
+                            required
+                            placeholder="Ex: 2026/2027"
+                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
-                    <button 
-                        disabled={processingTurma} 
+                    <button
+                        disabled={processingTurma}
                         type="submit"
                         className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md font-bold w-full md:w-auto mt-4 md:mt-0 shadow-sm transition-colors"
                     >
@@ -115,16 +115,19 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                 2. BARRA DE PESQUISA (TODOS OS ROLES)
             --------------------------------------------------------- */}
             {turmas && turmas.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-600 flex items-center gap-3 px-4 py-3 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
+                    <svg className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                    </svg>
                     <input
                         type="text"
                         placeholder="Pesquisar turma por nome ou ano letivo..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full bg-transparent border-none p-0 focus:ring-0 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 sm:text-sm"
+                        className="w-full bg-transparent border-none p-0 focus:ring-0 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 text-sm"
                     />
                     {searchTerm && (
-                        <button onClick={() => setSearchTerm("")} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-bold ml-2">
+                        <button onClick={() => setSearchTerm("")} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 shrink-0">
                             ✖
                         </button>
                     )}
@@ -148,21 +151,21 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                                     ({turma.ano_letivo})
                                 </span>
                             </h3>
-                            
+
                             {/* Botões Admin ou Contador de Alunos */}
                             {userRole === "admin" ? (
                                 <div className="flex gap-2">
                                     <span className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs px-3 py-1 rounded-full font-bold flex items-center mr-2">
                                         {turma.alunos?.length || 0} Alunos
                                     </span>
-                                    <button 
-                                        onClick={() => setTurmaToEdit(turma)} 
+                                    <button
+                                        onClick={() => setTurmaToEdit(turma)}
                                         className="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1 rounded font-bold text-sm transition-colors"
                                     >
                                         Editar
                                     </button>
-                                    <button 
-                                        onClick={() => setTurmaToDelete(turma)} 
+                                    <button
+                                        onClick={() => setTurmaToDelete(turma)}
                                         className="bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded font-bold text-sm transition-colors"
                                     >
                                         Apagar
@@ -238,10 +241,10 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                         Nenhuma Turma Encontrada
                     </h3>
                     <p className="text-gray-500 dark:text-gray-400 font-medium">
-                        {searchTerm 
-                            ? "Não encontrámos nenhuma turma com essa pesquisa. Tenta noutro ano letivo ou nome." 
-                            : (userRole === "admin" 
-                                ? "Usa o formulário acima para criar a primeira turma." 
+                        {searchTerm
+                            ? "Não encontrámos nenhuma turma com essa pesquisa. Tenta noutro ano letivo ou nome."
+                            : (userRole === "admin"
+                                ? "Usa o formulário acima para criar a primeira turma."
                                 : "De momento, não estás associado a nenhuma turma.")}
                     </p>
                 </div>
@@ -258,20 +261,20 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                         <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Editar Turma</h2>
                         <label className="block mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
                             Nome da Turma:
-                            <input 
-                                type="text" 
-                                value={turmaToEdit.nome} 
-                                onChange={e => setTurmaToEdit({...turmaToEdit, nome: e.target.value})} 
-                                className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500" 
+                            <input
+                                type="text"
+                                value={turmaToEdit.nome}
+                                onChange={e => setTurmaToEdit({...turmaToEdit, nome: e.target.value})}
+                                className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
                             />
                         </label>
                         <label className="block mb-6 text-sm font-medium text-gray-700 dark:text-gray-300">
                             Ano Letivo:
-                            <input 
-                                type="text" 
-                                value={turmaToEdit.ano_letivo} 
-                                onChange={e => setTurmaToEdit({...turmaToEdit, ano_letivo: e.target.value})} 
-                                className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500" 
+                            <input
+                                type="text"
+                                value={turmaToEdit.ano_letivo}
+                                onChange={e => setTurmaToEdit({...turmaToEdit, ano_letivo: e.target.value})}
+                                className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
                             />
                         </label>
                         <div className="flex justify-end gap-3">
