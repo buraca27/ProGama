@@ -41,7 +41,6 @@ class DashboardController extends Controller
             'turmas' => $turmas,
             'perguntasProfessor' => $cargoReal === 'professor'
                 ? Pergunta::with('opcoes')
-                    ->where('id_formador_criador', $user->id)
                     ->orderBy('created_at', 'desc')
                     ->get()
                 : [],

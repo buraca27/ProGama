@@ -138,7 +138,7 @@ export default function NovaPerguntaInline({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Foto / Anexo (opcional)
                 </label>
-                <div className="flex items-center gap-3">
+                <div className="space-y-3">
                     <input
                         type="file"
                         accept="image/*"
@@ -146,9 +146,21 @@ export default function NovaPerguntaInline({
                         className="block w-full text-sm text-gray-700 dark:text-gray-300 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
                     />
                     {value.url_anexo_pergunta && (
-                        <span className="text-xs text-green-600 dark:text-green-400">
-                            ✓ Foto adicionada
-                        </span>
+                        <div className="relative inline-block">
+                            <img
+                                src={value.url_anexo_pergunta}
+                                alt="Anexo da pergunta"
+                                className="max-h-40 rounded-lg border border-gray-200 dark:border-gray-600 object-contain"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => update("url_anexo_pergunta", null)}
+                                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold flex items-center justify-center shadow"
+                                title="Remover imagem"
+                            >
+                                ✕
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>

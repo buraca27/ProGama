@@ -211,8 +211,45 @@ export default function TestesView({
     const totalPontuacaoTeste = calcularTotalPontuacaoTeste();
     const excedePontuacaoMaxima = totalPontuacaoTeste > 20;
 
+    const montarPayloadPontuacoes = () =>
+        (testeForm.data.pergunta_ids || []).reduce((acc, idPergunta) => {
+            const valorAtual = Number(
+                testeForm.data.pontuacao_por_pergunta?.[idPergunta] ?? 1,
+            );
+            acc[idPergunta] = Number.isNaN(valorAtual)
+                ? 1
+                : Math.min(20, Math.max(1, valorAtual));
+            return acc;
+        }, {});
+
+    const limparNovasPerguntasVazias = (perguntas = []) =>
+        perguntas.filter((pergunta) => {
+            const temTexto = Boolean(String(pergunta?.texto || "").trim());
+            const temCategoria = Boolean(pergunta?.id_categoria);
+            const temAnexo = Boolean(pergunta?.url_anexo_pergunta);
+            const temOpcoes = (pergunta?.opcoes || []).some((op) =>
+                Boolean(String(op || "").trim()),
+            );
+
+            return temTexto || temCategoria || temAnexo || temOpcoes;
+        });
+
     const submitTeste = (e) => {
         e.preventDefault();
+
+        const novasPerguntasLimpas = limparNovasPerguntasVazias(
+            testeForm.data.novas_perguntas || [],
+        );
+        const pontuacoesNormalizadas = montarPayloadPontuacoes();
+
+        if (
+            novasPerguntasLimpas.length !==
+            (testeForm.data.novas_perguntas || []).length
+        ) {
+            testeForm.setData("novas_perguntas", novasPerguntasLimpas);
+        }
+
+        testeForm.setData("pontuacao_por_pergunta", pontuacoesNormalizadas);
 
         if (excedePontuacaoMaxima) {
             testeForm.setError(
@@ -231,16 +268,28 @@ export default function TestesView({
         };
 
         if (editingTesteId) {
+            testeForm.transform((data) => ({
+                ...data,
+                novas_perguntas: novasPerguntasLimpas,
+                pontuacao_por_pergunta: pontuacoesNormalizadas,
+            }));
             testeForm.put(route("professor.testes.update", editingTesteId), {
                 preserveScroll: true,
                 onSuccess,
+                onFinish: () => testeForm.transform((data) => data),
             });
             return;
         }
 
+        testeForm.transform((data) => ({
+            ...data,
+            novas_perguntas: novasPerguntasLimpas,
+            pontuacao_por_pergunta: pontuacoesNormalizadas,
+        }));
         testeForm.post(route("professor.testes.store"), {
             preserveScroll: true,
             onSuccess,
+            onFinish: () => testeForm.transform((data) => data),
         });
     };
 
@@ -253,7 +302,11 @@ export default function TestesView({
             duracao_minutos: teste.duracao_minutos ?? "",
             pergunta_ids: (teste.perguntas || []).map((p) => p.id),
             pontuacao_por_pergunta: (teste.perguntas || []).reduce(
-                (acc, p) => ({ ...acc, [p.id]: p.pivot?.valor_pontuacao ?? 1 }),
+                (acc, p) => ({
+                    ...acc,
+                    [p.id]:
+                        p.pivot?.valor_pontuacao ?? p.valor_pontuacao ?? 1,
+                }),
                 {},
             ),
             novas_perguntas: [],

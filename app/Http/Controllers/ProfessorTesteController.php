@@ -97,18 +97,20 @@ class ProfessorTesteController extends Controller
 
             $idsPerguntas = collect($validated['pergunta_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
 
-            $pontuacoesBase = collect($validated['pontuacao_por_pergunta'] ?? [])
-                ->mapWithKeys(fn ($pontuacao, $idPergunta) => [(int) $idPergunta => (int) $pontuacao])
-                ->all();
+            $pontuacoesBase = $this->normalizarPontuacoesPerguntas(
+                $validated['pontuacao_por_pergunta'] ?? [],
+                $idsPerguntas,
+            );
 
-            $pontuacoesPorPergunta = [];
+            $pontuacoesNovasPerguntas = [];
             foreach ($validated['novas_perguntas'] ?? [] as $novaPergunta) {
                 $pergunta = $this->criarPerguntaComOpcoes($novaPergunta, (int) Auth::id());
                 $idsPerguntas[] = $pergunta->id;
-                $pontuacoesPorPergunta[$pergunta->id] = (int) ($novaPergunta['pontuacao'] ?? 1);
+                $pontuacoesNovasPerguntas[$pergunta->id] = (int) ($novaPergunta['pontuacao'] ?? 1);
             }
 
-            $pontuacoesPorPergunta = array_merge($pontuacoesBase, $pontuacoesPorPergunta);
+            // Preserva as chaves numéricas (IDs das perguntas).
+            $pontuacoesPorPergunta = $pontuacoesBase + $pontuacoesNovasPerguntas;
 
             $idsPerguntas = collect($idsPerguntas)->unique()->values();
 
@@ -175,18 +177,20 @@ class ProfessorTesteController extends Controller
 
             $idsPerguntas = collect($validated['pergunta_ids'] ?? [])->map(fn ($item) => (int) $item)->unique()->values()->all();
 
-            $pontuacoesBase = collect($validated['pontuacao_por_pergunta'] ?? [])
-                ->mapWithKeys(fn ($pontuacao, $idPergunta) => [(int) $idPergunta => (int) $pontuacao])
-                ->all();
+            $pontuacoesBase = $this->normalizarPontuacoesPerguntas(
+                $validated['pontuacao_por_pergunta'] ?? [],
+                $idsPerguntas,
+            );
 
-            $pontuacoesPorPergunta = [];
+            $pontuacoesNovasPerguntas = [];
             foreach ($validated['novas_perguntas'] ?? [] as $novaPergunta) {
                 $pergunta = $this->criarPerguntaComOpcoes($novaPergunta, (int) Auth::id());
                 $idsPerguntas[] = $pergunta->id;
-                $pontuacoesPorPergunta[$pergunta->id] = (int) ($novaPergunta['pontuacao'] ?? 1);
+                $pontuacoesNovasPerguntas[$pergunta->id] = (int) ($novaPergunta['pontuacao'] ?? 1);
             }
 
-            $pontuacoesPorPergunta = array_merge($pontuacoesBase, $pontuacoesPorPergunta);
+            // Preserva as chaves numéricas (IDs das perguntas).
+            $pontuacoesPorPergunta = $pontuacoesBase + $pontuacoesNovasPerguntas;
 
             $idsPerguntas = collect($idsPerguntas)->unique()->values();
 
@@ -323,6 +327,29 @@ class ProfessorTesteController extends Controller
                 ],
             ]);
         }
+    }
+
+    private function normalizarPontuacoesPerguntas(array $pontuacoesRecebidas, array $idsPerguntas): array
+    {
+        $pontuacoes = collect($pontuacoesRecebidas)
+            ->mapWithKeys(fn ($pontuacao, $idPergunta) => [(int) $idPergunta => (int) $pontuacao])
+            ->all();
+
+        $idsPerguntas = array_values(array_map(fn ($id) => (int) $id, $idsPerguntas));
+        $keysRecebidas = array_keys($pontuacoes);
+        $keysSequenciais = $keysRecebidas === range(0, max(count($keysRecebidas) - 1, -1));
+
+        // Alguns clientes enviam pontuações como array sequencial (0..N) em vez de mapa por ID.
+        if ($keysSequenciais && count($pontuacoes) === count($idsPerguntas)) {
+            $reindexado = [];
+            foreach ($idsPerguntas as $index => $idPergunta) {
+                $reindexado[$idPergunta] = (int) ($pontuacoes[$index] ?? 1);
+            }
+
+            return $reindexado;
+        }
+
+        return $pontuacoes;
     }
 
     private function validarPergunta(Request $request): array

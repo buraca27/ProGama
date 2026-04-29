@@ -250,37 +250,50 @@ export default function CriarTesteSection({
                                                 />
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2 self-start">
+                                        <div className="flex flex-col items-end gap-2 self-start">
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        moverPerguntaSelecionadaParaCima(
+                                                            index,
+                                                        )
+                                                    }
+                                                    disabled={index === 0}
+                                                    className="px-2 py-1 rounded-md bg-blue-100 text-blue-700 disabled:opacity-40"
+                                                >
+                                                    ↑
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        moverPerguntaSelecionadaParaBaixo(
+                                                            index,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        index ===
+                                                        (
+                                                            testeForm.data
+                                                                .pergunta_ids || []
+                                                        ).length -
+                                                            1
+                                                    }
+                                                    className="px-2 py-1 rounded-md bg-blue-100 text-blue-700 disabled:opacity-40"
+                                                >
+                                                    ↓
+                                                </button>
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    moverPerguntaSelecionadaParaCima(
-                                                        index,
+                                                    togglePerguntaSelecionada(
+                                                        perguntaId,
                                                     )
                                                 }
-                                                disabled={index === 0}
-                                                className="px-2 py-1 rounded-md bg-blue-100 text-blue-700 disabled:opacity-40"
+                                                className="px-3 py-1 rounded-md bg-red-100 text-red-700 hover:bg-red-200 text-xs font-semibold"
                                             >
-                                                ↑
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    moverPerguntaSelecionadaParaBaixo(
-                                                        index,
-                                                    )
-                                                }
-                                                disabled={
-                                                    index ===
-                                                    (
-                                                        testeForm.data
-                                                            .pergunta_ids || []
-                                                    ).length -
-                                                        1
-                                                }
-                                                className="px-2 py-1 rounded-md bg-blue-100 text-blue-700 disabled:opacity-40"
-                                            >
-                                                ↓
+                                                Remover do teste
                                             </button>
                                         </div>
                                     </div>
