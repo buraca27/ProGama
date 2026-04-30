@@ -65,8 +65,7 @@ class ProfessorTesteController extends Controller
         $validated = $request->validate([
             'titulo' => 'required|string|max:150',
             'tipo_avaliacao' => 'required|string|in:Teste_Formal,Ficha_Trabalho,Exame_Final',
-            'data_hora_abertura' => 'required|date',
-            'data_hora_fecho' => 'required|date|after:data_hora_abertura',
+            'data_hora_abertura' => 'nullable|date',
             'duracao_minutos' => 'nullable|integer|min:1|max:600',
             'pergunta_ids' => 'nullable|array',
             'pergunta_ids.*' => 'integer|exists:Perguntas,id',
@@ -89,13 +88,13 @@ class ProfessorTesteController extends Controller
                 'titulo' => $validated['titulo'],
                 'tipo_avaliacao' => $validated['tipo_avaliacao'],
                 'id_formador' => (int) Auth::id(),
-                'data_hora_abertura' => $validated['data_hora_abertura'],
-                'data_hora_fecho' => $validated['data_hora_fecho'],
+                'data_hora_abertura' => $validated['data_hora_abertura'] ?? null,
+                'data_hora_fecho' => $validated['data_hora_fecho'] ?? null,
                 'duracao_minutos' => $validated['duracao_minutos'] ?? null,
                 'peso_avaliacao' => 0,
             ]);
 
-            $idsPerguntas = collect($validated['pergunta_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+            $idsPerguntas = collect($validated['pergunta_ids'] ?? [])->map(fn($id) => (int) $id)->unique()->values()->all();
 
             $pontuacoesBase = $this->normalizarPontuacoesPerguntas(
                 $validated['pontuacao_por_pergunta'] ?? [],
@@ -143,8 +142,7 @@ class ProfessorTesteController extends Controller
         $validated = $request->validate([
             'titulo' => 'required|string|max:150',
             'tipo_avaliacao' => 'required|string|in:Teste_Formal,Ficha_Trabalho,Exame_Final',
-            'data_hora_abertura' => 'required|date',
-            'data_hora_fecho' => 'required|date|after:data_hora_abertura',
+            'data_hora_fecho' => 'nullable|date|after:data_hora_abertura',
             'duracao_minutos' => 'nullable|integer|min:1|max:600',
             'pergunta_ids' => 'nullable|array',
             'pergunta_ids.*' => 'integer|exists:Perguntas,id',
@@ -175,7 +173,7 @@ class ProfessorTesteController extends Controller
                 'duracao_minutos' => $validated['duracao_minutos'] ?? null,
             ]);
 
-            $idsPerguntas = collect($validated['pergunta_ids'] ?? [])->map(fn ($item) => (int) $item)->unique()->values()->all();
+            $idsPerguntas = collect($validated['pergunta_ids'] ?? [])->map(fn($item) => (int) $item)->unique()->values()->all();
 
             $pontuacoesBase = $this->normalizarPontuacoesPerguntas(
                 $validated['pontuacao_por_pergunta'] ?? [],
@@ -233,16 +231,16 @@ class ProfessorTesteController extends Controller
         $turmasPermitidas = User::findOrFail($professorId)
             ->turmasLecionadas()
             ->pluck('Turmas.id')
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->all();
 
         $turmasSelecionadas = collect($validated['turma_ids'])
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->unique()
             ->values();
 
         $turmasInvalidas = $turmasSelecionadas->filter(
-            fn ($id) => !in_array($id, $turmasPermitidas, true)
+            fn($id) => !in_array($id, $turmasPermitidas, true)
         );
 
         if ($turmasInvalidas->isNotEmpty()) {
@@ -287,7 +285,7 @@ class ProfessorTesteController extends Controller
     private function sincronizarOpcoesPergunta(Pergunta $pergunta, array $dados): void
     {
         if ($dados['tipo_pergunta'] === 'Escolha_Multipla') {
-            $opcoes = collect($dados['opcoes'] ?? [])->filter(fn ($opt) => filled($opt))->values();
+            $opcoes = collect($dados['opcoes'] ?? [])->filter(fn($opt) => filled($opt))->values();
 
             if ($opcoes->count() < 2) {
                 abort(422, 'Perguntas de escolha multipla devem ter pelo menos 2 opcoes.');
@@ -332,10 +330,10 @@ class ProfessorTesteController extends Controller
     private function normalizarPontuacoesPerguntas(array $pontuacoesRecebidas, array $idsPerguntas): array
     {
         $pontuacoes = collect($pontuacoesRecebidas)
-            ->mapWithKeys(fn ($pontuacao, $idPergunta) => [(int) $idPergunta => (int) $pontuacao])
+            ->mapWithKeys(fn($pontuacao, $idPergunta) => [(int) $idPergunta => (int) $pontuacao])
             ->all();
 
-        $idsPerguntas = array_values(array_map(fn ($id) => (int) $id, $idsPerguntas));
+        $idsPerguntas = array_values(array_map(fn($id) => (int) $id, $idsPerguntas));
         $keysRecebidas = array_keys($pontuacoes);
         $keysSequenciais = $keysRecebidas === range(0, max(count($keysRecebidas) - 1, -1));
 

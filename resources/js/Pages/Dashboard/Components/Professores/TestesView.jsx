@@ -236,21 +236,17 @@ export default function TestesView({
 
     const submitTeste = (e) => {
         e.preventDefault();
-
         const novasPerguntasLimpas = limparNovasPerguntasVazias(
             testeForm.data.novas_perguntas || [],
         );
         const pontuacoesNormalizadas = montarPayloadPontuacoes();
-
         if (
             novasPerguntasLimpas.length !==
             (testeForm.data.novas_perguntas || []).length
         ) {
             testeForm.setData("novas_perguntas", novasPerguntasLimpas);
         }
-
         testeForm.setData("pontuacao_por_pergunta", pontuacoesNormalizadas);
-
         if (excedePontuacaoMaxima) {
             testeForm.setError(
                 "total_pontuacao",
@@ -258,21 +254,23 @@ export default function TestesView({
             );
             return;
         }
-
         testeForm.clearErrors("total_pontuacao");
-
         const onSuccess = () => {
             testeForm.reset();
             testeForm.setData(createTesteFormDefaults());
             setEditingTesteId(null);
         };
 
+        const transformFn = (data) => ({
+            ...data,
+            novas_perguntas: novasPerguntasLimpas,
+            pontuacao_por_pergunta: pontuacoesNormalizadas,
+            data_hora_abertura: data.data_hora_abertura || null,
+            data_hora_fecho: data.data_hora_fecho || null,
+        });
+
         if (editingTesteId) {
-            testeForm.transform((data) => ({
-                ...data,
-                novas_perguntas: novasPerguntasLimpas,
-                pontuacao_por_pergunta: pontuacoesNormalizadas,
-            }));
+            testeForm.transform(transformFn);
             testeForm.put(route("professor.testes.update", editingTesteId), {
                 preserveScroll: true,
                 onSuccess,
@@ -281,11 +279,7 @@ export default function TestesView({
             return;
         }
 
-        testeForm.transform((data) => ({
-            ...data,
-            novas_perguntas: novasPerguntasLimpas,
-            pontuacao_por_pergunta: pontuacoesNormalizadas,
-        }));
+        testeForm.transform(transformFn);
         testeForm.post(route("professor.testes.store"), {
             preserveScroll: true,
             onSuccess,
@@ -304,8 +298,7 @@ export default function TestesView({
             pontuacao_por_pergunta: (teste.perguntas || []).reduce(
                 (acc, p) => ({
                     ...acc,
-                    [p.id]:
-                        p.pivot?.valor_pontuacao ?? p.valor_pontuacao ?? 1,
+                    [p.id]: p.pivot?.valor_pontuacao ?? p.valor_pontuacao ?? 1,
                 }),
                 {},
             ),

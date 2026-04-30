@@ -19,6 +19,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
+        // 1. Estatísticas Gerais
         $estatisticas = [
             'total_users' => DB::table('users')->count(),
             'total_turmas' => $this->tryCatchCount('Turmas'),
@@ -26,78 +27,90 @@ class DashboardController extends Controller
             'total_disciplinas' => $this->tryCatchCount('Disciplinas'),
         ];
 
+        // 2. Mapeamento de Cargo
         $roleMap = [1 => 'admin', 2 => 'professor', 3 => 'aluno'];
         $cargoReal = $roleMap[$user->id_role] ?? 'aluno';
 
+        // 3. Definição das variáveis que estavam em falta (sublinhadas a vermelho)
         $turmas = match ($user->id_role) {
             1 => Turma::with(['professores', 'alunos'])->get(),
             2 => User::find($user->id)->turmasLecionadas()->with(['alunos', 'professores'])->get(),
             3 => $user->id_turma ? Turma::where('id', $user->id_turma)->with(['professores', 'alunos'])->get() : [],
             default => [],
         };
-        $disciplinas = Disciplina::with(['professores', 'turmas'])->get();
-        $categorias  = Categoria::withCount(['desafios', 'testes'])->orderBy('nome')->get();
 
+        $disciplinas = Disciplina::with(['professores', 'turmas'])->get();
+        $categorias = Categoria::withCount(['desafios', 'testes'])->orderBy('nome')->get();
+
+        // 4. Lógica para Tarefas do Aluno
+        $tarefasAluno = [];
+        if ($cargoReal === 'aluno' && $user->id_turma) {
+            $tarefasAluno = TesteAtribuicao::with(['teste'])
+                ->where('id_turma', $user->id_turma)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
+
+        // 5. Renderização Final
         return Inertia::render('Dashboard/Dashboard', [
             'userRoleReal' => $cargoReal,
             'estatisticas' => $estatisticas,
             'utilizadores' => User::with(['turma', 'turmasLecionadas'])->orderBy('created_at', 'desc')->get(),
             'turmas' => $turmas,
             'disciplinas' => $disciplinas,
+            'categorias' => $categorias,
+            'tarefasAluno' => $tarefasAluno,
+
+            // Variáveis específicas do Professor
             'perguntasProfessor' => $cargoReal === 'professor'
-                ? Pergunta::with('opcoes')
-                    ->orderBy('created_at', 'desc')
-                    ->get()
-                : [],
+                ? Pergunta::with('opcoes')->orderBy('created_at', 'desc')->get() : [],
+
             'testesProfessor' => $cargoReal === 'professor'
-                ? Teste::with('perguntas')
-                    ->where('id_formador', $user->id)
-                    ->orderBy('created_at', 'desc')
-                    ->get()
-                : [],
+                ? Teste::with('perguntas')->where('id_formador', $user->id)->orderBy('created_at', 'desc')->get() : [],
+
             'tarefasProfessor' => $cargoReal === 'professor'
                 ? TesteAtribuicao::with(['teste', 'turma'])
-                    ->whereHas('teste', fn ($q) => $q->where('id_formador', $user->id))
-                    ->orderBy('created_at', 'desc')
-                    ->get()
-                : [],
-            'categorias' => $categorias,
+                    ->whereHas('teste', fn($q) => $q->where('id_formador', $user->id))
+                    ->orderBy('created_at', 'desc')->get() : [],
         ]);
+
+
     }
     public function store(Request $request)
-        {
-            $request->validate([
-                'nome' => 'required|string|max:100|unique:Disciplinas,nome',
-                'codigo' => 'nullable|string|max:20|unique:Disciplinas,codigo',
-                'descricao' => 'nullable|string',
-            ]);
+    {
+        $request->validate([
+            'nome' => 'required|string|max:100|unique:Disciplinas,nome',
+            'codigo' => 'nullable|string|max:20|unique:Disciplinas,codigo',
+            'descricao' => 'nullable|string',
+        ]);
 
-            Disciplina::create([
-                'nome' => $request->nome,
-                'codigo' => $request->codigo,
-                'descricao' => $request->descricao,
-            ]);
+        Disciplina::create([
+            'nome' => $request->nome,
+            'codigo' => $request->codigo,
+            'descricao' => $request->descricao,
+        ]);
 
-            return back()->with('success', 'Disciplina criada com sucesso!');
-        }
+        return back()->with('success', 'Disciplina criada com sucesso!');
+    }
 
-        public function update(Request $request, $id)
-        {
-            $request->validate([
-                'nome' => 'required|string|max:100|unique:Disciplinas,nome,' . $id,
-                'codigo' => 'nullable|string|max:20|unique:Disciplinas,codigo,' . $id,
-                'descricao' => 'nullable|string',
-            ]);
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'nome' => 'required|string|max:100|unique:Disciplinas,nome,' . $id,
+            'codigo' => 'nullable|string|max:20|unique:Disciplinas,codigo,' . $id,
+            'descricao' => 'nullable|string',
+        ]);
 
-            $disciplina = Disciplina::findOrFail($id);
-            $disciplina->update([
-                'nome' => $request->nome,
-                'codigo' => $request->codigo,
-                'descricao' => $request->descricao,
-            ]);
+        $disciplina = Disciplina::findOrFail($id);
+        $disciplina->update([
+            'nome' => $request->nome,
+            'codigo' => $request->codigo,
+            'descricao' => $request->descricao,
+        ]);
 
-            return back()->with('success', 'Disciplina atualizada com sucesso!');
-        }
+        return back()->with('success', 'Disciplina atualizada com sucesso!');
+    }
 
     private function tryCatchCount($table)
     {

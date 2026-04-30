@@ -29,9 +29,40 @@ export const createTesteFormDefaults = () => ({
     pergunta_ids: [],
     pontuacao_por_pergunta: {},
     novas_perguntas: [],
+    instrucoes: "",
 });
 
 export const createNovaPerguntaTesteDefaults = () => ({
     ...createPerguntaFormDefaults(),
     pontuacao: 1,
 });
+
+export const CONTEXTO_AVALIACAO = {
+    Ficha_Trabalho: {
+        nome: "Ficha de Trabalho",
+        placeholderTitulo: "Ex: Ficha de Trabalho - HTML",
+        temInstrucoes: true,
+        temDuracaoEAbertura: false,
+        labelFecho: "Data Limite de Entrega (Opcional)",
+        fechoObrigatorio: false,
+        escalaFixa20: false,
+    },
+    Teste_Formal: {
+        nome: "Teste",
+        placeholderTitulo: "Ex: Teste de Programação - Módulo 1",
+        temInstrucoes: false,
+        temDuracaoEAbertura: true,
+        labelFecho: "Fecho",
+        fechoObrigatorio: true,
+        escalaFixa20: true,
+    },
+    Exame_Final: {
+        nome: "Exame",
+        placeholderTitulo: "Ex: Exame Final - Época Normal",
+        temInstrucoes: true,
+        temDuracaoEAbertura: true,
+        labelFecho: "Fecho",
+        fechoObrigatorio: true,
+        escalaFixa20: true,
+    },
+};

@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 
-
 // =============================================================================
 // IMPORTS DAS VISTAS (Components)
 // =============================================================================
@@ -19,22 +18,24 @@ import SettingsView from "./Components/Profile/SettingsView";
 import CategoriasView from "./Components/Categorias/CategoriasView";
 import TestesView from "./Components/Professores/TestesView";
 import TarefasView from "./Components/Professores/TarefasView";
+import TrabalhosView from "./Components/Professores/TrabalhosView";
 
 export default function Dashboard(props) {
-    // --- Desestruturação das Props (Dados vindos do Laravel) ---
+    // --- Desestruturação das Props (Incluindo tarefasAluno) ---
     const {
         auth,
         userRoleReal,
         estatisticas,
-        utilizadores,
-        turmas,
-        disciplinas,
-        categorias,
+        utilizadores = [],
+        turmas = [],
+        disciplinas = [],
+        categorias = [],
         status,
         mustVerifyEmail,
-        perguntasProfessor,
-        testesProfessor,
-        tarefasProfessor,
+        perguntasProfessor = [],
+        testesProfessor = [],
+        tarefasProfessor = [],
+        tarefasAluno = [], // <--- ADICIONADO AQUI
     } = props;
 
     // =============================================================================
@@ -42,14 +43,9 @@ export default function Dashboard(props) {
     // =============================================================================
     const [activeView, setActiveView] = useState("dashboard");
     const [showNovoUserForm, setShowNovoUserForm] = useState(false);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [sortConfig, setSortConfig] = useState({
-        key: null,
-        direction: "asc",
-    });
 
     // =============================================================================
-    // ESTADOS DOS MODAIS (GESTÃO DE UTILIZADORES)
+    // ESTADOS DOS MODAIS
     // =============================================================================
     const [userToView, setUserToView] = useState(null);
     const [userToEdit, setUserToEdit] = useState(null);
@@ -57,7 +53,7 @@ export default function Dashboard(props) {
     const [deleteUserStep, setDeleteUserStep] = useState(0);
 
     // =============================================================================
-    // FUNÇÕES DE AÇÃO (ROUTING / API)
+    // FUNÇÕES DE AÇÃO
     // =============================================================================
     const submitEditUser = (e) => {
         e.preventDefault();
@@ -83,9 +79,7 @@ export default function Dashboard(props) {
             <Head title="Dashboard" />
 
             <div className="">
-                {/* ---------------------------------------------------------
-                    1. VISTA PRINCIPAL (ESTATÍSTICAS)
-                --------------------------------------------------------- */}
+                {/* 1. VISTA PRINCIPAL */}
                 {activeView === "dashboard" && (
                     <StatsGrid
                         userRole={userRoleReal}
@@ -95,12 +89,10 @@ export default function Dashboard(props) {
                     />
                 )}
 
-                {/* ---------------------------------------------------------
-                    2. GESTÃO DE UTILIZADORES (ADMIN)
-                --------------------------------------------------------- */}
+                {/* 2. GESTÃO DE UTILIZADORES */}
                 {activeView === "utilizadores" && (
                     <UsersView
-                        auth={auth} // <--- ADICIONA ESTA LINHA AQUI
+                        auth={auth}
                         utilizadores={utilizadores}
                         showNovoUserForm={showNovoUserForm}
                         setShowNovoUserForm={setShowNovoUserForm}
@@ -111,10 +103,9 @@ export default function Dashboard(props) {
                     />
                 )}
 
-                {/* ---------------------------------------------------------
-                    3. VISTAS DE TURMAS E DISCIPLINAS (TODOS OS ROLES)
-                --------------------------------------------------------- */}
-                {(activeView === "turmas" || activeView === "minhas-turmas") && (
+                {/* 3. TURMAS, DISCIPLINAS E CATEGORIAS */}
+                {(activeView === "turmas" ||
+                    activeView === "minhas-turmas") && (
                     <TurmasView
                         turmas={turmas}
                         utilizadores={utilizadores}
@@ -123,7 +114,6 @@ export default function Dashboard(props) {
                     />
                 )}
 
-                {/* VISTA DE DISCIPLINAS */}
                 {activeView === "disciplinas" && (
                     <DisciplinasView
                         disciplinas={disciplinas}
@@ -134,7 +124,6 @@ export default function Dashboard(props) {
                     />
                 )}
 
-                {/* VISTA DE CATEGORIAS */}
                 {activeView === "categorias" && (
                     <CategoriasView
                         categorias={categorias}
@@ -143,56 +132,47 @@ export default function Dashboard(props) {
                     />
                 )}
 
-                {/* ---------------------------------------------------------
-                    4. VISTA DO PERFIL (BREEZE / INERTIA)
-                --------------------------------------------------------- */}
+                {/* 4. PERFIL E DEFINIÇÕES */}
                 {activeView === "perfil" && (
                     <ProfileView
                         mustVerifyEmail={mustVerifyEmail}
                         status={status}
                     />
                 )}
-
-                {/* ---------------------------------------------------------
-                    5. DEFINIÇÕES DE SISTEMA
-                --------------------------------------------------------- */}
                 {activeView === "definicoes" && <SettingsView />}
 
-                {/* ---------------------------------------------------------
-                    6. VISTAS EM CONSTRUÇÃO (PLACEHOLDERS)
-                --------------------------------------------------------- */}
-                {/* ---------------------------------------------------------
-                    6. TESTES E AVALIAÇÕES (PROFESSOR)
-                --------------------------------------------------------- */}
+                {/* 5. VISTAS PROFESSOR */}
                 {activeView === "testes" && (
                     <TestesView
-                        perguntasProfessor={perguntasProfessor || []}
-                        testesProfessor={testesProfessor || []}
-                        categorias={categorias || []}
+                        perguntasProfessor={perguntasProfessor}
+                        testesProfessor={testesProfessor}
+                        categorias={categorias}
                     />
                 )}
 
                 {activeView === "tarefas" && (
                     <TarefasView
-                        testesProfessor={testesProfessor || []}
-                        turmas={turmas || []}
-                        tarefasProfessor={tarefasProfessor || []}
+                        testesProfessor={testesProfessor}
+                        turmas={turmas}
+                        tarefasProfessor={tarefasProfessor}
                     />
                 )}
+
+                {/* 6. VISTA TRABALHOS PENDENTES (ALUNO) */}
+                {activeView === "trabalhos" && (
+                    <TrabalhosView tarefasAluno={tarefasAluno} />
+                )}
+
+                {/* 7. OUTROS PLACEHOLDERS */}
                 {activeView === "avaliacoes" && (
                     <PlaceholderView title="Avaliações e Notas" icon="📈" />
-                )}
-                {activeView === "trabalhos" && (
-                    <PlaceholderView title="Trabalhos Pendentes" icon="⌛" />
                 )}
                 {activeView === "boletim" && (
                     <PlaceholderView title="Boletim de Notas" icon="🎓" />
                 )}
             </div>
 
-            {/* =============================================================================
-                COMPONENTES GLOBAIS (MODAIS)
-            ============================================================================= */}
+            {/* MODAIS GLOBAIS */}
             <UserModals
                 authUser={auth.user}
                 utilizadores={utilizadores}

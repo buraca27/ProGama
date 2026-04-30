@@ -1,6 +1,7 @@
 import React from "react";
 import NovaPerguntaInline from "./NovaPerguntaInline";
 import { TIPO_AVALIACAO_OPTIONS } from "./constants";
+import { CONTEXTO_AVALIACAO } from "./constants";
 
 export default function CriarTesteSection({
     editingTesteId,
@@ -26,13 +27,19 @@ export default function CriarTesteSection({
     totalPontuacaoTeste,
     excedePontuacaoMaxima,
 }) {
+    const config =
+        CONTEXTO_AVALIACAO[testeForm.data.tipo_avaliacao] ||
+        CONTEXTO_AVALIACAO.Teste_Formal;
+
     return (
         <form
             onSubmit={submitTeste}
             className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-5"
         >
             <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                {editingTesteId ? "Editar Teste" : "Criar Teste"}
+                {editingTesteId
+                    ? `Editar ${config.nome}`
+                    : `Criar ${config.nome}`}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -47,10 +54,27 @@ export default function CriarTesteSection({
                             testeForm.setData("titulo", e.target.value)
                         }
                         className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        placeholder="Ex: Teste de Programação - Módulo 1"
+                        placeholder={config.placeholderTitulo}
                         required
                     />
                 </div>
+
+                {config.temInstrucoes && (
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Instruções ou Contexto
+                        </label>
+                        <textarea
+                            rows="3"
+                            value={testeForm.data.instrucoes || ""}
+                            onChange={(e) =>
+                                testeForm.setData("instrucoes", e.target.value)
+                            }
+                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 resize-y"
+                            placeholder="Introduza as instruções iniciais para os alunos..."
+                        />
+                    </div>
+                )}
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -71,43 +95,50 @@ export default function CriarTesteSection({
                     </select>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Duração (minutos)
-                    </label>
-                    <input
-                        type="number"
-                        min={1}
-                        value={testeForm.data.duracao_minutos}
-                        onChange={(e) =>
-                            testeForm.setData("duracao_minutos", e.target.value)
-                        }
-                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        placeholder="Opcional"
-                    />
-                </div>
+                {config.temDuracaoEAbertura && (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Duração (minutos)
+                            </label>
+                            <input
+                                type="number"
+                                min={1}
+                                value={testeForm.data.duracao_minutos}
+                                onChange={(e) =>
+                                    testeForm.setData(
+                                        "duracao_minutos",
+                                        e.target.value,
+                                    )
+                                }
+                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                placeholder="Opcional"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Abertura
+                            </label>
+                            <input
+                                type="datetime-local"
+                                value={testeForm.data.data_hora_abertura}
+                                onChange={(e) =>
+                                    testeForm.setData(
+                                        "data_hora_abertura",
+                                        e.target.value,
+                                    )
+                                }
+                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                required
+                            />
+                        </div>
+                    </>
+                )}
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Abertura
-                    </label>
-                    <input
-                        type="datetime-local"
-                        value={testeForm.data.data_hora_abertura}
-                        onChange={(e) =>
-                            testeForm.setData(
-                                "data_hora_abertura",
-                                e.target.value,
-                            )
-                        }
-                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        required
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Fecho
+                        {config.labelFecho}
                     </label>
                     <input
                         type="datetime-local"
@@ -116,7 +147,7 @@ export default function CriarTesteSection({
                             testeForm.setData("data_hora_fecho", e.target.value)
                         }
                         className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        required
+                        required={config.fechoObrigatorio}
                     />
                 </div>
             </div>
@@ -275,7 +306,8 @@ export default function CriarTesteSection({
                                                         index ===
                                                         (
                                                             testeForm.data
-                                                                .pergunta_ids || []
+                                                                .pergunta_ids ||
+                                                            []
                                                         ).length -
                                                             1
                                                     }
@@ -293,7 +325,7 @@ export default function CriarTesteSection({
                                                 }
                                                 className="px-3 py-1 rounded-md bg-red-100 text-red-700 hover:bg-red-200 text-xs font-semibold"
                                             >
-                                                Remover do teste
+                                                Remover
                                             </button>
                                         </div>
                                     </div>
@@ -307,7 +339,7 @@ export default function CriarTesteSection({
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
                     <h4 className="font-bold text-gray-900 dark:text-gray-100">
-                        Criar novas perguntas dentro do teste
+                        Criar novas perguntas ({config.nome.toLowerCase()})
                     </h4>
                     <button
                         type="button"
@@ -355,7 +387,9 @@ export default function CriarTesteSection({
                     className="px-6 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold"
                     disabled={testeForm.processing}
                 >
-                    {editingTesteId ? "Guardar Alterações" : "Guardar Teste"}
+                    {editingTesteId
+                        ? `Guardar Alterações`
+                        : `Guardar ${config.nome}`}
                 </button>
                 {editingTesteId && (
                     <button
@@ -370,10 +404,13 @@ export default function CriarTesteSection({
 
             <div
                 className={`text-sm font-semibold ${
-                    excedePontuacaoMaxima ? "text-red-600" : "text-emerald-600"
+                    excedePontuacaoMaxima && config.escalaFixa20
+                        ? "text-red-600"
+                        : "text-emerald-600"
                 }`}
             >
-                Pontuação total do teste: {totalPontuacaoTeste}/20
+                Pontuação total: {totalPontuacaoTeste}
+                {config.escalaFixa20 && "/20"}
             </div>
 
             {testeForm.errors.total_pontuacao && (
@@ -383,8 +420,7 @@ export default function CriarTesteSection({
             )}
             {Object.values(testeForm.errors || {}).length > 0 && (
                 <p className="text-sm text-red-600">
-                    Não foi possível guardar o teste. Verifica os dados
-                    preenchidos.
+                    Não foi possível guardar. Verifica os dados preenchidos.
                 </p>
             )}
         </form>
