@@ -48,7 +48,7 @@ const FeedbackTico = ({ tipo, img, status, lista }) => (
     </div>
 );
 
-export default function LandingPage({ auth }) {
+export default function LandingPage() {
     const [nivelSelecionado, setNivelSelecionado] = useState(0);
     const [currentSlide, setCurrentSlide] = useState(0);
     const [direction, setDirection] = useState("next");

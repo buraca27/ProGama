@@ -7,18 +7,12 @@ use App\Http\Controllers\TurmaController;
 use App\Http\Controllers\DisciplinaController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ProfessorTesteController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // --- 1. LANDING PAGE ---
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return Inertia::render('LandingPage/LandingPage');
 });
 
 // --- 2. ÁREA AUTENTICADA ---
