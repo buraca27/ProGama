@@ -9,6 +9,7 @@ export default function NovaPerguntaInline({
     onMoveDown,
     title = "Nova pergunta",
     categorias = [],
+    showPontuacao = false,
 }) {
     const update = (field, fieldValue) =>
         onChange({ ...value, [field]: fieldValue });
@@ -93,25 +94,27 @@ export default function NovaPerguntaInline({
                 />
             </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Pontuação da pergunta
-                </label>
-                <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={value.pontuacao || 1}
-                    onChange={(e) => {
-                        const val = Math.min(
-                            20,
-                            Math.max(1, Number(e.target.value)),
-                        );
-                        update("pontuacao", val);
-                    }}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                />
-            </div>
+            {showPontuacao && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Pontuação da pergunta
+                    </label>
+                    <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={value.pontuacao || 1}
+                        onChange={(e) => {
+                            const val = Math.min(
+                                20,
+                                Math.max(1, Number(e.target.value)),
+                            );
+                            update("pontuacao", val);
+                        }}
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                </div>
+            )}
 
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -154,7 +157,9 @@ export default function NovaPerguntaInline({
                             />
                             <button
                                 type="button"
-                                onClick={() => update("url_anexo_pergunta", null)}
+                                onClick={() =>
+                                    update("url_anexo_pergunta", null)
+                                }
                                 className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold flex items-center justify-center shadow"
                                 title="Remover imagem"
                             >

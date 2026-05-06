@@ -23,6 +23,7 @@ export const createPerguntaFormDefaults = () => ({
 export const createTesteFormDefaults = () => ({
     titulo: "",
     tipo_avaliacao: "Teste_Formal",
+    peso_avaliacao: "0",
     data_hora_abertura: "",
     data_hora_fecho: "",
     duracao_minutos: "",

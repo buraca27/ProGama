@@ -16,6 +16,7 @@ class Teste extends Model
     protected $fillable = [
         'titulo',
         'tipo_avaliacao',
+        'instrucoes',
         'id_formador',
         'id_categoria',
         'data_hora_abertura',

@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { router } from "@inertiajs/react";
 import NovaPerguntaInline from "./NovaPerguntaInline";
 
 export default function BancoPerguntasSection({
@@ -11,9 +12,72 @@ export default function BancoPerguntasSection({
     perguntaEditForm,
     cancelarEdicaoPergunta,
     perguntasDisponiveis,
+    perguntasBancoProfessor,
+    perguntasBancoFiltros,
     carregarPerguntaNoEditor,
     categorias,
 }) {
+    const hasMountedRef = useRef(false);
+    const filtrosIniciais = perguntasBancoFiltros || {};
+    const [categoriaFiltroBanco, setCategoriaFiltroBanco] = useState(
+        filtrosIniciais.categoria || "",
+    );
+    const [textoFiltroBanco, setTextoFiltroBanco] = useState(
+        filtrosIniciais.q || "",
+    );
+
+    const perguntasPaginadas = perguntasBancoProfessor?.data || [];
+    const paginaAtual = perguntasBancoProfessor?.current_page || 1;
+    const totalPaginas = perguntasBancoProfessor?.last_page || 1;
+
+    useEffect(() => {
+        setCategoriaFiltroBanco(filtrosIniciais.categoria || "");
+        setTextoFiltroBanco(filtrosIniciais.q || "");
+    }, [filtrosIniciais.categoria, filtrosIniciais.q]);
+
+    useEffect(() => {
+        if (!hasMountedRef.current) {
+            hasMountedRef.current = true;
+            return;
+        }
+
+        const timeoutId = setTimeout(() => {
+            router.get(
+                route("dashboard"),
+                {
+                    perguntas_page: 1,
+                    perguntas_categoria: categoriaFiltroBanco || undefined,
+                    perguntas_q: textoFiltroBanco || undefined,
+                },
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true,
+                    only: ["perguntasBancoProfessor", "perguntasBancoFiltros"],
+                },
+            );
+        }, 250);
+
+        return () => clearTimeout(timeoutId);
+    }, [categoriaFiltroBanco, textoFiltroBanco]);
+
+    const mudarPagina = (page) => {
+        router.get(
+            route("dashboard"),
+            {
+                perguntas_page: page,
+                perguntas_categoria: categoriaFiltroBanco || undefined,
+                perguntas_q: textoFiltroBanco || undefined,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ["perguntasBancoProfessor", "perguntasBancoFiltros"],
+            },
+        );
+    };
+
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -90,13 +154,48 @@ export default function BancoPerguntasSection({
                 </form>
             )}
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Filtrar por categoria
+                    </label>
+                    <select
+                        value={categoriaFiltroBanco}
+                        onChange={(e) =>
+                            setCategoriaFiltroBanco(e.target.value)
+                        }
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    >
+                        <option value="">Todas as categorias</option>
+                        {categorias.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                                {cat.nome}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Pesquisar pergunta
+                    </label>
+                    <input
+                        type="text"
+                        value={textoFiltroBanco}
+                        onChange={(e) => setTextoFiltroBanco(e.target.value)}
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        placeholder="Pesquisar pelo texto da pergunta"
+                    />
+                </div>
+            </div>
+
             <div className="space-y-3 max-h-[26rem] overflow-y-auto pr-1">
-                {perguntasDisponiveis.length === 0 && (
+                {perguntasPaginadas.length === 0 && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Ainda não tens perguntas criadas.
+                        Não existem perguntas para os filtros aplicados.
                     </p>
                 )}
-                {perguntasDisponiveis.map((pergunta) => (
+                {perguntasPaginadas.map((pergunta) => (
                     <div
                         key={pergunta.id}
                         className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
@@ -121,6 +220,38 @@ export default function BancoPerguntasSection({
                     </div>
                 ))}
             </div>
+
+            {perguntasPaginadas.length > 0 && (
+                <div className="flex items-center justify-between gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Página {paginaAtual} de {totalPaginas}
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                mudarPagina(Math.max(1, paginaAtual - 1))
+                            }
+                            disabled={paginaAtual === 1}
+                            className="px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        >
+                            Anterior
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                mudarPagina(
+                                    Math.min(totalPaginas, paginaAtual + 1),
+                                )
+                            }
+                            disabled={paginaAtual === totalPaginas}
+                            className="px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        >
+                            Seguinte
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

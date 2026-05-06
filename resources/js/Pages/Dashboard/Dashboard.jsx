@@ -18,7 +18,7 @@ import SettingsView from "./Components/Profile/SettingsView";
 import CategoriasView from "./Components/Categorias/CategoriasView";
 import TestesView from "./Components/Professores/TestesView";
 import TarefasView from "./Components/Professores/TarefasView";
-import TrabalhosView from "./Components/Professores/TrabalhosView";
+//import TrabalhosView from "./Components/Professores/TrabalhosView";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Incluindo tarefasAluno) ---
@@ -33,6 +33,8 @@ export default function Dashboard(props) {
         status,
         mustVerifyEmail,
         perguntasProfessor = [],
+        perguntasBancoProfessor = null,
+        perguntasBancoFiltros = null,
         testesProfessor = [],
         tarefasProfessor = [],
         tarefasAluno = [], // <--- ADICIONADO AQUI
@@ -145,6 +147,8 @@ export default function Dashboard(props) {
                 {activeView === "testes" && (
                     <TestesView
                         perguntasProfessor={perguntasProfessor}
+                        perguntasBancoProfessor={perguntasBancoProfessor}
+                        perguntasBancoFiltros={perguntasBancoFiltros}
                         testesProfessor={testesProfessor}
                         categorias={categorias}
                     />

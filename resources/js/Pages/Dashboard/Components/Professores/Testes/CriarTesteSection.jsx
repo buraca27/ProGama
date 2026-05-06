@@ -10,9 +10,11 @@ export default function CriarTesteSection({
     categorias,
     categoriaFiltro,
     setCategoriaFiltro,
+    textoPerguntaFiltro,
+    setTextoPerguntaFiltro,
     mostrarListaPerguntas,
     setMostrarListaPerguntas,
-    perguntasFiltradasPorCategoria,
+    perguntasFiltradas,
     togglePerguntaSelecionada,
     perguntasDisponiveis,
     atualizarPontuacaoPerguntaExistente,
@@ -150,25 +152,63 @@ export default function CriarTesteSection({
                         required={config.fechoObrigatorio}
                     />
                 </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Peso na nota final (%)
+                    </label>
+                    <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={testeForm.data.peso_avaliacao ?? "0"}
+                        onChange={(e) =>
+                            testeForm.setData("peso_avaliacao", e.target.value)
+                        }
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        placeholder="0 a 100"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Define quanto esta avaliação conta para a nota final.
+                    </p>
+                </div>
             </div>
 
             {mostrarListaPerguntas && (
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Filtrar por categoria
-                    </label>
-                    <select
-                        value={categoriaFiltro}
-                        onChange={(e) => setCategoriaFiltro(e.target.value)}
-                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    >
-                        <option value="">Todas as categorias</option>
-                        {categorias.map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                                {cat.nome}
-                            </option>
-                        ))}
-                    </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Filtrar por categoria
+                        </label>
+                        <select
+                            value={categoriaFiltro}
+                            onChange={(e) => setCategoriaFiltro(e.target.value)}
+                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        >
+                            <option value="">Todas as categorias</option>
+                            {categorias.map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                    {cat.nome}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Pesquisar pergunta
+                        </label>
+                        <input
+                            type="text"
+                            value={textoPerguntaFiltro}
+                            onChange={(e) =>
+                                setTextoPerguntaFiltro(e.target.value)
+                            }
+                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                            placeholder="Pesquisar pelo texto da pergunta"
+                        />
+                    </div>
                 </div>
             )}
 
@@ -197,12 +237,12 @@ export default function CriarTesteSection({
                 </div>
                 {mostrarListaPerguntas && (
                     <div className="max-h-44 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
-                        {perguntasFiltradasPorCategoria.length === 0 && (
+                        {perguntasFiltradas.length === 0 && (
                             <p className="text-sm text-gray-500">
-                                Sem perguntas nesta categoria.
+                                Sem perguntas para os filtros aplicados.
                             </p>
                         )}
-                        {perguntasFiltradasPorCategoria.map((pergunta) => (
+                        {perguntasFiltradas.map((pergunta) => (
                             <div
                                 key={pergunta.id}
                                 className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300"
@@ -376,6 +416,7 @@ export default function CriarTesteSection({
                             }
                             title={`Nova pergunta #${index + 1}`}
                             categorias={categorias}
+                            showPontuacao={true}
                         />
                     ),
                 )}

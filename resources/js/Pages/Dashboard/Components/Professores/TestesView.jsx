@@ -6,6 +6,7 @@ import BancoPerguntasSection from "./Testes/BancoPerguntasSection";
 import CriarTesteSection from "./Testes/CriarTesteSection";
 import TestesCriadosList from "./Testes/TestesCriadosList";
 import {
+    CONTEXTO_AVALIACAO,
     createNovaPerguntaTesteDefaults,
     createPerguntaFormDefaults,
     createTesteFormDefaults,
@@ -13,6 +14,8 @@ import {
 
 export default function TestesView({
     perguntasProfessor = [],
+    perguntasBancoProfessor = null,
+    perguntasBancoFiltros = null,
     testesProfessor = [],
     categorias = [],
 }) {
@@ -21,7 +24,14 @@ export default function TestesView({
     const [editingPerguntaId, setEditingPerguntaId] = useState(null);
     const [editingTesteId, setEditingTesteId] = useState(null);
     const [categoriaFiltro, setCategoriaFiltro] = useState("");
+    const [textoPerguntaFiltro, setTextoPerguntaFiltro] = useState("");
     const [mostrarListaPerguntas, setMostrarListaPerguntas] = useState(true);
+    const [toastMsg, setToastMsg] = useState(null);
+
+    const mostrarToast = (msg) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 4000);
+    };
 
     // --- Formulários Inertia ---
     const perguntaForm = useForm(createPerguntaFormDefaults());
@@ -35,14 +45,18 @@ export default function TestesView({
         [perguntasProfessor],
     );
 
-    const perguntasFiltradasPorCategoria = useMemo(
+    const perguntasFiltradas = useMemo(
         () =>
             perguntasDisponiveis.filter(
                 (p) =>
-                    !categoriaFiltro ||
-                    p.id_categoria === Number(categoriaFiltro),
+                    (!categoriaFiltro ||
+                        p.id_categoria === Number(categoriaFiltro)) &&
+                    (!textoPerguntaFiltro ||
+                        String(p.texto || "")
+                            .toLowerCase()
+                            .includes(textoPerguntaFiltro.toLowerCase())),
             ),
-        [perguntasDisponiveis, categoriaFiltro],
+        [perguntasDisponiveis, categoriaFiltro, textoPerguntaFiltro],
     );
 
     const toDatetimeLocal = (value) => {
@@ -247,7 +261,18 @@ export default function TestesView({
             testeForm.setData("novas_perguntas", novasPerguntasLimpas);
         }
         testeForm.setData("pontuacao_por_pergunta", pontuacoesNormalizadas);
+        const tipoAvaliacao = testeForm.data.tipo_avaliacao;
+        const configAtual = CONTEXTO_AVALIACAO[tipoAvaliacao];
+        if (configAtual?.escalaFixa20 && totalPontuacaoTeste < 20) {
+            mostrarToast(
+                `O teste tem de ter exatamente 20 valores. Atualmente tem ${totalPontuacaoTeste} valor(es).`,
+            );
+            return;
+        }
         if (excedePontuacaoMaxima) {
+            mostrarToast(
+                "A soma da pontuação das perguntas não pode ultrapassar 20. Ajusta os valores antes de guardar.",
+            );
             testeForm.setError(
                 "total_pontuacao",
                 "A soma da pontuação das perguntas não pode ultrapassar 20. Ajusta os valores antes de guardar.",
@@ -290,7 +315,9 @@ export default function TestesView({
     const carregarTesteNoEditor = (teste) => {
         testeForm.setData({
             titulo: teste.titulo || "",
+            instrucoes: teste.instrucoes || "",
             tipo_avaliacao: teste.tipo_avaliacao || "Teste_Formal",
+            peso_avaliacao: teste.peso_avaliacao ?? "0",
             data_hora_abertura: toDatetimeLocal(teste.data_hora_abertura),
             data_hora_fecho: toDatetimeLocal(teste.data_hora_fecho),
             duracao_minutos: teste.duracao_minutos ?? "",
@@ -314,10 +341,38 @@ export default function TestesView({
         testeForm.reset();
         testeForm.setData(createTesteFormDefaults());
         setCategoriaFiltro("");
+        setTextoPerguntaFiltro("");
     };
 
     return (
         <div className="max-w-7xl mx-auto space-y-6">
+            {toastMsg && (
+                <div className="fixed bottom-6 right-6 z-[100] flex items-center p-4 space-x-3 w-full max-w-sm text-gray-600 bg-white rounded-xl shadow-2xl dark:text-gray-300 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 transition-all duration-300">
+                    <div className="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-yellow-500 bg-yellow-100 rounded-lg dark:bg-yellow-900/40 dark:text-yellow-400">
+                        <span className="font-bold text-lg">!</span>
+                    </div>
+                    <div className="ms-3 text-sm font-bold flex-1">
+                        {toastMsg}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setToastMsg(null)}
+                        className="ms-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700"
+                    >
+                        <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            viewBox="0 0 14 14"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <path d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                        </svg>
+                    </button>
+                </div>
+            )}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-2">
                 <div className="grid grid-cols-2 gap-2">
                     <button
@@ -357,6 +412,8 @@ export default function TestesView({
                         perguntaEditForm={perguntaEditForm}
                         cancelarEdicaoPergunta={cancelarEdicaoPergunta}
                         perguntasDisponiveis={perguntasDisponiveis}
+                        perguntasBancoProfessor={perguntasBancoProfessor}
+                        perguntasBancoFiltros={perguntasBancoFiltros}
                         carregarPerguntaNoEditor={carregarPerguntaNoEditor}
                         categorias={categorias}
                     />
@@ -370,11 +427,11 @@ export default function TestesView({
                         categorias={categorias}
                         categoriaFiltro={categoriaFiltro}
                         setCategoriaFiltro={setCategoriaFiltro}
+                        textoPerguntaFiltro={textoPerguntaFiltro}
+                        setTextoPerguntaFiltro={setTextoPerguntaFiltro}
                         mostrarListaPerguntas={mostrarListaPerguntas}
                         setMostrarListaPerguntas={setMostrarListaPerguntas}
-                        perguntasFiltradasPorCategoria={
-                            perguntasFiltradasPorCategoria
-                        }
+                        perguntasFiltradas={perguntasFiltradas}
                         togglePerguntaSelecionada={togglePerguntaSelecionada}
                         perguntasDisponiveis={perguntasDisponiveis}
                         atualizarPontuacaoPerguntaExistente={

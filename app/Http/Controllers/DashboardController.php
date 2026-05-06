@@ -18,6 +18,8 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $perguntasProfessor = [];
+        $perguntasBancoProfessor = null;
 
         // 1. Estatísticas Gerais
         $estatisticas = [
@@ -51,6 +53,32 @@ class DashboardController extends Controller
                 ->get();
         }
 
+        $perguntasProfessor = [];
+        $perguntasBancoProfessor = null;
+
+        if ($cargoReal === 'professor') {
+            $perguntasProfessor = Pergunta::orderBy('created_at', 'desc')
+                ->get(['id', 'texto', 'tipo_pergunta', 'id_categoria', 'url_anexo_pergunta']);
+
+            $perguntasBancoProfessorQuery = Pergunta::with('opcoes')
+                ->orderBy('created_at', 'desc');
+
+            if ($request->filled('perguntas_categoria')) {
+                $perguntasBancoProfessorQuery->where(
+                    'id_categoria',
+                    (int) $request->string('perguntas_categoria'),
+                );
+            }
+
+            if ($request->filled('perguntas_q')) {
+                $textoPesquisa = trim((string) $request->string('perguntas_q'));
+                $perguntasBancoProfessorQuery->where('texto', 'like', '%' . $textoPesquisa . '%');
+            }
+
+            $perguntasBancoProfessor = $perguntasBancoProfessorQuery
+                ->paginate(8, ['*'], 'perguntas_page')
+                ->withQueryString();
+        }
 
         // 5. Renderização Final
         return Inertia::render('Dashboard/Dashboard', [
@@ -63,8 +91,14 @@ class DashboardController extends Controller
             'tarefasAluno' => $tarefasAluno,
 
             // Variáveis específicas do Professor
-            'perguntasProfessor' => $cargoReal === 'professor'
-                ? Pergunta::with('opcoes')->orderBy('created_at', 'desc')->get() : [],
+            'perguntasProfessor' => $perguntasProfessor,
+            'perguntasBancoProfessor' => $perguntasBancoProfessor,
+            'perguntasBancoFiltros' => $cargoReal === 'professor'
+                ? [
+                    'categoria' => (string) $request->query('perguntas_categoria', ''),
+                    'q' => (string) $request->query('perguntas_q', ''),
+                ]
+                : null,
 
             'testesProfessor' => $cargoReal === 'professor'
                 ? Teste::with('perguntas')->where('id_formador', $user->id)->orderBy('created_at', 'desc')->get() : [],
@@ -77,41 +111,6 @@ class DashboardController extends Controller
 
 
     }
-    public function store(Request $request)
-    {
-        $request->validate([
-            'nome' => 'required|string|max:100|unique:Disciplinas,nome',
-            'codigo' => 'nullable|string|max:20|unique:Disciplinas,codigo',
-            'descricao' => 'nullable|string',
-        ]);
-
-        Disciplina::create([
-            'nome' => $request->nome,
-            'codigo' => $request->codigo,
-            'descricao' => $request->descricao,
-        ]);
-
-        return back()->with('success', 'Disciplina criada com sucesso!');
-    }
-
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'nome' => 'required|string|max:100|unique:Disciplinas,nome,' . $id,
-            'codigo' => 'nullable|string|max:20|unique:Disciplinas,codigo,' . $id,
-            'descricao' => 'nullable|string',
-        ]);
-
-        $disciplina = Disciplina::findOrFail($id);
-        $disciplina->update([
-            'nome' => $request->nome,
-            'codigo' => $request->codigo,
-            'descricao' => $request->descricao,
-        ]);
-
-        return back()->with('success', 'Disciplina atualizada com sucesso!');
-    }
-
     private function tryCatchCount($table)
     {
         try {

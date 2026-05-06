@@ -39,9 +39,7 @@ class ProfessorTesteController extends Controller
 
         $validated = $this->validarPergunta($request);
 
-        $pergunta = Pergunta::where('id', $id)
-            ->where('id_formador_criador', (int) Auth::id())
-            ->firstOrFail();
+        $pergunta = Pergunta::where('id', $id)->firstOrFail();
 
         DB::transaction(function () use ($pergunta, $validated) {
             $pergunta->update([
@@ -61,75 +59,21 @@ class ProfessorTesteController extends Controller
     public function storeTeste(Request $request)
     {
         $this->assertProfessor();
-
-        $validated = $request->validate([
-            'titulo' => 'required|string|max:150',
-            'tipo_avaliacao' => 'required|string|in:Teste_Formal,Ficha_Trabalho,Exame_Final',
-            'data_hora_abertura' => 'nullable|date',
-            'duracao_minutos' => 'nullable|integer|min:1|max:600',
-            'pergunta_ids' => 'nullable|array',
-            'pergunta_ids.*' => 'integer|exists:Perguntas,id',
-            'pontuacao_por_pergunta' => 'nullable|array',
-            'pontuacao_por_pergunta.*' => 'nullable|integer|min:1|max:20',
-            'novas_perguntas' => 'nullable|array',
-            'novas_perguntas.*.texto' => 'required|string|min:5',
-            'novas_perguntas.*.tipo_pergunta' => 'required|string|in:Escolha_Multipla,Verdadeiro_Falso,Dissertativa',
-            'novas_perguntas.*.id_categoria' => 'required|integer|exists:Categorias,id',
-            'novas_perguntas.*.pontuacao' => 'required|integer|min:1|max:20',
-            'novas_perguntas.*.url_anexo_pergunta' => 'nullable|string',
-            'novas_perguntas.*.opcoes' => 'nullable|array',
-            'novas_perguntas.*.opcoes.*' => 'nullable|string|max:255',
-            'novas_perguntas.*.resposta_correta_index' => 'nullable|integer|min:0',
-            'novas_perguntas.*.resposta_verdadeiro_falso' => 'nullable|boolean',
-        ]);
+        $validated = $this->validarTeste($request);
 
         DB::transaction(function () use ($validated) {
             $teste = Teste::create([
                 'titulo' => $validated['titulo'],
                 'tipo_avaliacao' => $validated['tipo_avaliacao'],
+                'instrucoes' => $validated['instrucoes'] ?? null,
                 'id_formador' => (int) Auth::id(),
+                'peso_avaliacao' => $validated['peso_avaliacao'] ?? 0,
                 'data_hora_abertura' => $validated['data_hora_abertura'] ?? null,
                 'data_hora_fecho' => $validated['data_hora_fecho'] ?? null,
                 'duracao_minutos' => $validated['duracao_minutos'] ?? null,
-                'peso_avaliacao' => 0,
             ]);
 
-            $idsPerguntas = collect($validated['pergunta_ids'] ?? [])->map(fn($id) => (int) $id)->unique()->values()->all();
-
-            $pontuacoesBase = $this->normalizarPontuacoesPerguntas(
-                $validated['pontuacao_por_pergunta'] ?? [],
-                $idsPerguntas,
-            );
-
-            $pontuacoesNovasPerguntas = [];
-            foreach ($validated['novas_perguntas'] ?? [] as $novaPergunta) {
-                $pergunta = $this->criarPerguntaComOpcoes($novaPergunta, (int) Auth::id());
-                $idsPerguntas[] = $pergunta->id;
-                $pontuacoesNovasPerguntas[$pergunta->id] = (int) ($novaPergunta['pontuacao'] ?? 1);
-            }
-
-            // Preserva as chaves numéricas (IDs das perguntas).
-            $pontuacoesPorPergunta = $pontuacoesBase + $pontuacoesNovasPerguntas;
-
-            $idsPerguntas = collect($idsPerguntas)->unique()->values();
-
-            $syncData = [];
-            foreach ($idsPerguntas as $perguntaId) {
-                $syncData[$perguntaId] = [
-                    'valor_pontuacao' => $pontuacoesPorPergunta[$perguntaId] ?? 1
-                ];
-            }
-
-            $totalPontuacao = collect($syncData)->sum('valor_pontuacao');
-            if ($totalPontuacao > 20) {
-                throw ValidationException::withMessages([
-                    'total_pontuacao' => 'A soma da pontuação das perguntas não pode ultrapassar 20. Ajusta os valores antes de guardar o teste.',
-                ]);
-            }
-
-            if (!empty($syncData)) {
-                $teste->perguntas()->sync($syncData);
-            }
+            $this->sincronizarPerguntasTeste($teste, $validated);
         });
 
         return redirect()->route('dashboard')->with('success', 'Teste criado com sucesso.');
@@ -138,10 +82,73 @@ class ProfessorTesteController extends Controller
     public function updateTeste(Request $request, int $id)
     {
         $this->assertProfessor();
+        $validated = $this->validarTeste($request);
 
-        $validated = $request->validate([
+        $teste = Teste::where('id', $id)
+            ->where('id_formador', (int) Auth::id())
+            ->firstOrFail();
+
+        DB::transaction(function () use ($teste, $validated) {
+            $teste->update([
+                'titulo' => $validated['titulo'],
+                'tipo_avaliacao' => $validated['tipo_avaliacao'],
+                'instrucoes' => $validated['instrucoes'] ?? null,
+                'peso_avaliacao' => $validated['peso_avaliacao'] ?? 0,
+                'data_hora_abertura' => $validated['data_hora_abertura'] ?? null,
+                'data_hora_fecho' => $validated['data_hora_fecho'] ?? null,
+                'duracao_minutos' => $validated['duracao_minutos'] ?? null,
+            ]);
+
+            $this->sincronizarPerguntasTeste($teste, $validated);
+        });
+
+        return redirect()->route('dashboard')->with('success', 'Teste atualizado com sucesso.');
+    }
+
+    private function sincronizarPerguntasTeste(Teste $teste, array $validated): void
+    {
+        $idsPerguntas = collect($validated['pergunta_ids'] ?? [])->map(fn($id) => (int) $id)->unique()->values()->all();
+
+        $pontuacoesBase = $this->normalizarPontuacoesPerguntas(
+            $validated['pontuacao_por_pergunta'] ?? [],
+            $idsPerguntas,
+        );
+
+        $pontuacoesNovasPerguntas = [];
+        foreach ($validated['novas_perguntas'] ?? [] as $novaPergunta) {
+            $pergunta = $this->criarPerguntaComOpcoes($novaPergunta, (int) Auth::id());
+            $idsPerguntas[] = $pergunta->id;
+            $pontuacoesNovasPerguntas[$pergunta->id] = (int) ($novaPergunta['pontuacao'] ?? 1);
+        }
+
+        $pontuacoesPorPergunta = $pontuacoesBase + $pontuacoesNovasPerguntas;
+        $idsPerguntas = collect($idsPerguntas)->unique()->values();
+
+        $syncData = [];
+        foreach ($idsPerguntas as $perguntaId) {
+            $syncData[$perguntaId] = [
+                'valor_pontuacao' => $pontuacoesPorPergunta[$perguntaId] ?? 1
+            ];
+        }
+
+        $totalPontuacao = collect($syncData)->sum('valor_pontuacao');
+        if ($totalPontuacao > 20) {
+            throw ValidationException::withMessages([
+                'total_pontuacao' => 'A soma da pontuação das perguntas não pode ultrapassar 20. Ajusta os valores antes de guardar o teste.',
+            ]);
+        }
+
+        $teste->perguntas()->sync($syncData);
+    }
+
+    private function validarTeste(Request $request): array
+    {
+        return $request->validate([
             'titulo' => 'required|string|max:150',
             'tipo_avaliacao' => 'required|string|in:Teste_Formal,Ficha_Trabalho,Exame_Final',
+            'instrucoes' => 'nullable|string',
+            'peso_avaliacao' => 'nullable|numeric|min:0|max:100',
+            'data_hora_abertura' => 'nullable|date',
             'data_hora_fecho' => 'nullable|date|after:data_hora_abertura',
             'duracao_minutos' => 'nullable|integer|min:1|max:600',
             'pergunta_ids' => 'nullable|array',
@@ -159,57 +166,6 @@ class ProfessorTesteController extends Controller
             'novas_perguntas.*.resposta_correta_index' => 'nullable|integer|min:0',
             'novas_perguntas.*.resposta_verdadeiro_falso' => 'nullable|boolean',
         ]);
-
-        $teste = Teste::where('id', $id)
-            ->where('id_formador', (int) Auth::id())
-            ->firstOrFail();
-
-        DB::transaction(function () use ($teste, $validated) {
-            $teste->update([
-                'titulo' => $validated['titulo'],
-                'tipo_avaliacao' => $validated['tipo_avaliacao'],
-                'data_hora_abertura' => $validated['data_hora_abertura'],
-                'data_hora_fecho' => $validated['data_hora_fecho'],
-                'duracao_minutos' => $validated['duracao_minutos'] ?? null,
-            ]);
-
-            $idsPerguntas = collect($validated['pergunta_ids'] ?? [])->map(fn($item) => (int) $item)->unique()->values()->all();
-
-            $pontuacoesBase = $this->normalizarPontuacoesPerguntas(
-                $validated['pontuacao_por_pergunta'] ?? [],
-                $idsPerguntas,
-            );
-
-            $pontuacoesNovasPerguntas = [];
-            foreach ($validated['novas_perguntas'] ?? [] as $novaPergunta) {
-                $pergunta = $this->criarPerguntaComOpcoes($novaPergunta, (int) Auth::id());
-                $idsPerguntas[] = $pergunta->id;
-                $pontuacoesNovasPerguntas[$pergunta->id] = (int) ($novaPergunta['pontuacao'] ?? 1);
-            }
-
-            // Preserva as chaves numéricas (IDs das perguntas).
-            $pontuacoesPorPergunta = $pontuacoesBase + $pontuacoesNovasPerguntas;
-
-            $idsPerguntas = collect($idsPerguntas)->unique()->values();
-
-            $syncData = [];
-            foreach ($idsPerguntas as $perguntaId) {
-                $syncData[$perguntaId] = [
-                    'valor_pontuacao' => $pontuacoesPorPergunta[$perguntaId] ?? 1
-                ];
-            }
-
-            $totalPontuacao = collect($syncData)->sum('valor_pontuacao');
-            if ($totalPontuacao > 20) {
-                throw ValidationException::withMessages([
-                    'total_pontuacao' => 'A soma da pontuação das perguntas não pode ultrapassar 20. Ajusta os valores antes de guardar o teste.',
-                ]);
-            }
-
-            $teste->perguntas()->sync($syncData);
-        });
-
-        return redirect()->route('dashboard')->with('success', 'Teste atualizado com sucesso.');
     }
 
     public function storeTarefa(Request $request)
