@@ -28,6 +28,10 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
         Route::post('/testes', [ProfessorTesteController::class, 'storeTeste'])->name('testes.store');
         Route::put('/testes/{id}', [ProfessorTesteController::class, 'updateTeste'])->name('testes.update');
         Route::post('/tarefas', [ProfessorTesteController::class, 'storeTarefa'])->name('tarefas.store');
+        Route::put('/tarefas/{idTarefa}', [ProfessorTesteController::class, 'updateTarefa'])->name('tarefas.update');
+        Route::post('/tarefas/{idTarefa}/terminar', [ProfessorTesteController::class, 'terminarTarefa'])->name('tarefas.terminar');
+        Route::delete('/tarefas/{idTarefa}', [ProfessorTesteController::class, 'destroyTarefa'])->name('tarefas.destroy');
+        Route::put('/correcoes/{idTesteRealizado}', [ProfessorTesteController::class, 'updateCorrecao'])->name('correcoes.update');
     });
 
     // --- 3. GESTÃO ADMINISTRATIVA (Apenas Admin) ---

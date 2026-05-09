@@ -59,12 +59,6 @@ export default function TestesView({
         [perguntasDisponiveis, categoriaFiltro, textoPerguntaFiltro],
     );
 
-    const toDatetimeLocal = (value) => {
-        if (!value) return "";
-        const normalized = String(value).replace(" ", "T");
-        return normalized.slice(0, 16);
-    };
-
     // --- Handlers perguntas do banco ---
     const togglePerguntaSelecionada = (id) => {
         const current = testeForm.data.pergunta_ids || [];
@@ -236,6 +230,20 @@ export default function TestesView({
             return acc;
         }, {});
 
+    const montarPayloadPontuacoesExplicito = () =>
+        (testeForm.data.pergunta_ids || []).map((idPergunta) => {
+            const valorAtual = Number(
+                testeForm.data.pontuacao_por_pergunta?.[idPergunta] ?? 1,
+            );
+
+            return {
+                id_pergunta: Number(idPergunta),
+                valor_pontuacao: Number.isNaN(valorAtual)
+                    ? 1
+                    : Math.min(20, Math.max(1, valorAtual)),
+            };
+        });
+
     const limparNovasPerguntasVazias = (perguntas = []) =>
         perguntas.filter((pergunta) => {
             const temTexto = Boolean(String(pergunta?.texto || "").trim());
@@ -254,6 +262,7 @@ export default function TestesView({
             testeForm.data.novas_perguntas || [],
         );
         const pontuacoesNormalizadas = montarPayloadPontuacoes();
+        const pontuacoesExplicitas = montarPayloadPontuacoesExplicito();
         if (
             novasPerguntasLimpas.length !==
             (testeForm.data.novas_perguntas || []).length
@@ -290,8 +299,7 @@ export default function TestesView({
             ...data,
             novas_perguntas: novasPerguntasLimpas,
             pontuacao_por_pergunta: pontuacoesNormalizadas,
-            data_hora_abertura: data.data_hora_abertura || null,
-            data_hora_fecho: data.data_hora_fecho || null,
+            pontuacoes_perguntas: pontuacoesExplicitas,
         });
 
         if (editingTesteId) {
@@ -318,8 +326,6 @@ export default function TestesView({
             instrucoes: teste.instrucoes || "",
             tipo_avaliacao: teste.tipo_avaliacao || "Teste_Formal",
             peso_avaliacao: teste.peso_avaliacao ?? "0",
-            data_hora_abertura: toDatetimeLocal(teste.data_hora_abertura),
-            data_hora_fecho: toDatetimeLocal(teste.data_hora_fecho),
             duracao_minutos: teste.duracao_minutos ?? "",
             pergunta_ids: (teste.perguntas || []).map((p) => p.id),
             pontuacao_por_pergunta: (teste.perguntas || []).reduce(

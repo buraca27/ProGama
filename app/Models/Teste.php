@@ -38,6 +38,11 @@ class Teste extends Model
         return $this->hasMany(TesteAtribuicao::class, 'id_teste');
     }
 
+    public function realizados()
+    {
+        return $this->hasMany(TesteRealizado::class, 'id_teste');
+    }
+
     public function historicos(): MorphMany
     {
         return $this->morphMany(HistoricoAtividade::class, 'referencia');

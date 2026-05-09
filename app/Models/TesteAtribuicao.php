@@ -16,6 +16,13 @@ class TesteAtribuicao extends Model
         'id_turma',
         'id_grupo',
         'id_aluno',
+        'data_hora_abertura',
+        'data_hora_fecho',
+    ];
+
+    protected $casts = [
+        'data_hora_abertura' => 'datetime',
+        'data_hora_fecho' => 'datetime',
     ];
 
     public function teste()

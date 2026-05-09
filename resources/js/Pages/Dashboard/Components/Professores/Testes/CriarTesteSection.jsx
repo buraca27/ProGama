@@ -97,59 +97,19 @@ export default function CriarTesteSection({
                     </select>
                 </div>
 
-                {config.temDuracaoEAbertura && (
-                    <>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Duração (minutos)
-                            </label>
-                            <input
-                                type="number"
-                                min={1}
-                                value={testeForm.data.duracao_minutos}
-                                onChange={(e) =>
-                                    testeForm.setData(
-                                        "duracao_minutos",
-                                        e.target.value,
-                                    )
-                                }
-                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                placeholder="Opcional"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Abertura
-                            </label>
-                            <input
-                                type="datetime-local"
-                                value={testeForm.data.data_hora_abertura}
-                                onChange={(e) =>
-                                    testeForm.setData(
-                                        "data_hora_abertura",
-                                        e.target.value,
-                                    )
-                                }
-                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                required
-                            />
-                        </div>
-                    </>
-                )}
-
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        {config.labelFecho}
+                        Tempo limite (minutos)
                     </label>
                     <input
-                        type="datetime-local"
-                        value={testeForm.data.data_hora_fecho}
+                        type="number"
+                        min={1}
+                        value={testeForm.data.duracao_minutos}
                         onChange={(e) =>
-                            testeForm.setData("data_hora_fecho", e.target.value)
+                            testeForm.setData("duracao_minutos", e.target.value)
                         }
                         className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        required={config.fechoObrigatorio}
+                        placeholder="Opcional"
                     />
                 </div>
 

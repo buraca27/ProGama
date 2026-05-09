@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Pergunta;
 use App\Models\Teste;
 use App\Models\TesteAtribuicao;
+use App\Models\TesteRealizado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -20,6 +21,7 @@ class DashboardController extends Controller
         $user = $request->user();
         $perguntasProfessor = [];
         $perguntasBancoProfessor = null;
+        $correcoesProfessor = [];
 
         // 1. Estatísticas Gerais
         $estatisticas = [
@@ -36,8 +38,8 @@ class DashboardController extends Controller
         // 3. Definição das variáveis que estavam em falta (sublinhadas a vermelho)
         $turmas = match ($user->id_role) {
             1 => Turma::with(['professores', 'alunos'])->get(),
-            2 => User::find($user->id)->turmasLecionadas()->with(['alunos', 'professores'])->get(),
-            3 => $user->id_turma ? Turma::where('id', $user->id_turma)->with(['professores', 'alunos'])->get() : [],
+            2 => User::find($user->id, ['*'])->turmasLecionadas()->with(['alunos', 'professores'])->get(),
+            3 => $user->id_turma ? Turma::where('id', '=', $user->id_turma, 'and')->with(['professores', 'alunos'])->get() : [],
             default => [],
         };
 
@@ -64,10 +66,10 @@ class DashboardController extends Controller
                 ->orderBy('created_at', 'desc');
 
             if ($request->filled('perguntas_categoria')) {
-                $perguntasBancoProfessorQuery->where(
-                    'id_categoria',
-                    (int) $request->string('perguntas_categoria'),
-                );
+                $categoriaId = $request->integer('perguntas_categoria');
+                if ($categoriaId > 0) {
+                    $perguntasBancoProfessorQuery->where('id_categoria', '=', $categoriaId, 'and');
+                }
             }
 
             if ($request->filled('perguntas_q')) {
@@ -78,6 +80,19 @@ class DashboardController extends Controller
             $perguntasBancoProfessor = $perguntasBancoProfessorQuery
                 ->paginate(8, ['*'], 'perguntas_page')
                 ->withQueryString();
+
+            $correcoesProfessor = TesteRealizado::with([
+                'aluno:id,name,email',
+                'teste:id,titulo,id_formador',
+                'teste.perguntas:id',
+                'respostas.pergunta:id,texto,tipo_pergunta',
+                'respostas.opcaoEscolhida:id,texto_opcao',
+                'corrigidoPor:id,name',
+            ])
+                ->whereHas('teste', fn($query) => $query->where('id_formador', $user->id))
+                ->orderByRaw("CASE WHEN estado = 'Aguardando_Correcao' THEN 0 WHEN estado = 'Em_Resolucao' THEN 1 ELSE 2 END")
+                ->orderByDesc('created_at')
+                ->get();
         }
 
         // 5. Renderização Final
@@ -107,6 +122,7 @@ class DashboardController extends Controller
                 ? TesteAtribuicao::with(['teste', 'turma'])
                     ->whereHas('teste', fn($q) => $q->where('id_formador', $user->id))
                     ->orderBy('created_at', 'desc')->get() : [],
+            'correcoesProfessor' => $correcoesProfessor,
         ]);
 
 

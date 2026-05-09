@@ -18,6 +18,7 @@ import SettingsView from "./Components/Profile/SettingsView";
 import CategoriasView from "./Components/Categorias/CategoriasView";
 import TestesView from "./Components/Professores/TestesView";
 import TarefasView from "./Components/Professores/TarefasView";
+import AvaliacoesView from "./Components/Professores/AvaliacoesView";
 //import TrabalhosView from "./Components/Professores/TrabalhosView";
 
 export default function Dashboard(props) {
@@ -38,6 +39,7 @@ export default function Dashboard(props) {
         testesProfessor = [],
         tarefasProfessor = [],
         tarefasAluno = [], // <--- ADICIONADO AQUI
+        correcoesProfessor = [],
     } = props;
 
     // =============================================================================
@@ -169,7 +171,7 @@ export default function Dashboard(props) {
 
                 {/* 7. OUTROS PLACEHOLDERS */}
                 {activeView === "avaliacoes" && (
-                    <PlaceholderView title="Avaliações e Notas" icon="📈" />
+                    <AvaliacoesView correcoesProfessor={correcoesProfessor} />
                 )}
                 {activeView === "boletim" && (
                     <PlaceholderView title="Boletim de Notas" icon="🎓" />
