@@ -22,6 +22,7 @@ class DashboardController extends Controller
         $perguntasProfessor = [];
         $perguntasBancoProfessor = null;
         $correcoesProfessor = [];
+        $submissoesAluno = [];
 
         // 1. Estatísticas Gerais
         $estatisticas = [
@@ -48,11 +49,47 @@ class DashboardController extends Controller
 
         // 4. Lógica para Tarefas do Aluno
         $tarefasAluno = [];
-        if ($cargoReal === 'aluno' && $user->id_turma) {
+        if ($cargoReal === 'aluno') {
+            $idTurmaAluno = $user->id_turma ? (int) $user->id_turma : null;
+
             $tarefasAluno = TesteAtribuicao::with(['teste'])
-                ->where('id_turma', $user->id_turma)
+                ->where(function ($query) use ($user, $idTurmaAluno) {
+                    $query->where('id_aluno', '=', (int) $user->id, 'and')
+                        ->orWhere(function ($or) use ($idTurmaAluno) {
+                            $or->whereNull('id_aluno');
+
+                            if ($idTurmaAluno) {
+                                $or->where('id_turma', '=', $idTurmaAluno, 'and');
+                            } else {
+                                $or->whereRaw('1 = 0');
+                            }
+                        });
+                })
+                ->with([
+                    'teste' => fn($query) => $query->with([
+                        'perguntas' => fn($perguntas) => $perguntas
+                            ->with('opcoes')
+                            ->withPivot('valor_pontuacao'),
+                    ]),
+                ])
                 ->orderBy('created_at', 'desc')
                 ->get();
+
+            $idsTestesAtribuidos = $tarefasAluno
+                ->pluck('id_teste')
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            if ($idsTestesAtribuidos->isNotEmpty()) {
+                $submissoesAluno = TesteRealizado::with([
+                    'respostas:id,id_teste_realizado,id_pergunta,id_opcao_escolhida,resposta_texto,status_correcao,pontuacao_obtida,comentario_formador',
+                ])
+                    ->where('id_aluno', '=', (int) $user->id, 'and')
+                    ->whereIn('id_teste', $idsTestesAtribuidos->all(), 'and', false)
+                    ->orderByDesc('created_at')
+                    ->get();
+            }
         }
 
         $perguntasProfessor = [];
@@ -104,6 +141,7 @@ class DashboardController extends Controller
             'disciplinas' => $disciplinas,
             'categorias' => $categorias,
             'tarefasAluno' => $tarefasAluno,
+            'submissoesAluno' => $submissoesAluno,
 
             // Variáveis específicas do Professor
             'perguntasProfessor' => $perguntasProfessor,

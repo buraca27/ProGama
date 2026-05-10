@@ -6,6 +6,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\TurmaController;
 use App\Http\Controllers\DisciplinaController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\AlunoTesteController;
 use App\Http\Controllers\ProfessorTesteController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -32,6 +33,10 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
         Route::post('/tarefas/{idTarefa}/terminar', [ProfessorTesteController::class, 'terminarTarefa'])->name('tarefas.terminar');
         Route::delete('/tarefas/{idTarefa}', [ProfessorTesteController::class, 'destroyTarefa'])->name('tarefas.destroy');
         Route::put('/correcoes/{idTesteRealizado}', [ProfessorTesteController::class, 'updateCorrecao'])->name('correcoes.update');
+    });
+
+    Route::prefix('dashboard/aluno')->name('aluno.')->group(function () {
+        Route::post('/testes/{idTarefa}/submeter', [AlunoTesteController::class, 'submeter'])->name('testes.submeter');
     });
 
     // --- 3. GESTÃO ADMINISTRATIVA (Apenas Admin) ---

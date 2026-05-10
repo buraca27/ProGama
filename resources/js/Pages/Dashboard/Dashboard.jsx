@@ -19,7 +19,7 @@ import CategoriasView from "./Components/Categorias/CategoriasView";
 import TestesView from "./Components/Professores/TestesView";
 import TarefasView from "./Components/Professores/TarefasView";
 import AvaliacoesView from "./Components/Professores/AvaliacoesView";
-//import TrabalhosView from "./Components/Professores/TrabalhosView";
+import TrabalhosView from "./Components/Alunos/TrabalhosView";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Incluindo tarefasAluno) ---
@@ -38,7 +38,8 @@ export default function Dashboard(props) {
         perguntasBancoFiltros = null,
         testesProfessor = [],
         tarefasProfessor = [],
-        tarefasAluno = [], // <--- ADICIONADO AQUI
+        tarefasAluno = [],
+        submissoesAluno = [],
         correcoesProfessor = [],
     } = props;
 
@@ -166,7 +167,10 @@ export default function Dashboard(props) {
 
                 {/* 6. VISTA TRABALHOS PENDENTES (ALUNO) */}
                 {activeView === "trabalhos" && (
-                    <TrabalhosView tarefasAluno={tarefasAluno} />
+                    <TrabalhosView
+                        tarefasAluno={tarefasAluno}
+                        submissoesAluno={submissoesAluno}
+                    />
                 )}
 
                 {/* 7. OUTROS PLACEHOLDERS */}

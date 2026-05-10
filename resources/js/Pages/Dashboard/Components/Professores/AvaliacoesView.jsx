@@ -305,10 +305,17 @@ export default function AvaliacoesView({ correcoesProfessor = [] }) {
                                                             updateRespostaField(
                                                                 index,
                                                                 "pontuacao_obtida",
-                                                                Number(
-                                                                    e.target
-                                                                        .value ||
+                                                                Math.min(
+                                                                    maxPergunta,
+                                                                    Math.max(
                                                                         0,
+                                                                        Number(
+                                                                            e
+                                                                                .target
+                                                                                .value ||
+                                                                                0,
+                                                                        ),
+                                                                    ),
                                                                 ),
                                                             )
                                                         }

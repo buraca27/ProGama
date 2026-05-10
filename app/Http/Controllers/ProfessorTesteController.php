@@ -289,6 +289,11 @@ class ProfessorTesteController extends Controller
             $respostasPayload = collect($validated['respostas'])
                 ->keyBy(fn($item) => (int) $item['id']);
 
+            $maxPontuacaoPorPergunta = $testeRealizado->teste->perguntas
+                ->mapWithKeys(fn($pergunta) => [
+                    (int) $pergunta->id => (int) ($pergunta->pivot->valor_pontuacao ?? 1),
+                ]);
+
             $respostasBanco = RespostaAluno::whereIn('id', $respostasPayload->keys()->all(), 'and', false)
                 ->where('id_teste_realizado', '=', $testeRealizado->id, 'and')
                 ->get()
@@ -301,9 +306,18 @@ class ProfessorTesteController extends Controller
                     continue;
                 }
 
+                $maxPergunta = (int) ($maxPontuacaoPorPergunta->get((int) $resposta->id_pergunta) ?? 1);
+                $pontuacaoObtida = (int) $dadosResposta['pontuacao_obtida'];
+
+                if ($pontuacaoObtida > $maxPergunta) {
+                    throw ValidationException::withMessages([
+                        'respostas' => "A pontuacao de uma pergunta nao pode ultrapassar {$maxPergunta} valor(es).",
+                    ]);
+                }
+
                 $resposta->update([
                     'status_correcao' => $dadosResposta['status_correcao'],
-                    'pontuacao_obtida' => (int) $dadosResposta['pontuacao_obtida'],
+                    'pontuacao_obtida' => $pontuacaoObtida,
                     'comentario_formador' => $dadosResposta['comentario_formador'] ?? null,
                 ]);
             }
