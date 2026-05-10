@@ -1,8 +1,14 @@
 import React, { useState } from "react";
 import { useForm, router } from "@inertiajs/react";
 import DisciplinasAdminEditor from "./DisciplinasAdminEditor";
+import SearchBar from "@/Components/UI/SearchBar";
 
-export default function DisciplinasView({ disciplinas, turmas, utilizadores, userRole }) {
+export default function DisciplinasView({
+    disciplinas,
+    turmas,
+    utilizadores,
+    userRole,
+}) {
     // ==========================================
     // ESTADOS DOS MODAIS E FILTRO
     // ==========================================
@@ -18,18 +24,18 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
         setData: setDisciplinaD,
         post: postDisciplina,
         processing: processingDisciplina,
-        reset: resetDisciplina
+        reset: resetDisciplina,
     } = useForm({
         nome: "",
         codigo: "",
-        descricao: ""
+        descricao: "",
     });
 
     const submitNovaDisciplina = (e) => {
         e.preventDefault();
         postDisciplina(route("disciplinas.store"), {
             preserveScroll: true,
-            onSuccess: () => resetDisciplina()
+            onSuccess: () => resetDisciplina(),
         });
     };
 
@@ -37,35 +43,43 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
     // LÓGICA DE EDITAR E APAGAR DISCIPLINAS
     // ==========================================
     const submitEditDisciplina = (e) => {
-    e.preventDefault();
-    router.put(`/dashboard/disciplinas/${disciplinaToEdit.id}`, {
-        nome: disciplinaToEdit.nome,
-        codigo: disciplinaToEdit.codigo || "",
-        descricao: disciplinaToEdit.descricao || ""
-        }, {
-            preserveScroll: true,
-            onSuccess: () => setDisciplinaToEdit(null)
-        });
+        e.preventDefault();
+        router.put(
+            `/dashboard/disciplinas/${disciplinaToEdit.id}`,
+            {
+                nome: disciplinaToEdit.nome,
+                codigo: disciplinaToEdit.codigo || "",
+                descricao: disciplinaToEdit.descricao || "",
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setDisciplinaToEdit(null),
+            },
+        );
     };
 
     const confirmDeleteDisciplina = () => {
         router.delete(`/dashboard/disciplinas/${disciplinaToDelete.id}`, {
             preserveScroll: true,
-            onSuccess: () => setDisciplinaToDelete(null)
+            onSuccess: () => setDisciplinaToDelete(null),
         });
     };
 
     // ==========================================
     // LÓGICA DO FILTRO DE PESQUISA
     // ==========================================
-    const filteredDisciplinas = disciplinas ? disciplinas.filter((d) => {
-        const search = searchTerm.toLowerCase();
-        return d.nome.toLowerCase().includes(search);
-    }) : [];
+    const filteredDisciplinas = disciplinas
+        ? disciplinas.filter((d) => {
+              const search = searchTerm.toLowerCase();
+              return (
+                  d.nome.toLowerCase().includes(search) ||
+                  (d.codigo && d.codigo.toLowerCase().includes(search))
+              );
+          })
+        : [];
 
     return (
         <div className="max-w-7xl mx-auto space-y-6">
-
             {/* ---------------------------------------------------------
                 1. FORMULÁRIO DE CRIAÇÃO (APENAS PARA ADMIN)
             --------------------------------------------------------- */}
@@ -82,7 +96,9 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
                             <input
                                 type="text"
                                 value={disciplinaD.nome}
-                                onChange={e => setDisciplinaD("nome", e.target.value)}
+                                onChange={(e) =>
+                                    setDisciplinaD("nome", e.target.value)
+                                }
                                 required
                                 placeholder="Ex: Programação Web"
                                 className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
@@ -95,7 +111,9 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
                             <input
                                 type="text"
                                 value={disciplinaD.codigo}
-                                onChange={e => setDisciplinaD("codigo", e.target.value)}
+                                onChange={(e) =>
+                                    setDisciplinaD("codigo", e.target.value)
+                                }
                                 placeholder="Ex: MAT10, PT12"
                                 className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                             />
@@ -107,7 +125,9 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
                         </label>
                         <textarea
                             value={disciplinaD.descricao}
-                            onChange={e => setDisciplinaD("descricao", e.target.value)}
+                            onChange={(e) =>
+                                setDisciplinaD("descricao", e.target.value)
+                            }
                             placeholder="Breve descrição da disciplina (opcional)"
                             rows={2}
                             className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
@@ -129,23 +149,12 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
                 2. BARRA DE PESQUISA (TODOS OS ROLES)
             --------------------------------------------------------- */}
             {disciplinas && disciplinas.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-600 flex items-center gap-3 px-4 py-3 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
-                    <svg className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-                    </svg>
-                    <input
-                        type="text"
-                        placeholder="Pesquisar disciplina por nome ou código..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full bg-transparent border-none p-0 focus:ring-0 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 text-sm"
-                    />
-                    {searchTerm && (
-                        <button onClick={() => setSearchTerm("")} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 shrink-0">
-                            ✖
-                        </button>
-                    )}
-                </div>
+                <SearchBar
+                    placeholder="Pesquisar disciplina por nome ou código..."
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    onClear={() => setSearchTerm("")}
+                />
             )}
 
             {/* ---------------------------------------------------------
@@ -175,16 +184,21 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
                                         {disciplina.turmas?.length || 0} Turmas
                                     </span>
                                     <span className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs px-3 py-1 rounded-full font-bold flex items-center mr-2">
-                                        {disciplina.professores?.length || 0} Professores
+                                        {disciplina.professores?.length || 0}{" "}
+                                        Professores
                                     </span>
                                     <button
-                                        onClick={() => setDisciplinaToEdit(disciplina)}
+                                        onClick={() =>
+                                            setDisciplinaToEdit(disciplina)
+                                        }
                                         className="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1 rounded font-bold text-sm transition-colors"
                                     >
                                         Editar
                                     </button>
                                     <button
-                                        onClick={() => setDisciplinaToDelete(disciplina)}
+                                        onClick={() =>
+                                            setDisciplinaToDelete(disciplina)
+                                        }
                                         className="bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded font-bold text-sm transition-colors"
                                     >
                                         Apagar
@@ -202,7 +216,9 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
 
                         {/* ÁREA DE ADMIN: Editor de Atribuições */}
                         {userRole === "admin" && (
-                            <div className={`mt-4 ${!disciplina.descricao ? "border-t border-gray-100 dark:border-gray-700 pt-4" : ""}`}>
+                            <div
+                                className={`mt-4 ${!disciplina.descricao ? "border-t border-gray-100 dark:border-gray-700 pt-4" : ""}`}
+                            >
                                 <DisciplinasAdminEditor
                                     disciplina={disciplina}
                                     utilizadores={utilizadores}
@@ -220,20 +236,46 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
                                         Professores
                                     </h4>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {disciplina.professores && disciplina.professores.length > 0 ? (
-                                            disciplina.professores.map((prof) => (
-                                                <div key={prof.id} className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700">
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm overflow-hidden shrink-0">
-                                                        {prof.foto_perfil ? <img src={prof.foto_perfil} alt={prof.name} className="w-full h-full object-cover" /> : prof.name.charAt(0)}
+                                        {disciplina.professores &&
+                                        disciplina.professores.length > 0 ? (
+                                            disciplina.professores.map(
+                                                (prof) => (
+                                                    <div
+                                                        key={prof.id}
+                                                        className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700"
+                                                    >
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm overflow-hidden shrink-0">
+                                                            {prof.foto_perfil ? (
+                                                                <img
+                                                                    src={
+                                                                        prof.foto_perfil
+                                                                    }
+                                                                    alt={
+                                                                        prof.name
+                                                                    }
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                prof.name.charAt(
+                                                                    0,
+                                                                )
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                                                                {prof.name}
+                                                            </p>
+                                                            <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-tighter">
+                                                                Docente
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div className="min-w-0">
-                                                        <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{prof.name}</p>
-                                                        <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-tighter">Docente</p>
-                                                    </div>
-                                                </div>
-                                            ))
+                                                ),
+                                            )
                                         ) : (
-                                            <p className="text-gray-400 italic text-sm">Sem professores atribuídos.</p>
+                                            <p className="text-gray-400 italic text-sm">
+                                                Sem professores atribuídos.
+                                            </p>
                                         )}
                                     </div>
                                 </div>
@@ -244,14 +286,20 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
                                         Turmas
                                     </h4>
                                     <div className="flex flex-wrap gap-2">
-                                        {disciplina.turmas && disciplina.turmas.length > 0 ? (
+                                        {disciplina.turmas &&
+                                        disciplina.turmas.length > 0 ? (
                                             disciplina.turmas.map((t) => (
-                                                <span key={t.id} className="bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-3 py-1 rounded-md text-sm font-bold border border-purple-100 dark:border-purple-800">
+                                                <span
+                                                    key={t.id}
+                                                    className="bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-3 py-1 rounded-md text-sm font-bold border border-purple-100 dark:border-purple-800"
+                                                >
                                                     {t.nome}
                                                 </span>
                                             ))
                                         ) : (
-                                            <p className="text-gray-400 italic text-sm">Nenhuma turma associada.</p>
+                                            <p className="text-gray-400 italic text-sm">
+                                                Nenhuma turma associada.
+                                            </p>
                                         )}
                                     </div>
                                 </div>
@@ -268,9 +316,9 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
                     <p className="text-gray-500 dark:text-gray-400 font-medium">
                         {searchTerm
                             ? "Não encontrámos nenhuma disciplina com essa pesquisa."
-                            : (userRole === "admin"
-                                ? "Usa o formulário acima para criar a primeira disciplina."
-                                : "De momento, não existem disciplinas disponíveis.")}
+                            : userRole === "admin"
+                              ? "Usa o formulário acima para criar a primeira disciplina."
+                              : "De momento, não existem disciplinas disponíveis."}
                     </p>
                 </div>
             )}
@@ -281,64 +329,108 @@ export default function DisciplinasView({ disciplinas, turmas, utilizadores, use
 
             {/* MODAL EDITAR DISCIPLINA */}
             {disciplinaToEdit && (
-                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                        <form onSubmit={submitEditDisciplina} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md border border-gray-200 dark:border-gray-700">
-                            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Editar Disciplina</h2>
-                            <div className="space-y-4 mb-6">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Nome *
-                                    <input
-                                        type="text"
-                                        value={disciplinaToEdit.nome}
-                                        onChange={e => setDisciplinaToEdit({...disciplinaToEdit, nome: e.target.value})}
-                                        className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </label>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Código
-                                    <input
-                                        type="text"
-                                        value={disciplinaToEdit.codigo || ""}
-                                        onChange={e => setDisciplinaToEdit({...disciplinaToEdit, codigo: e.target.value})}
-                                        placeholder="Ex: MAT10"
-                                        className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </label>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Descrição
-                                    <textarea
-                                        value={disciplinaToEdit.descricao || ""}
-                                        onChange={e => setDisciplinaToEdit({...disciplinaToEdit, descricao: e.target.value})}
-                                        rows={3}
-                                        placeholder="Breve descrição da disciplina (opcional)"
-                                        className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </label>
-                            </div>
-                            <div className="flex justify-end gap-3">
-                                <button type="button" onClick={() => setDisciplinaToEdit(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">Cancelar</button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors">Guardar Alterações</button>
-                            </div>
-                        </form>
-                    </div>
-                )}
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <form
+                        onSubmit={submitEditDisciplina}
+                        className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md border border-gray-200 dark:border-gray-700"
+                    >
+                        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+                            Editar Disciplina
+                        </h2>
+                        <div className="space-y-4 mb-6">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Nome *
+                                <input
+                                    type="text"
+                                    value={disciplinaToEdit.nome}
+                                    onChange={(e) =>
+                                        setDisciplinaToEdit({
+                                            ...disciplinaToEdit,
+                                            nome: e.target.value,
+                                        })
+                                    }
+                                    className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                            </label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Código
+                                <input
+                                    type="text"
+                                    value={disciplinaToEdit.codigo || ""}
+                                    onChange={(e) =>
+                                        setDisciplinaToEdit({
+                                            ...disciplinaToEdit,
+                                            codigo: e.target.value,
+                                        })
+                                    }
+                                    placeholder="Ex: MAT10"
+                                    className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                            </label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Descrição
+                                <textarea
+                                    value={disciplinaToEdit.descricao || ""}
+                                    onChange={(e) =>
+                                        setDisciplinaToEdit({
+                                            ...disciplinaToEdit,
+                                            descricao: e.target.value,
+                                        })
+                                    }
+                                    rows={3}
+                                    placeholder="Breve descrição da disciplina (opcional)"
+                                    className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                            </label>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setDisciplinaToEdit(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors"
+                            >
+                                Guardar Alterações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
 
             {/* MODAL APAGAR DISCIPLINA */}
             {disciplinaToDelete && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md border border-red-200 dark:border-red-900">
-                        <h2 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">Apagar Disciplina?</h2>
+                        <h2 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">
+                            Apagar Disciplina?
+                        </h2>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">
-                            Tens a certeza que queres apagar a disciplina <strong>{disciplinaToDelete.nome}</strong>? As associações a turmas e professores serão perdidas.
+                            Tens a certeza que queres apagar a disciplina{" "}
+                            <strong>{disciplinaToDelete.nome}</strong>? As
+                            associações a turmas e professores serão perdidas.
                         </p>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setDisciplinaToDelete(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">Cancelar</button>
-                            <button onClick={confirmDeleteDisciplina} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-sm">Sim, Apagar Disciplina</button>
+                            <button
+                                onClick={() => setDisciplinaToDelete(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmDeleteDisciplina}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-sm"
+                            >
+                                Sim, Apagar Disciplina
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
-
         </div>
     );
 }

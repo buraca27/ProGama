@@ -18,7 +18,8 @@ import SettingsView from "./Components/Profile/SettingsView";
 import CategoriasView from "./Components/Categorias/CategoriasView";
 import TestesView from "./Components/Professores/TestesView";
 import TarefasView from "./Components/Professores/TarefasView";
-import TrabalhosView from "./Components/Professores/TrabalhosView";
+import AvaliacoesView from "./Components/Professores/AvaliacoesView";
+import TrabalhosView from "./Components/Alunos/TrabalhosView";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Incluindo tarefasAluno) ---
@@ -33,9 +34,13 @@ export default function Dashboard(props) {
         status,
         mustVerifyEmail,
         perguntasProfessor = [],
+        perguntasBancoProfessor = null,
+        perguntasBancoFiltros = null,
         testesProfessor = [],
         tarefasProfessor = [],
-        tarefasAluno = [], // <--- ADICIONADO AQUI
+        tarefasAluno = [],
+        submissoesAluno = [],
+        correcoesProfessor = [],
     } = props;
 
     // =============================================================================
@@ -145,6 +150,8 @@ export default function Dashboard(props) {
                 {activeView === "testes" && (
                     <TestesView
                         perguntasProfessor={perguntasProfessor}
+                        perguntasBancoProfessor={perguntasBancoProfessor}
+                        perguntasBancoFiltros={perguntasBancoFiltros}
                         testesProfessor={testesProfessor}
                         categorias={categorias}
                     />
@@ -160,12 +167,15 @@ export default function Dashboard(props) {
 
                 {/* 6. VISTA TRABALHOS PENDENTES (ALUNO) */}
                 {activeView === "trabalhos" && (
-                    <TrabalhosView tarefasAluno={tarefasAluno} />
+                    <TrabalhosView
+                        tarefasAluno={tarefasAluno}
+                        submissoesAluno={submissoesAluno}
+                    />
                 )}
 
                 {/* 7. OUTROS PLACEHOLDERS */}
                 {activeView === "avaliacoes" && (
-                    <PlaceholderView title="Avaliações e Notas" icon="📈" />
+                    <AvaliacoesView correcoesProfessor={correcoesProfessor} />
                 )}
                 {activeView === "boletim" && (
                     <PlaceholderView title="Boletim de Notas" icon="🎓" />

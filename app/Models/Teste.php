@@ -16,6 +16,7 @@ class Teste extends Model
     protected $fillable = [
         'titulo',
         'tipo_avaliacao',
+        'instrucoes',
         'id_formador',
         'id_categoria',
         'data_hora_abertura',
@@ -35,6 +36,11 @@ class Teste extends Model
     public function atribuicoes()
     {
         return $this->hasMany(TesteAtribuicao::class, 'id_teste');
+    }
+
+    public function realizados()
+    {
+        return $this->hasMany(TesteRealizado::class, 'id_teste');
     }
 
     public function historicos(): MorphMany

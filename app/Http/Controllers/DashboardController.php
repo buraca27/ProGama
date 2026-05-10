@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Pergunta;
 use App\Models\Teste;
 use App\Models\TesteAtribuicao;
+use App\Models\TesteRealizado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -18,6 +19,10 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $perguntasProfessor = [];
+        $perguntasBancoProfessor = null;
+        $correcoesProfessor = [];
+        $submissoesAluno = [];
 
         // 1. Estatísticas Gerais
         $estatisticas = [
@@ -34,8 +39,8 @@ class DashboardController extends Controller
         // 3. Definição das variáveis que estavam em falta (sublinhadas a vermelho)
         $turmas = match ($user->id_role) {
             1 => Turma::with(['professores', 'alunos'])->get(),
-            2 => User::find($user->id)->turmasLecionadas()->with(['alunos', 'professores'])->get(),
-            3 => $user->id_turma ? Turma::where('id', $user->id_turma)->with(['professores', 'alunos'])->get() : [],
+            2 => User::find($user->id, ['*'])->turmasLecionadas()->with(['alunos', 'professores'])->get(),
+            3 => $user->id_turma ? Turma::where('id', '=', $user->id_turma, 'and')->with(['professores', 'alunos'])->get() : [],
             default => [],
         };
 
@@ -44,13 +49,88 @@ class DashboardController extends Controller
 
         // 4. Lógica para Tarefas do Aluno
         $tarefasAluno = [];
-        if ($cargoReal === 'aluno' && $user->id_turma) {
+        if ($cargoReal === 'aluno') {
+            $idTurmaAluno = $user->id_turma ? (int) $user->id_turma : null;
+
             $tarefasAluno = TesteAtribuicao::with(['teste'])
-                ->where('id_turma', $user->id_turma)
+                ->where(function ($query) use ($user, $idTurmaAluno) {
+                    $query->where('id_aluno', '=', (int) $user->id, 'and')
+                        ->orWhere(function ($or) use ($idTurmaAluno) {
+                            $or->whereNull('id_aluno');
+
+                            if ($idTurmaAluno) {
+                                $or->where('id_turma', '=', $idTurmaAluno, 'and');
+                            } else {
+                                $or->whereRaw('1 = 0');
+                            }
+                        });
+                })
+                ->with([
+                    'teste' => fn($query) => $query->with([
+                        'perguntas' => fn($perguntas) => $perguntas
+                            ->with('opcoes')
+                            ->withPivot('valor_pontuacao'),
+                    ]),
+                ])
                 ->orderBy('created_at', 'desc')
                 ->get();
+
+            $idsTestesAtribuidos = $tarefasAluno
+                ->pluck('id_teste')
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            if ($idsTestesAtribuidos->isNotEmpty()) {
+                $submissoesAluno = TesteRealizado::with([
+                    'respostas:id,id_teste_realizado,id_pergunta,id_opcao_escolhida,resposta_texto,status_correcao,pontuacao_obtida,comentario_formador',
+                ])
+                    ->where('id_aluno', '=', (int) $user->id, 'and')
+                    ->whereIn('id_teste', $idsTestesAtribuidos->all(), 'and', false)
+                    ->orderByDesc('created_at')
+                    ->get();
+            }
         }
 
+        $perguntasProfessor = [];
+        $perguntasBancoProfessor = null;
+
+        if ($cargoReal === 'professor') {
+            $perguntasProfessor = Pergunta::orderBy('created_at', 'desc')
+                ->get(['id', 'texto', 'tipo_pergunta', 'id_categoria', 'url_anexo_pergunta']);
+
+            $perguntasBancoProfessorQuery = Pergunta::with('opcoes')
+                ->orderBy('created_at', 'desc');
+
+            if ($request->filled('perguntas_categoria')) {
+                $categoriaId = $request->integer('perguntas_categoria');
+                if ($categoriaId > 0) {
+                    $perguntasBancoProfessorQuery->where('id_categoria', '=', $categoriaId, 'and');
+                }
+            }
+
+            if ($request->filled('perguntas_q')) {
+                $textoPesquisa = trim((string) $request->string('perguntas_q'));
+                $perguntasBancoProfessorQuery->where('texto', 'like', '%' . $textoPesquisa . '%');
+            }
+
+            $perguntasBancoProfessor = $perguntasBancoProfessorQuery
+                ->paginate(8, ['*'], 'perguntas_page')
+                ->withQueryString();
+
+            $correcoesProfessor = TesteRealizado::with([
+                'aluno:id,name,email',
+                'teste:id,titulo,id_formador',
+                'teste.perguntas:id',
+                'respostas.pergunta:id,texto,tipo_pergunta',
+                'respostas.opcaoEscolhida:id,texto_opcao',
+                'corrigidoPor:id,name',
+            ])
+                ->whereHas('teste', fn($query) => $query->where('id_formador', $user->id))
+                ->orderByRaw("CASE WHEN estado = 'Aguardando_Correcao' THEN 0 WHEN estado = 'Em_Resolucao' THEN 1 ELSE 2 END")
+                ->orderByDesc('created_at')
+                ->get();
+        }
 
         // 5. Renderização Final
         return Inertia::render('Dashboard/Dashboard', [
@@ -61,10 +141,17 @@ class DashboardController extends Controller
             'disciplinas' => $disciplinas,
             'categorias' => $categorias,
             'tarefasAluno' => $tarefasAluno,
+            'submissoesAluno' => $submissoesAluno,
 
             // Variáveis específicas do Professor
-            'perguntasProfessor' => $cargoReal === 'professor'
-                ? Pergunta::with('opcoes')->orderBy('created_at', 'desc')->get() : [],
+            'perguntasProfessor' => $perguntasProfessor,
+            'perguntasBancoProfessor' => $perguntasBancoProfessor,
+            'perguntasBancoFiltros' => $cargoReal === 'professor'
+                ? [
+                    'categoria' => (string) $request->query('perguntas_categoria', ''),
+                    'q' => (string) $request->query('perguntas_q', ''),
+                ]
+                : null,
 
             'testesProfessor' => $cargoReal === 'professor'
                 ? Teste::with('perguntas')->where('id_formador', $user->id)->orderBy('created_at', 'desc')->get() : [],
@@ -73,45 +160,11 @@ class DashboardController extends Controller
                 ? TesteAtribuicao::with(['teste', 'turma'])
                     ->whereHas('teste', fn($q) => $q->where('id_formador', $user->id))
                     ->orderBy('created_at', 'desc')->get() : [],
+            'correcoesProfessor' => $correcoesProfessor,
         ]);
 
 
     }
-    public function store(Request $request)
-    {
-        $request->validate([
-            'nome' => 'required|string|max:100|unique:Disciplinas,nome',
-            'codigo' => 'nullable|string|max:20|unique:Disciplinas,codigo',
-            'descricao' => 'nullable|string',
-        ]);
-
-        Disciplina::create([
-            'nome' => $request->nome,
-            'codigo' => $request->codigo,
-            'descricao' => $request->descricao,
-        ]);
-
-        return back()->with('success', 'Disciplina criada com sucesso!');
-    }
-
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'nome' => 'required|string|max:100|unique:Disciplinas,nome,' . $id,
-            'codigo' => 'nullable|string|max:20|unique:Disciplinas,codigo,' . $id,
-            'descricao' => 'nullable|string',
-        ]);
-
-        $disciplina = Disciplina::findOrFail($id);
-        $disciplina->update([
-            'nome' => $request->nome,
-            'codigo' => $request->codigo,
-            'descricao' => $request->descricao,
-        ]);
-
-        return back()->with('success', 'Disciplina atualizada com sucesso!');
-    }
-
     private function tryCatchCount($table)
     {
         try {

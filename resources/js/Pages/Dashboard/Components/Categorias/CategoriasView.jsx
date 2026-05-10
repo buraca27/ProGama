@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useForm, router } from "@inertiajs/react";
+import SearchBar from "@/Components/UI/SearchBar";
 
 export default function CategoriasView({ categorias, userRole }) {
     // ==========================================
@@ -117,23 +118,12 @@ export default function CategoriasView({ categorias, userRole }) {
                 2. BARRA DE PESQUISA
             --------------------------------------------------------- */}
             {categorias && categorias.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center">
-                    <input
-                        type="text"
-                        placeholder="Pesquisar categoria por nome..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-transparent border-none p-0 focus:ring-0 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 sm:text-sm"
-                    />
-                    {searchTerm && (
-                        <button
-                            onClick={() => setSearchTerm("")}
-                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-bold ml-2"
-                        >
-                            ✖
-                        </button>
-                    )}
-                </div>
+                <SearchBar
+                    placeholder="Pesquisar categoria por nome..."
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    onClear={() => setSearchTerm("")}
+                />
             )}
 
             {/* ---------------------------------------------------------
