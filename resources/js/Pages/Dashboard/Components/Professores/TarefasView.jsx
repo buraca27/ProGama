@@ -20,6 +20,7 @@ export default function TarefasView({
         turma_ids: [],
         data_hora_abertura: "",
         data_hora_fecho: "",
+        tentativas_maximas: "",
     });
 
     const testesDisponiveis = useMemo(
@@ -83,6 +84,7 @@ export default function TarefasView({
                     turma_ids: [],
                     data_hora_abertura: "",
                     data_hora_fecho: "",
+                    tentativas_maximas: "", // Corrigido: limpar tentativas também
                 });
                 setShowTaskForm(false);
             },
@@ -182,6 +184,43 @@ export default function TarefasView({
                             </select>
                         </div>
 
+                        {/* LISTA DE TURMAS REPOSTA AQUI */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Atribuir a turmas
+                            </label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto p-2 border border-gray-200 dark:border-gray-700 rounded-md">
+                                {turmasProfessor.map((turma) => (
+                                    <label
+                                        key={turma.id}
+                                        className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={tarefaForm.data.turma_ids.includes(
+                                                turma.id,
+                                            )}
+                                            onChange={() =>
+                                                toggleTurmaSelecionada(turma.id)
+                                            }
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        {turma.nome}
+                                    </label>
+                                ))}
+                                {turmasProfessor.length === 0 && (
+                                    <p className="text-sm text-gray-500 italic col-span-2">
+                                        Não tens turmas atribuídas.
+                                    </p>
+                                )}
+                            </div>
+                            {tarefaForm.errors.turma_ids && (
+                                <p className="mt-1 text-sm text-red-600">
+                                    {tarefaForm.errors.turma_ids}
+                                </p>
+                            )}
+                        </div>
+
                         <div className="space-y-2">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
@@ -223,54 +262,58 @@ export default function TarefasView({
                                 </div>
                             </div>
 
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Atribuir às turmas
-                            </label>
-
-                            <div className="max-h-52 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
-                                {turmasProfessor.length === 0 && (
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Não tens turmas associadas.
-                                    </p>
-                                )}
-                                {turmasProfessor.map((turma) => (
-                                    <label
-                                        key={turma.id}
-                                        className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={(
-                                                tarefaForm.data.turma_ids || []
-                                            ).includes(turma.id)}
-                                            onChange={() =>
-                                                toggleTurmaSelecionada(turma.id)
-                                            }
-                                        />
-                                        <span>{turma.nome}</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Máximo de tentativas
                                     </label>
-                                ))}
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={10}
+                                        value={
+                                            tarefaForm.data.tentativas_maximas
+                                        }
+                                        onChange={(e) =>
+                                            tarefaForm.setData(
+                                                "tentativas_maximas",
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                        placeholder="Ex: 1 (1 tentativa)"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Deixa vazio para tentativas ilimitadas.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={tarefaForm.processing}
-                            className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                        >
-                            Criar Tarefa
-                        </button>
-
                         {Object.values(tarefaForm.errors || {}).length > 0 && (
-                            <p className="text-sm text-red-600">
+                            <p className="text-sm text-red-600 dark:text-red-400">
                                 Não foi possível criar a tarefa. Verifica os
                                 campos.
                             </p>
                         )}
+
+                        {/* BOTÃO DE SUBMISSÃO REPOSTO AQUI */}
+                        <div className="pt-4 flex justify-end">
+                            <button
+                                type="submit"
+                                disabled={tarefaForm.processing}
+                                className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-50 transition-colors"
+                            >
+                                {tarefaForm.processing
+                                    ? "A atribuir..."
+                                    : "Atribuir Tarefa"}
+                            </button>
+                        </div>
                     </form>
                 )}
             </div>
 
+            {/* SECÇÃO TAREFAS CRIADAS */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
                     Tarefas Criadas
@@ -309,6 +352,13 @@ export default function TarefasView({
                                                   tarefa.data_hora_fecho,
                                               ).toLocaleString()
                                             : "-"}
+                                    </p>
+                                    {/* Mostrar o número de tentativas */}
+                                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                        Tentativas:{" "}
+                                        {tarefa.tentativas_maximas
+                                            ? tarefa.tentativas_maximas
+                                            : "Ilimitadas"}
                                     </p>
                                     <p className="text-xs text-gray-500 mt-1">
                                         Criada em:{" "}

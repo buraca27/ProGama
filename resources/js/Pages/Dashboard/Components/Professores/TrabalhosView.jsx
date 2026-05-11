@@ -1,42 +1,69 @@
 import React from "react";
 
-export default function TrabalhosView({ tarefasAluno = [] }) {
-    const tarefas = Array.isArray(tarefasAluno) ? tarefasAluno : [];
+export default function TrabalhosView({ correcoesProfessor = [] }) {
+    const testesRealizados = Array.isArray(correcoesProfessor)
+        ? correcoesProfessor
+        : [];
 
     return (
         <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                    Trabalhos Pendentes
+                    Testes Realizados pelos Alunos
                 </h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Aqui aparecem os teus trabalhos e testes atribuidos.
+                    Aqui aparecem os testes que os alunos realizaram e suas
+                    correções.
                 </p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                {tarefas.length === 0 ? (
+                {testesRealizados.length === 0 ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                        Nao tens trabalhos pendentes neste momento.
+                        Nenhum teste realizado pelos alunos neste momento.
                     </p>
                 ) : (
                     <div className="space-y-3">
-                        {tarefas.map((tarefa, index) => (
+                        {testesRealizados.map((testeRealizado) => (
                             <div
-                                key={tarefa.id || `${tarefa.id_teste || "t"}-${index}`}
+                                key={testeRealizado.id}
                                 className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
                             >
                                 <p className="font-semibold text-gray-900 dark:text-gray-100">
-                                    {tarefa.teste?.titulo || tarefa.titulo || "Trabalho"}
+                                    {testeRealizado.teste?.titulo ||
+                                        "Teste sem título"}
                                 </p>
-                                {tarefa.turma?.nome && (
-                                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                                        Turma: {tarefa.turma.nome}
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                    Aluno:{" "}
+                                    {testeRealizado.aluno?.name ||
+                                        "Nome não disponível"}
+                                </p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                    Status:{" "}
+                                    {testeRealizado.estado ||
+                                        "Status desconhecido"}
+                                </p>
+                                {testeRealizado.created_at && (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                        Realizado em:{" "}
+                                        {new Date(
+                                            testeRealizado.created_at,
+                                        ).toLocaleString("pt-PT")}
                                     </p>
                                 )}
-                                {tarefa.teste?.data_hora_fecho && (
+                                {/* Detalhes da pontuação */}
+                                {testeRealizado.respostas && (
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                        Prazo: {String(tarefa.teste.data_hora_fecho).replace("T", " ")}
+                                        Pontuação:{" "}
+                                        {testeRealizado.respostas.reduce(
+                                            (acc, resp) =>
+                                                acc +
+                                                (resp.pontuacao_obtida || 0),
+                                            0,
+                                        )}{" "}
+                                        /{" "}
+                                        {testeRealizado.teste?.perguntas
+                                            ?.length || 0}
                                     </p>
                                 )}
                             </div>

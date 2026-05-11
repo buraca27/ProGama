@@ -178,6 +178,7 @@ class ProfessorTesteController extends Controller
             'turma_ids.*' => 'integer|exists:Turmas,id',
             'data_hora_abertura' => 'required|date',
             'data_hora_fecho' => 'required|date|after:data_hora_abertura',
+            'tentativas_maximas' => 'nullable|integer|min:1|max:10',
         ]);
 
         $professorId = (int) Auth::id();
@@ -217,6 +218,7 @@ class ProfessorTesteController extends Controller
                 ], [
                     'data_hora_abertura' => $validated['data_hora_abertura'],
                     'data_hora_fecho' => $validated['data_hora_fecho'],
+                    'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
                 ]);
             }
         });
@@ -231,6 +233,7 @@ class ProfessorTesteController extends Controller
         $validated = $request->validate([
             'data_hora_abertura' => 'required|date',
             'data_hora_fecho' => 'required|date|after:data_hora_abertura',
+            'tentativas_maximas' => 'nullable|integer|min:1|max:10',
         ]);
 
         $tarefa = $this->obterTarefaDoProfessor($idTarefa);
@@ -238,6 +241,7 @@ class ProfessorTesteController extends Controller
         $tarefa->update([
             'data_hora_abertura' => $validated['data_hora_abertura'],
             'data_hora_fecho' => $validated['data_hora_fecho'],
+            'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
         ]);
 
         return redirect()->route('dashboard')->with('success', 'Datas da tarefa atualizadas com sucesso.');
