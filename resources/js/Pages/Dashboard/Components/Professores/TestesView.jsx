@@ -13,6 +13,7 @@ import {
 } from "./Testes/constants";
 
 export default function TestesView({
+    authUserId = null,
     perguntasProfessor = [],
     perguntasBancoProfessor = null,
     perguntasBancoFiltros = null,
@@ -25,6 +26,8 @@ export default function TestesView({
     const [editingTesteId, setEditingTesteId] = useState(null);
     const [categoriaFiltro, setCategoriaFiltro] = useState("");
     const [textoPerguntaFiltro, setTextoPerguntaFiltro] = useState("");
+    const [mostrarApenasMinhasPerguntas, setMostrarApenasMinhasPerguntas] =
+        useState(true);
     const [mostrarListaPerguntas, setMostrarListaPerguntas] = useState(true);
     const [toastMsg, setToastMsg] = useState(null);
 
@@ -49,6 +52,9 @@ export default function TestesView({
         () =>
             perguntasDisponiveis.filter(
                 (p) =>
+                    (!mostrarApenasMinhasPerguntas ||
+                        !authUserId ||
+                        Number(p.id_formador_criador) === Number(authUserId)) &&
                     (!categoriaFiltro ||
                         p.id_categoria === Number(categoriaFiltro)) &&
                     (!textoPerguntaFiltro ||
@@ -56,7 +62,13 @@ export default function TestesView({
                             .toLowerCase()
                             .includes(textoPerguntaFiltro.toLowerCase())),
             ),
-        [perguntasDisponiveis, categoriaFiltro, textoPerguntaFiltro],
+        [
+            perguntasDisponiveis,
+            mostrarApenasMinhasPerguntas,
+            authUserId,
+            categoriaFiltro,
+            textoPerguntaFiltro,
+        ],
     );
 
     // --- Handlers perguntas do banco ---
@@ -122,9 +134,9 @@ export default function TestesView({
 
     const carregarPerguntaNoEditor = (pergunta) => {
         const opcoes = (pergunta.opcoes || []).map((o) => o.texto_opcao);
-        const indiceCorreto = (pergunta.opcoes || []).findIndex(
-            (o) => o.is_correct,
-        );
+        const indicesCorretos = (pergunta.opcoes || [])
+            .map((o, index) => (o.is_correct ? index : null))
+            .filter((index) => index !== null);
         const opcaoVerdadeiro = (pergunta.opcoes || []).find(
             (o) => o.texto_opcao === "Verdadeiro",
         );
@@ -135,7 +147,10 @@ export default function TestesView({
             id_categoria: pergunta.id_categoria || "",
             url_anexo_pergunta: pergunta.url_anexo_pergunta || null,
             opcoes: opcoes.length > 0 ? opcoes : ["", ""],
-            resposta_correta_index: indiceCorreto >= 0 ? indiceCorreto : 0,
+            resposta_correta_index:
+                indicesCorretos.length > 0 ? indicesCorretos[0] : 0,
+            resposta_correta_indices:
+                indicesCorretos.length > 0 ? indicesCorretos : [0],
             resposta_verdadeiro_falso: opcaoVerdadeiro
                 ? Boolean(opcaoVerdadeiro.is_correct)
                 : true,
@@ -435,6 +450,12 @@ export default function TestesView({
                         setCategoriaFiltro={setCategoriaFiltro}
                         textoPerguntaFiltro={textoPerguntaFiltro}
                         setTextoPerguntaFiltro={setTextoPerguntaFiltro}
+                        mostrarApenasMinhasPerguntas={
+                            mostrarApenasMinhasPerguntas
+                        }
+                        setMostrarApenasMinhasPerguntas={
+                            setMostrarApenasMinhasPerguntas
+                        }
                         mostrarListaPerguntas={mostrarListaPerguntas}
                         setMostrarListaPerguntas={setMostrarListaPerguntas}
                         perguntasFiltradas={perguntasFiltradas}

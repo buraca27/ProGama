@@ -40,7 +40,8 @@ export default function Dashboard(props) {
         tarefasProfessor = [],
         tarefasAluno = [],
         submissoesAluno = [],
-        correcoesProfessor = [],
+        correcoesProfessor = null,
+        trabalhosPendentes = 0,
     } = props;
 
     // =============================================================================
@@ -91,6 +92,8 @@ export default function Dashboard(props) {
                         estatisticas={estatisticas}
                         auth={auth}
                         turmas={turmas}
+                        trabalhosPendentes={trabalhosPendentes}
+                        tarefasProfessor={tarefasProfessor}
                     />
                 )}
 
@@ -149,6 +152,7 @@ export default function Dashboard(props) {
                 {/* 5. VISTAS PROFESSOR */}
                 {activeView === "testes" && (
                     <TestesView
+                        authUserId={auth?.user?.id || null}
                         perguntasProfessor={perguntasProfessor}
                         perguntasBancoProfessor={perguntasBancoProfessor}
                         perguntasBancoFiltros={perguntasBancoFiltros}

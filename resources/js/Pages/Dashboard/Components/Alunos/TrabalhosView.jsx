@@ -1,61 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "@inertiajs/react";
-
-function formatDateTime(value) {
-    if (!value) return "-";
-
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "-";
-
-    return date.toLocaleString("pt-PT", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-}
-
-function statusTarefa(tarefa, submissao) {
-    const now = new Date();
-    const abre = tarefa?.data_hora_abertura
-        ? new Date(tarefa.data_hora_abertura)
-        : null;
-    const fecha = tarefa?.data_hora_fecho
-        ? new Date(tarefa.data_hora_fecho)
-        : null;
-
-    if (submissao?.data_submissao) {
-        if (submissao.estado === "Corrigido") {
-            return { label: "Corrigido", tone: "emerald" };
-        }
-
-        return { label: "Submetido", tone: "blue" };
-    }
-
-    if (abre && now < abre) {
-        return { label: "Por abrir", tone: "slate" };
-    }
-
-    if (fecha && now > fecha) {
-        return { label: "Prazo encerrado", tone: "red" };
-    }
-
-    return { label: "Disponivel", tone: "amber" };
-}
-
-function badgeClass(tone) {
-    const classes = {
-        blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-        emerald:
-            "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-        slate: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
-        red: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-        amber: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-    };
-
-    return classes[tone] || classes.slate;
-}
+import { formatDateTime, getStatusTarefa } from "@/utils";
+import TestStatusBadge from "../UI/TestStatusBadge";
 
 export default function TrabalhosView({
     tarefasAluno = [],
@@ -117,11 +63,20 @@ export default function TrabalhosView({
         const iniciais = {};
         (selectedTarefa.teste?.perguntas || []).forEach((pergunta) => {
             const existente = respostasExistentes.get(Number(pergunta.id));
+            const idsMultiplos = Array.isArray(existente?.ids_opcoes_escolhidas)
+                ? existente.ids_opcoes_escolhidas.map((id) => Number(id))
+                : [];
+            const fallbackUnico = existente?.id_opcao_escolhida
+                ? [Number(existente.id_opcao_escolhida)]
+                : [];
+
             iniciais[pergunta.id] = {
                 id_pergunta: Number(pergunta.id),
                 id_opcao_escolhida: existente?.id_opcao_escolhida
                     ? Number(existente.id_opcao_escolhida)
                     : null,
+                id_opcoes_escolhidas:
+                    idsMultiplos.length > 0 ? idsMultiplos : fallbackUnico,
                 resposta_texto: existente?.resposta_texto || "",
             };
         });
@@ -161,6 +116,32 @@ export default function TrabalhosView({
                     resposta_texto: "",
                 }),
                 id_opcao_escolhida: Number(idOpcao),
+                id_opcoes_escolhidas: [Number(idOpcao)],
+            },
+        });
+    };
+
+    const onToggleOptionMultipla = (idPergunta, idOpcao) => {
+        const prev = form.data.respostas || {};
+        const atual = Array.isArray(prev[idPergunta]?.id_opcoes_escolhidas)
+            ? prev[idPergunta].id_opcoes_escolhidas.map((id) => Number(id))
+            : [];
+        const id = Number(idOpcao);
+        const existe = atual.includes(id);
+        const proximas = existe
+            ? atual.filter((item) => item !== id)
+            : [...atual, id];
+
+        form.setData("respostas", {
+            ...prev,
+            [idPergunta]: {
+                ...(prev[idPergunta] || {
+                    id_pergunta: Number(idPergunta),
+                    resposta_texto: "",
+                }),
+                id_opcoes_escolhidas: [...new Set(proximas)],
+                id_opcao_escolhida:
+                    proximas.length === 1 ? Number(proximas[0]) : null,
             },
         });
     };
@@ -173,6 +154,7 @@ export default function TrabalhosView({
                 ...(prev[idPergunta] || {
                     id_pergunta: Number(idPergunta),
                     id_opcao_escolhida: null,
+                    id_opcoes_escolhidas: [],
                 }),
                 resposta_texto: value,
             },
@@ -190,6 +172,11 @@ export default function TrabalhosView({
                 return {
                     id_pergunta: Number(pergunta.id),
                     id_opcao_escolhida: resposta.id_opcao_escolhida || null,
+                    id_opcoes_escolhidas: Array.isArray(
+                        resposta.id_opcoes_escolhidas,
+                    )
+                        ? resposta.id_opcoes_escolhidas
+                        : [],
                     resposta_texto: resposta.resposta_texto || "",
                 };
             },
@@ -228,7 +215,7 @@ export default function TrabalhosView({
                         const submissao = submissoesPorTeste.get(
                             tarefa.id_teste,
                         );
-                        const status = statusTarefa(tarefa, submissao);
+                        const status = getStatusTarefa(tarefa, submissao);
                         const active = tarefa.id === selectedTarefaId;
 
                         return (
@@ -247,11 +234,10 @@ export default function TrabalhosView({
                                         {tarefa.teste?.titulo ||
                                             "Teste sem titulo"}
                                     </p>
-                                    <span
-                                        className={`px-2 py-1 rounded-full text-xs font-semibold ${badgeClass(status.tone)}`}
-                                    >
-                                        {status.label}
-                                    </span>
+                                    <TestStatusBadge
+                                        status={status.label}
+                                        tone={status.tone}
+                                    />
                                 </div>
                                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                                     Abre:{" "}
@@ -343,6 +329,56 @@ export default function TrabalhosView({
                                                 className="mt-3 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-blue-500"
                                                 placeholder="Escreve a tua resposta..."
                                             />
+                                        ) : pergunta.tipo_pergunta ===
+                                          "Escolha_Multipla" ? (
+                                            <div className="mt-3 space-y-2">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                    Podes selecionar mais do que
+                                                    uma opção.
+                                                </p>
+                                                {(pergunta.opcoes || []).map(
+                                                    (opcao) => (
+                                                        <label
+                                                            key={opcao.id}
+                                                            className="flex items-start gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/60"
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={(
+                                                                    resposta.id_opcoes_escolhidas ||
+                                                                    []
+                                                                )
+                                                                    .map((id) =>
+                                                                        Number(
+                                                                            id,
+                                                                        ),
+                                                                    )
+                                                                    .includes(
+                                                                        Number(
+                                                                            opcao.id,
+                                                                        ),
+                                                                    )}
+                                                                onChange={() =>
+                                                                    onToggleOptionMultipla(
+                                                                        pergunta.id,
+                                                                        opcao.id,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    !podeSubmeter ||
+                                                                    form.processing
+                                                                }
+                                                                className="mt-1 rounded text-blue-600 focus:ring-blue-500"
+                                                            />
+                                                            <span className="text-sm text-gray-700 dark:text-gray-200">
+                                                                {
+                                                                    opcao.texto_opcao
+                                                                }
+                                                            </span>
+                                                        </label>
+                                                    ),
+                                                )}
+                                            </div>
                                         ) : (
                                             <div className="mt-3 space-y-2">
                                                 {(pergunta.opcoes || []).map(

@@ -19,11 +19,15 @@ export default function BancoPerguntasSection({
 }) {
     const hasMountedRef = useRef(false);
     const filtrosIniciais = perguntasBancoFiltros || {};
+    const parseFiltroMinhas = (valor) => String(valor ?? "1") !== "0";
     const [categoriaFiltroBanco, setCategoriaFiltroBanco] = useState(
         filtrosIniciais.categoria || "",
     );
     const [textoFiltroBanco, setTextoFiltroBanco] = useState(
         filtrosIniciais.q || "",
+    );
+    const [mostrarApenasMinhas, setMostrarApenasMinhas] = useState(
+        parseFiltroMinhas(filtrosIniciais.minhas),
     );
 
     const perguntasPaginadas = perguntasBancoProfessor?.data || [];
@@ -33,7 +37,8 @@ export default function BancoPerguntasSection({
     useEffect(() => {
         setCategoriaFiltroBanco(filtrosIniciais.categoria || "");
         setTextoFiltroBanco(filtrosIniciais.q || "");
-    }, [filtrosIniciais.categoria, filtrosIniciais.q]);
+        setMostrarApenasMinhas(parseFiltroMinhas(filtrosIniciais.minhas));
+    }, [filtrosIniciais.categoria, filtrosIniciais.q, filtrosIniciais.minhas]);
 
     useEffect(() => {
         if (!hasMountedRef.current) {
@@ -48,6 +53,7 @@ export default function BancoPerguntasSection({
                     perguntas_page: 1,
                     perguntas_categoria: categoriaFiltroBanco || undefined,
                     perguntas_q: textoFiltroBanco || undefined,
+                    perguntas_minhas: mostrarApenasMinhas ? 1 : 0,
                 },
                 {
                     preserveState: true,
@@ -59,7 +65,7 @@ export default function BancoPerguntasSection({
         }, 250);
 
         return () => clearTimeout(timeoutId);
-    }, [categoriaFiltroBanco, textoFiltroBanco]);
+    }, [categoriaFiltroBanco, textoFiltroBanco, mostrarApenasMinhas]);
 
     const mudarPagina = (page) => {
         router.get(
@@ -68,6 +74,7 @@ export default function BancoPerguntasSection({
                 perguntas_page: page,
                 perguntas_categoria: categoriaFiltroBanco || undefined,
                 perguntas_q: textoFiltroBanco || undefined,
+                perguntas_minhas: mostrarApenasMinhas ? 1 : 0,
             },
             {
                 preserveState: true,
@@ -76,6 +83,22 @@ export default function BancoPerguntasSection({
                 only: ["perguntasBancoProfessor", "perguntasBancoFiltros"],
             },
         );
+    };
+
+    const obterRespostaPergunta = (pergunta) => {
+        const opcoes = Array.isArray(pergunta?.opcoes) ? pergunta.opcoes : [];
+        if (pergunta?.tipo_pergunta === "Dissertativa") {
+            return "Resposta aberta (correção manual).";
+        }
+
+        const respostasCorretas = opcoes
+            .filter((opcao) => Boolean(opcao?.is_correct))
+            .map((opcao) => String(opcao?.texto_opcao || "").trim())
+            .filter(Boolean);
+
+        return respostasCorretas.length > 0
+            ? respostasCorretas.join(" | ")
+            : "Sem resposta correta definida.";
     };
 
     return (
@@ -154,7 +177,7 @@ export default function BancoPerguntasSection({
                 </form>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Filtrar por categoria
@@ -187,6 +210,23 @@ export default function BancoPerguntasSection({
                         placeholder="Pesquisar pelo texto da pergunta"
                     />
                 </div>
+
+                <div>
+                    <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Autor da pergunta
+                    </span>
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input
+                            type="checkbox"
+                            checked={mostrarApenasMinhas}
+                            onChange={(e) =>
+                                setMostrarApenasMinhas(e.target.checked)
+                            }
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        Mostrar apenas perguntas criadas por mim
+                    </label>
+                </div>
             </div>
 
             <div className="space-y-3 max-h-[26rem] overflow-y-auto pr-1">
@@ -205,6 +245,9 @@ export default function BancoPerguntasSection({
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                             Tipo: {pergunta.tipo_pergunta.replaceAll("_", " ")}
+                        </p>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">
+                            Resposta: {obterRespostaPergunta(pergunta)}
                         </p>
                         <div className="mt-3">
                             <button

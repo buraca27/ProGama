@@ -1,24 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useForm } from "@inertiajs/react";
-
-function formatTipoPergunta(tipo) {
-    return String(tipo || "").replaceAll("_", " ");
-}
-
-function formatDateTime(value) {
-    if (!value) return "-";
-
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "-";
-
-    return date.toLocaleString("pt-PT", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-}
+import { router, useForm } from "@inertiajs/react";
+import { formatDateTime, formatTipoPergunta, getStatusCorrecao } from "@/utils";
+import TestStatusBadge from "../UI/TestStatusBadge";
 
 function calcularTotais(submissao) {
     const mapaPontuacoes = new Map(
@@ -42,23 +25,54 @@ function calcularTotais(submissao) {
     return { totalMaximo, totalObtido, mapaPontuacoes };
 }
 
-export default function AvaliacoesView({ correcoesProfessor = [] }) {
-    const [selectedId, setSelectedId] = useState(
-        correcoesProfessor?.[0]?.id || null,
-    );
+function formatarRespostaAluno(resposta) {
+    const idsMarcados = Array.isArray(resposta?.ids_opcoes_escolhidas)
+        ? resposta.ids_opcoes_escolhidas.map((id) => Number(id))
+        : [];
+
+    if (idsMarcados.length > 0) {
+        const opcoesPergunta = resposta?.pergunta?.opcoes || [];
+        const textos = opcoesPergunta
+            .filter((opcao) => idsMarcados.includes(Number(opcao.id)))
+            .map((opcao) => String(opcao.texto_opcao || "").trim())
+            .filter(Boolean);
+
+        if (textos.length > 0) {
+            return textos.join(" | ");
+        }
+    }
+
+    if (resposta?.resposta_texto) {
+        return resposta.resposta_texto;
+    }
+
+    if (resposta?.opcao_escolhida?.texto_opcao) {
+        return resposta.opcao_escolhida.texto_opcao;
+    }
+
+    return "(Sem resposta)";
+}
+
+export default function AvaliacoesView({ correcoesProfessor = null }) {
+    const [selectedId, setSelectedId] = useState(null);
+
+    const correcoesPaginadas = correcoesProfessor?.data || [];
+    const paginaAtual = correcoesProfessor?.current_page || 1;
+    const totalPaginas = correcoesProfessor?.last_page || 1;
 
     const selectedSubmissao = useMemo(
-        () =>
-            (correcoesProfessor || []).find((item) => item.id === selectedId) ||
-            null,
-        [correcoesProfessor, selectedId],
+        () => correcoesPaginadas.find((item) => item.id === selectedId) || null,
+        [correcoesPaginadas, selectedId],
     );
 
     useEffect(() => {
-        if (!selectedSubmissao && correcoesProfessor.length > 0) {
-            setSelectedId(correcoesProfessor[0].id);
+        if (
+            selectedId !== null &&
+            !correcoesPaginadas.some((item) => item.id === selectedId)
+        ) {
+            setSelectedId(null);
         }
-    }, [selectedSubmissao, correcoesProfessor]);
+    }, [correcoesPaginadas, selectedId]);
 
     const { totalMaximo, totalObtido, mapaPontuacoes } = useMemo(
         () => calcularTotais(selectedSubmissao),
@@ -116,19 +130,36 @@ export default function AvaliacoesView({ correcoesProfessor = [] }) {
         );
     };
 
+    const mudarPagina = (page) => {
+        setSelectedId(null);
+
+        router.get(
+            route("dashboard"),
+            {
+                correcoes_page: page,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ["correcoesProfessor"],
+            },
+        );
+    };
+
     return (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
             <aside className="xl:col-span-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 space-y-3 max-h-[78vh] overflow-y-auto">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                     Submissões para Corrigir
                 </h3>
-                {(correcoesProfessor || []).length === 0 && (
+                {correcoesPaginadas.length === 0 && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                         Ainda não há provas submetidas para correção.
                     </p>
                 )}
 
-                {(correcoesProfessor || []).map((submissao) => {
+                {correcoesPaginadas.map((submissao) => {
                     const pendentes = pendentesPorSubmissao(submissao);
                     const isActive = submissao.id === selectedId;
 
@@ -150,20 +181,53 @@ export default function AvaliacoesView({ correcoesProfessor = [] }) {
                                 {submissao.aluno?.name || "Aluno"}
                             </p>
                             <div className="mt-2 flex items-center justify-between text-xs">
-                                <span className="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-200">
-                                    Estado: {submissao.estado}
-                                </span>
+                                <TestStatusBadge
+                                    status={getStatusCorrecao(submissao).label}
+                                    tone={getStatusCorrecao(submissao).tone}
+                                />
                                 <span
                                     className={`font-bold ${pendentes > 0 ? "text-amber-600" : "text-emerald-600"}`}
                                 >
                                     {pendentes > 0
                                         ? `${pendentes} pendente(s)`
-                                        : "Tudo corrigido"}
+                                        : "Corrigido"}
                                 </span>
                             </div>
                         </button>
                     );
                 })}
+
+                {correcoesPaginadas.length > 0 && (
+                    <div className="flex items-center justify-between gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Página {paginaAtual} de {totalPaginas}
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    mudarPagina(Math.max(1, paginaAtual - 1))
+                                }
+                                disabled={paginaAtual === 1}
+                                className="px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                            >
+                                Anterior
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    mudarPagina(
+                                        Math.min(totalPaginas, paginaAtual + 1),
+                                    )
+                                }
+                                disabled={paginaAtual === totalPaginas}
+                                className="px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                            >
+                                Seguinte
+                            </button>
+                        </div>
+                    </div>
+                )}
             </aside>
 
             <section className="xl:col-span-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-5">
@@ -185,31 +249,40 @@ export default function AvaliacoesView({ correcoesProfessor = [] }) {
                                     {selectedSubmissao.aluno?.email})
                                 </p>
                             </div>
-                            <div className="text-sm space-y-1">
-                                <p className="font-semibold text-gray-700 dark:text-gray-200">
-                                    Pontuação: {totalObtido} / {totalMaximo}
-                                </p>
-                                <p className="text-gray-600 dark:text-gray-300">
-                                    Nota atual:{" "}
-                                    {selectedSubmissao.nota_final ?? "-"}
-                                </p>
-                                <p className="text-gray-600 dark:text-gray-300">
-                                    Corrigido por:{" "}
-                                    {selectedSubmissao.corrigido_por?.name ||
-                                        "-"}
-                                </p>
-                                <p className="text-gray-600 dark:text-gray-300">
-                                    Corrigido em:{" "}
-                                    {formatDateTime(
-                                        selectedSubmissao.corrigido_em,
-                                    )}
-                                </p>
-                                <p className="text-gray-600 dark:text-gray-300">
-                                    Publicado em:{" "}
-                                    {formatDateTime(
-                                        selectedSubmissao.publicado_em,
-                                    )}
-                                </p>
+                            <div className="flex flex-col items-start md:items-end gap-3">
+                                <div className="text-sm space-y-1">
+                                    <p className="font-semibold text-gray-700 dark:text-gray-200">
+                                        Pontuação: {totalObtido} / {totalMaximo}
+                                    </p>
+                                    <p className="text-gray-600 dark:text-gray-300">
+                                        Nota atual:{" "}
+                                        {selectedSubmissao.nota_final ?? "-"}
+                                    </p>
+                                    <p className="text-gray-600 dark:text-gray-300">
+                                        Corrigido por:{" "}
+                                        {selectedSubmissao.corrigido_por
+                                            ?.name || "-"}
+                                    </p>
+                                    <p className="text-gray-600 dark:text-gray-300">
+                                        Corrigido em:{" "}
+                                        {formatDateTime(
+                                            selectedSubmissao.corrigido_em,
+                                        )}
+                                    </p>
+                                    <p className="text-gray-600 dark:text-gray-300">
+                                        Publicado em:{" "}
+                                        {formatDateTime(
+                                            selectedSubmissao.publicado_em,
+                                        )}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedId(null)}
+                                    className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100"
+                                >
+                                    Fechar
+                                </button>
                             </div>
                         </div>
 
@@ -252,10 +325,9 @@ export default function AvaliacoesView({ correcoesProfessor = [] }) {
                                                 <strong>
                                                     Resposta do aluno:
                                                 </strong>{" "}
-                                                {resposta.resposta_texto ||
-                                                    resposta.opcao_escolhida
-                                                        ?.texto_opcao ||
-                                                    "(Sem resposta)"}
+                                                {formatarRespostaAluno(
+                                                    resposta,
+                                                )}
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

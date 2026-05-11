@@ -21,7 +21,7 @@ class DashboardController extends Controller
         $user = $request->user();
         $perguntasProfessor = [];
         $perguntasBancoProfessor = null;
-        $correcoesProfessor = [];
+        $correcoesProfessor = null;
         $submissoesAluno = [];
 
         // 1. Estatísticas Gerais
@@ -83,7 +83,7 @@ class DashboardController extends Controller
 
             if ($idsTestesAtribuidos->isNotEmpty()) {
                 $submissoesAluno = TesteRealizado::with([
-                    'respostas:id,id_teste_realizado,id_pergunta,id_opcao_escolhida,resposta_texto,status_correcao,pontuacao_obtida,comentario_formador',
+                    'respostas:id,id_teste_realizado,id_pergunta,id_opcao_escolhida,ids_opcoes_escolhidas,resposta_texto,status_correcao,pontuacao_obtida,comentario_formador',
                 ])
                     ->where('id_aluno', '=', (int) $user->id, 'and')
                     ->whereIn('id_teste', $idsTestesAtribuidos->all(), 'and', false)
@@ -94,13 +94,21 @@ class DashboardController extends Controller
 
         $perguntasProfessor = [];
         $perguntasBancoProfessor = null;
+        $trabalhosPendentes = 0;
 
         if ($cargoReal === 'professor') {
-            $perguntasProfessor = Pergunta::orderBy('created_at', 'desc')
-                ->get(['id', 'texto', 'tipo_pergunta', 'id_categoria', 'url_anexo_pergunta']);
+            $mostrarApenasMinhasPerguntas = (string) $request->query('perguntas_minhas', '1') !== '0';
+
+            $perguntasProfessor = Pergunta::with('opcoes')
+                ->orderBy('created_at', 'desc')
+                ->get(['id', 'texto', 'tipo_pergunta', 'id_categoria', 'id_formador_criador', 'url_anexo_pergunta']);
 
             $perguntasBancoProfessorQuery = Pergunta::with('opcoes')
                 ->orderBy('created_at', 'desc');
+
+            if ($mostrarApenasMinhasPerguntas) {
+                $perguntasBancoProfessorQuery->where('id_formador_criador', '=', (int) $user->id, 'and');
+            }
 
             if ($request->filled('perguntas_categoria')) {
                 $categoriaId = $request->integer('perguntas_categoria');
@@ -123,13 +131,19 @@ class DashboardController extends Controller
                 'teste:id,titulo,id_formador',
                 'teste.perguntas:id',
                 'respostas.pergunta:id,texto,tipo_pergunta',
+                'respostas.pergunta.opcoes:id,id_pergunta,texto_opcao,is_correct',
                 'respostas.opcaoEscolhida:id,texto_opcao',
                 'corrigidoPor:id,name',
             ])
                 ->whereHas('teste', fn($query) => $query->where('id_formador', $user->id))
                 ->orderByRaw("CASE WHEN estado = 'Aguardando_Correcao' THEN 0 WHEN estado = 'Em_Resolucao' THEN 1 ELSE 2 END")
                 ->orderByDesc('created_at')
-                ->get();
+                ->paginate(10, ['*'], 'correcoes_page')
+                ->withQueryString();
+
+            $trabalhosPendentes = TesteRealizado::whereHas('teste', fn($query) => $query->where('id_formador', $user->id))
+                ->where('estado', '=', 'Aguardando_Correcao', 'and')
+                ->count();
         }
 
         // 5. Renderização Final
@@ -150,6 +164,7 @@ class DashboardController extends Controller
                 ? [
                     'categoria' => (string) $request->query('perguntas_categoria', ''),
                     'q' => (string) $request->query('perguntas_q', ''),
+                    'minhas' => (string) $request->query('perguntas_minhas', '1'),
                 ]
                 : null,
 
@@ -161,6 +176,7 @@ class DashboardController extends Controller
                     ->whereHas('teste', fn($q) => $q->where('id_formador', $user->id))
                     ->orderBy('created_at', 'desc')->get() : [],
             'correcoesProfessor' => $correcoesProfessor,
+            'trabalhosPendentes' => $trabalhosPendentes,
         ]);
 
 

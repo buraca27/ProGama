@@ -1,7 +1,14 @@
 // resources/js/Pages/Dashboard/Partials/StatsGrid.jsx
 import React from "react";
 
-export default function StatsGrid({ userRole, estatisticas, auth, turmas }) {
+export default function StatsGrid({
+    userRole,
+    estatisticas,
+    auth,
+    turmas,
+    trabalhosPendentes = 0,
+    tarefasProfessor = [],
+}) {
     return (
         <div className="max-w-7xl mx-auto space-y-6">
             {/* Banner de Boas-vindas */}
@@ -71,14 +78,14 @@ export default function StatsGrid({ userRole, estatisticas, auth, turmas }) {
                         />
                         <DashboardCard
                             title="Trabalhos para Avaliar"
-                            value="12" // Aqui depois ligamos a lógica real
+                            value={trabalhosPendentes}
                             sub="Submissões pendentes"
                             color="text-orange-600 dark:text-orange-400"
                         />
                         <DashboardCard
-                            title="Próxima Aula"
-                            value="14:30"
-                            sub="Sala 12 - Bloco B"
+                            title="Tarefas Atribuídas"
+                            value={tarefasProfessor?.length || 0}
+                            sub="Testes atribuídos a alunos"
                             color="text-blue-600 dark:text-blue-400"
                         />
                     </>

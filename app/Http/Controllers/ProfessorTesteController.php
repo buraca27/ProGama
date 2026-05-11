@@ -164,6 +164,8 @@ class ProfessorTesteController extends Controller
             'novas_perguntas.*.opcoes' => 'nullable|array',
             'novas_perguntas.*.opcoes.*' => 'nullable|string|max:255',
             'novas_perguntas.*.resposta_correta_index' => 'nullable|integer|min:0',
+            'novas_perguntas.*.resposta_correta_indices' => 'nullable|array',
+            'novas_perguntas.*.resposta_correta_indices.*' => 'integer|min:0',
             'novas_perguntas.*.resposta_verdadeiro_falso' => 'nullable|boolean',
         ]);
     }
@@ -382,16 +384,33 @@ class ProfessorTesteController extends Controller
                 abort(422, 'Perguntas de escolha multipla devem ter pelo menos 2 opcoes.');
             }
 
-            $corretaIndex = (int) ($dados['resposta_correta_index'] ?? 0);
-            if ($corretaIndex < 0 || $corretaIndex >= $opcoes->count()) {
-                abort(422, 'Define uma opcao correta valida.');
+            $indicesCorretos = collect($dados['resposta_correta_indices'] ?? []);
+            if ($indicesCorretos->isEmpty() && isset($dados['resposta_correta_index'])) {
+                $indicesCorretos = collect([(int) $dados['resposta_correta_index']]);
+            }
+
+            $indicesCorretos = $indicesCorretos
+                ->map(fn($index) => (int) $index)
+                ->unique()
+                ->values();
+
+            if ($indicesCorretos->isEmpty()) {
+                abort(422, 'Define pelo menos uma opcao correta valida.');
+            }
+
+            $indiceInvalido = $indicesCorretos->contains(
+                fn($index) => $index < 0 || $index >= $opcoes->count(),
+            );
+
+            if ($indiceInvalido) {
+                abort(422, 'Define opcao(oes) correta(s) valida(s).');
             }
 
             foreach ($opcoes as $index => $textoOpcao) {
                 OpcaoPergunta::create([
                     'id_pergunta' => $pergunta->id,
                     'texto_opcao' => $textoOpcao,
-                    'is_correct' => $index === $corretaIndex,
+                    'is_correct' => $indicesCorretos->contains($index),
                 ]);
             }
         }
@@ -460,6 +479,8 @@ class ProfessorTesteController extends Controller
             'opcoes' => 'nullable|array',
             'opcoes.*' => 'nullable|string|max:255',
             'resposta_correta_index' => 'nullable|integer|min:0',
+            'resposta_correta_indices' => 'nullable|array',
+            'resposta_correta_indices.*' => 'integer|min:0',
             'resposta_verdadeiro_falso' => 'nullable|boolean',
         ]);
     }

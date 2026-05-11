@@ -36,6 +36,8 @@ class AlunoTesteController extends Controller
             'respostas' => 'required|array|min:1',
             'respostas.*.id_pergunta' => 'required|integer',
             'respostas.*.id_opcao_escolhida' => 'nullable|integer|exists:Opcoes_Pergunta,id',
+            'respostas.*.id_opcoes_escolhidas' => 'nullable|array',
+            'respostas.*.id_opcoes_escolhidas.*' => 'integer|exists:Opcoes_Pergunta,id',
             'respostas.*.resposta_texto' => 'nullable|string',
         ]);
 
@@ -64,6 +66,33 @@ class AlunoTesteController extends Controller
                 if (!filled($respostaPayload['resposta_texto'] ?? null)) {
                     throw ValidationException::withMessages([
                         'respostas' => 'A resposta dissertativa nao pode ficar vazia.',
+                    ]);
+                }
+
+                continue;
+            }
+
+            if ($pergunta->tipo_pergunta === 'Escolha_Multipla') {
+                $idsOpcoesEscolhidas = collect($respostaPayload['id_opcoes_escolhidas'] ?? [])
+                    ->when(
+                        isset($respostaPayload['id_opcao_escolhida']) && filled($respostaPayload['id_opcao_escolhida']),
+                        fn($collection) => $collection->push((int) $respostaPayload['id_opcao_escolhida'])
+                    )
+                    ->map(fn($id) => (int) $id)
+                    ->unique()
+                    ->values();
+
+                if ($idsOpcoesEscolhidas->isEmpty()) {
+                    throw ValidationException::withMessages([
+                        'respostas' => 'Seleciona pelo menos uma opcao para todas as perguntas de escolha multipla.',
+                    ]);
+                }
+
+                $opcoesPergunta = $pergunta->opcoes->pluck('id')->map(fn($id) => (int) $id)->all();
+                $opcaoInvalida = $idsOpcoesEscolhidas->contains(fn($id) => !in_array($id, $opcoesPergunta, true));
+                if ($opcaoInvalida) {
+                    throw ValidationException::withMessages([
+                        'respostas' => 'Foi selecionada uma opcao invalida para uma das perguntas.',
                     ]);
                 }
 
@@ -119,11 +148,40 @@ class AlunoTesteController extends Controller
                 $idOpcaoEscolhida = isset($respostaPayload['id_opcao_escolhida'])
                     ? (int) $respostaPayload['id_opcao_escolhida']
                     : null;
+                $idsOpcoesEscolhidas = collect($respostaPayload['id_opcoes_escolhidas'] ?? [])
+                    ->when(
+                        $pergunta->tipo_pergunta === 'Escolha_Multipla' && $idOpcaoEscolhida,
+                        fn($collection) => $collection->push($idOpcaoEscolhida)
+                    )
+                    ->map(fn($id) => (int) $id)
+                    ->unique()
+                    ->values();
 
                 $statusCorrecao = 'Por_Avaliar';
                 $pontuacaoObtida = 0;
 
-                if ($pergunta->tipo_pergunta !== 'Dissertativa' && $idOpcaoEscolhida) {
+                if ($pergunta->tipo_pergunta === 'Escolha_Multipla') {
+                    $idsCorretos = $pergunta->opcoes
+                        ->filter(fn($opcao) => (bool) $opcao->is_correct)
+                        ->pluck('id')
+                        ->map(fn($id) => (int) $id)
+                        ->unique()
+                        ->sort()
+                        ->values()
+                        ->all();
+
+                    $idsSelecionados = $idsOpcoesEscolhidas
+                        ->sort()
+                        ->values()
+                        ->all();
+
+                    $isCorreta = $idsCorretos === $idsSelecionados;
+
+                    $statusCorrecao = $isCorreta ? 'Correto' : 'Errado';
+                    $pontuacaoObtida = $isCorreta
+                        ? (int) ($pergunta->pivot->valor_pontuacao ?? 1)
+                        : 0;
+                } elseif ($pergunta->tipo_pergunta !== 'Dissertativa' && $idOpcaoEscolhida) {
                     $opcao = $pergunta->opcoes->firstWhere('id', $idOpcaoEscolhida);
                     $isCorreta = (bool) ($opcao?->is_correct ?? false);
 
@@ -137,7 +195,12 @@ class AlunoTesteController extends Controller
                     'id_teste_realizado' => (int) $testeRealizado->id,
                     'id_pergunta' => $idPergunta,
                 ], [
-                    'id_opcao_escolhida' => $idOpcaoEscolhida,
+                    'id_opcao_escolhida' => $idsOpcoesEscolhidas->count() === 1
+                        ? (int) $idsOpcoesEscolhidas->first()
+                        : $idOpcaoEscolhida,
+                    'ids_opcoes_escolhidas' => $idsOpcoesEscolhidas->isNotEmpty()
+                        ? $idsOpcoesEscolhidas->all()
+                        : null,
                     'resposta_texto' => filled($respostaPayload['resposta_texto'] ?? null)
                         ? trim((string) $respostaPayload['resposta_texto'])
                         : null,

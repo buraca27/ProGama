@@ -13,6 +13,7 @@ export default function NovaPerguntaInline({
 }) {
     const update = (field, fieldValue) =>
         onChange({ ...value, [field]: fieldValue });
+    const updateMany = (patch) => onChange({ ...value, ...patch });
 
     const updateOpcao = (index, newValue) => {
         const next = [...(value.opcoes || ["", ""])];
@@ -24,10 +25,48 @@ export default function NovaPerguntaInline({
 
     const removeOpcao = (index) => {
         const next = (value.opcoes || []).filter((_, i) => i !== index);
-        update("opcoes", next.length ? next : ["", ""]);
-        if ((value.resposta_correta_index ?? 0) >= next.length) {
-            update("resposta_correta_index", 0);
-        }
+        const opcoesAtualizadas = next.length ? next : ["", ""];
+
+        const indicesAtuais = Array.isArray(value.resposta_correta_indices)
+            ? value.resposta_correta_indices
+            : [value.resposta_correta_index ?? 0];
+
+        const reindexados = indicesAtuais
+            .filter((i) => i !== index)
+            .map((i) => (i > index ? i - 1 : i))
+            .filter((i) => i >= 0 && i < (next.length || 2));
+
+        const respostaCorretaIndices =
+            reindexados.length > 0 ? reindexados : [0];
+
+        updateMany({
+            opcoes: opcoesAtualizadas,
+            resposta_correta_indices: respostaCorretaIndices,
+            resposta_correta_index: respostaCorretaIndices[0] ?? 0,
+        });
+    };
+
+    const toggleOpcaoCorreta = (index) => {
+        const indicesAtuais = Array.isArray(value.resposta_correta_indices)
+            ? value.resposta_correta_indices
+            : [value.resposta_correta_index ?? 0];
+
+        const existe = indicesAtuais.includes(index);
+        const proximos = existe
+            ? indicesAtuais.filter((i) => i !== index)
+            : [...indicesAtuais, index];
+
+        const normalizados = [...new Set(proximos)]
+            .filter((i) => i >= 0 && i < (value.opcoes || []).length)
+            .sort((a, b) => a - b);
+
+        const respostaCorretaIndices =
+            normalizados.length > 0 ? normalizados : [index];
+
+        updateMany({
+            resposta_correta_indices: respostaCorretaIndices,
+            resposta_correta_index: respostaCorretaIndices[0] ?? index,
+        });
     };
 
     const handleImageChange = (e) => {
@@ -190,7 +229,7 @@ export default function NovaPerguntaInline({
             {value.tipo_pergunta === "Escolha_Multipla" && (
                 <div className="space-y-3">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Opções
+                        Opções (pode marcar mais de uma correta)
                     </p>
                     {(value.opcoes || []).map((op, index) => (
                         <div key={index} className="flex items-center gap-2">
@@ -210,6 +249,20 @@ export default function NovaPerguntaInline({
                             >
                                 ✕
                             </button>
+                            <label className="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                <input
+                                    type="checkbox"
+                                    checked={(Array.isArray(
+                                        value.resposta_correta_indices,
+                                    )
+                                        ? value.resposta_correta_indices
+                                        : [value.resposta_correta_index ?? 0]
+                                    ).includes(index)}
+                                    onChange={() => toggleOpcaoCorreta(index)}
+                                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                Correta
+                            </label>
                         </div>
                     ))}
                     <div className="flex items-center gap-2">
@@ -220,22 +273,9 @@ export default function NovaPerguntaInline({
                         >
                             + Opção
                         </button>
-                        <select
-                            value={value.resposta_correta_index ?? 0}
-                            onChange={(e) =>
-                                update(
-                                    "resposta_correta_index",
-                                    Number(e.target.value),
-                                )
-                            }
-                            className="rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        >
-                            {(value.opcoes || []).map((_, index) => (
-                                <option key={index} value={index}>
-                                    Correta: opção {index + 1}
-                                </option>
-                            ))}
-                        </select>
+                        <span className="text-xs text-gray-600 dark:text-gray-300">
+                            Selecione todas as opções corretas.
+                        </span>
                     </div>
                 </div>
             )}

@@ -18,11 +18,16 @@ class RespostaAluno extends Model
         'id_teste_realizado',
         'id_pergunta',
         'id_opcao_escolhida',
+        'ids_opcoes_escolhidas',
         'resposta_texto',
         'url_ficheiro_submetido',
         'status_correcao',
         'pontuacao_obtida',
         'comentario_formador',
+    ];
+
+    protected $casts = [
+        'ids_opcoes_escolhidas' => 'array',
     ];
 
     public function testeRealizado()

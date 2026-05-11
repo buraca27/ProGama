@@ -12,6 +12,8 @@ export default function CriarTesteSection({
     setCategoriaFiltro,
     textoPerguntaFiltro,
     setTextoPerguntaFiltro,
+    mostrarApenasMinhasPerguntas,
+    setMostrarApenasMinhasPerguntas,
     mostrarListaPerguntas,
     setMostrarListaPerguntas,
     perguntasFiltradas,
@@ -32,6 +34,22 @@ export default function CriarTesteSection({
     const config =
         CONTEXTO_AVALIACAO[testeForm.data.tipo_avaliacao] ||
         CONTEXTO_AVALIACAO.Teste_Formal;
+
+    const obterRespostaPergunta = (pergunta) => {
+        const opcoes = Array.isArray(pergunta?.opcoes) ? pergunta.opcoes : [];
+        if (pergunta?.tipo_pergunta === "Dissertativa") {
+            return "Resposta aberta (correção manual).";
+        }
+
+        const respostasCorretas = opcoes
+            .filter((opcao) => Boolean(opcao?.is_correct))
+            .map((opcao) => String(opcao?.texto_opcao || "").trim())
+            .filter(Boolean);
+
+        return respostasCorretas.length > 0
+            ? respostasCorretas.join(" | ")
+            : "Sem resposta correta definida.";
+    };
 
     return (
         <form
@@ -136,7 +154,7 @@ export default function CriarTesteSection({
             </div>
 
             {mostrarListaPerguntas && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Filtrar por categoria
@@ -168,6 +186,25 @@ export default function CriarTesteSection({
                             className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                             placeholder="Pesquisar pelo texto da pergunta"
                         />
+                    </div>
+
+                    <div className="space-y-2">
+                        <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Autor da pergunta
+                        </span>
+                        <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <input
+                                type="checkbox"
+                                checked={mostrarApenasMinhasPerguntas}
+                                onChange={(e) =>
+                                    setMostrarApenasMinhasPerguntas(
+                                        e.target.checked,
+                                    )
+                                }
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            Mostrar apenas perguntas criadas por mim
+                        </label>
                     </div>
                 </div>
             )}
@@ -228,6 +265,10 @@ export default function CriarTesteSection({
                                         <br />
                                         {pergunta.texto}
                                     </span>
+                                    <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+                                        Resposta:{" "}
+                                        {obterRespostaPergunta(pergunta)}
+                                    </p>
                                 </div>
                             </div>
                         ))}
@@ -257,6 +298,12 @@ export default function CriarTesteSection({
                                             <span className="text-sm text-gray-800 dark:text-gray-200">
                                                 {index + 1}. {pergunta.texto}
                                             </span>
+                                            <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+                                                Resposta:{" "}
+                                                {obterRespostaPergunta(
+                                                    pergunta,
+                                                )}
+                                            </p>
                                             <div className="mt-2 max-w-[190px]">
                                                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                                                     Pontuação

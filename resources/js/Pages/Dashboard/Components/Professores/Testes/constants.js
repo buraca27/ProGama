@@ -17,6 +17,7 @@ export const createPerguntaFormDefaults = () => ({
     url_anexo_pergunta: null,
     opcoes: ["", ""],
     resposta_correta_index: 0,
+    resposta_correta_indices: [0],
     resposta_verdadeiro_falso: true,
 });
 
