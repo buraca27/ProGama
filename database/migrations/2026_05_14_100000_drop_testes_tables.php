@@ -41,10 +41,6 @@ return new class extends Migration
             Schema::drop('Inscricoes_Desafios');
         }
 
-        if (Schema::hasTable('Desafios_Perguntas')) {
-            Schema::drop('Desafios_Perguntas');
-        }
-
         if (Schema::hasTable('Desafios')) {
             Schema::drop('Desafios');
         }
