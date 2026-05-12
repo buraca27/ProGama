@@ -15,6 +15,7 @@ use App\Services\NotificacaoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ProfessorTesteController extends Controller
@@ -222,7 +223,7 @@ class ProfessorTesteController extends Controller
         DB::transaction(function () use ($teste, $turmasSelecionadas, $validated) {
             $desafioAssociado = null;
 
-            if ($teste->tipo_avaliacao === 'Desafio') {
+            if ($teste->tipo_avaliacao === 'Desafio' && $this->desafioTemAssociacaoTeste()) {
                 $desafioAssociado = Desafio::firstOrCreate(
                     [
                         'id_teste_associado' => (int) $teste->id,
@@ -302,7 +303,7 @@ class ProfessorTesteController extends Controller
             'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
         ]);
 
-        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio') {
+        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio' && $this->desafioTemAssociacaoTeste()) {
             Desafio::where('id_teste_associado', (int) $tarefa->id_teste)
                 ->where('id_formador', (int) Auth::id())
                 ->update([
@@ -325,7 +326,7 @@ class ProfessorTesteController extends Controller
             'data_hora_fecho' => $agora,
         ]);
 
-        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio') {
+        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio' && $this->desafioTemAssociacaoTeste()) {
             Desafio::where('id_teste_associado', (int) $tarefa->id_teste)
                 ->where('id_formador', (int) Auth::id())
                 ->update([
@@ -342,7 +343,7 @@ class ProfessorTesteController extends Controller
 
         $tarefa = $this->obterTarefaDoProfessor($idTarefa);
 
-        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio') {
+        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio' && $this->desafioTemAssociacaoTeste()) {
             $desafio = Desafio::where('id_teste_associado', (int) $tarefa->id_teste)
                 ->where('id_formador', (int) Auth::id())
                 ->first();
@@ -595,6 +596,10 @@ class ProfessorTesteController extends Controller
 
     private function sincronizarDesafioAssociado(Teste $teste, array $validated): void
     {
+        if (!$this->desafioTemAssociacaoTeste()) {
+            return;
+        }
+
         Desafio::updateOrCreate(
             [
                 'id_teste_associado' => (int) $teste->id,
@@ -612,6 +617,11 @@ class ProfessorTesteController extends Controller
                 'ativa' => true,
             ],
         );
+    }
+
+    private function desafioTemAssociacaoTeste(): bool
+    {
+        return Schema::hasColumn('Desafio', 'id_teste_associado');
     }
 
     private function assertProfessor(): void
