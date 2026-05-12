@@ -80,6 +80,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::put('/{id}', [UserController::class, 'update'])->name('update');
             Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
         });
+
         // Turmas (Criar, Editar, Apagar, Atribuir)
         Route::prefix('dashboard/turmas')->name('turmas.')->group(function () {
             Route::post('/', [TurmaController::class, 'store'])->name('store');
@@ -88,7 +89,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::post('/{id}/assign', [TurmaController::class, 'assign'])->name('assign');
         });
 
-        // Disciplinas (Criar, Editar, Apagar) <-- 2. Adiciona este bloco
+        // Disciplinas (Criar, Editar, Apagar)
         Route::prefix('dashboard/disciplinas')->name('disciplinas.')->group(function () {
             Route::post('/', [DisciplinaController::class, 'store'])->name('store');
             Route::put('/{id}', [DisciplinaController::class, 'update'])->name('update');
@@ -98,11 +99,10 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
 
         // Categorias (Criar, Editar, Apagar)
         Route::prefix('dashboard/categorias')->name('categorias.')->group(function () {
-        Route::post('/', [CategoriaController::class, 'store'])->name('store');
-        Route::put('/{id}', [CategoriaController::class, 'update'])->name('update');
-        Route::delete('/{id}', [CategoriaController::class, 'destroy'])->name('destroy');
-    });
-
+            Route::post('/', [CategoriaController::class, 'store'])->name('store');
+            Route::put('/{id}', [CategoriaController::class, 'update'])->name('update');
+            Route::delete('/{id}', [CategoriaController::class, 'destroy'])->name('destroy');
+        });
     });
 
     // --- 4. PERFIL DO UTILIZADOR ---

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, router } from "@inertiajs/react";
 import SearchBar from "@/Components/UI/SearchBar";
 
@@ -9,6 +9,8 @@ export default function CategoriasView({ categorias, userRole }) {
     const [categoriaToEdit, setCategoriaToEdit] = useState(null);
     const [categoriaToDelete, setCategoriaToDelete] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // ==========================================
     // LÓGICA DO FORMULÁRIO DE CRIAR CATEGORIAS
@@ -37,6 +39,13 @@ export default function CategoriasView({ categorias, userRole }) {
     // ==========================================
     const submitEditCategoria = (e) => {
         e.preventDefault();
+
+        if (isSaving) {
+            return;
+        }
+
+        setIsSaving(true);
+
         router.put(
             `/dashboard/categorias/${categoriaToEdit.id}`,
             {
@@ -46,16 +55,30 @@ export default function CategoriasView({ categorias, userRole }) {
             {
                 preserveScroll: true,
                 onSuccess: () => setCategoriaToEdit(null),
+                onFinish: () => setIsSaving(false),
             }
         );
     };
 
     const confirmDeleteCategoria = () => {
+        if (isDeleting) {
+            return;
+        }
+
+        setIsDeleting(true);
+
         router.delete(`/dashboard/categorias/${categoriaToDelete.id}`, {
             preserveScroll: true,
             onSuccess: () => setCategoriaToDelete(null),
+            onFinish: () => setIsDeleting(false),
         });
     };
+
+    useEffect(() => {
+        if (!categoriaToDelete) {
+            setIsDeleting(false);
+        }
+    }, [categoriaToDelete]);
 
     // ==========================================
     // LÓGICA DO FILTRO DE PESQUISA
@@ -250,9 +273,10 @@ export default function CategoriasView({ categorias, userRole }) {
                             </button>
                             <button
                                 type="submit"
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors"
+                                disabled={isSaving}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Guardar Alterações
+                                {isSaving ? "A processar..." : "Guardar Alterações"}
                             </button>
                         </div>
                     </form>
@@ -274,15 +298,17 @@ export default function CategoriasView({ categorias, userRole }) {
                         <div className="flex justify-end gap-3">
                             <button
                                 onClick={() => setCategoriaToDelete(null)}
-                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors"
+                                disabled={isDeleting}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={confirmDeleteCategoria}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-sm"
+                                disabled={isDeleting}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Sim, Apagar Categoria
+                                {isDeleting ? "A processar..." : "Sim, Apagar Categoria"}
                             </button>
                         </div>
                     </div>

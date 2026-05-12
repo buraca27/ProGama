@@ -20,6 +20,7 @@ export default function UserModals({
 }) {
     const { errors } = usePage().props;
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // --- LÓGICA PARA A FOTO NO EDITAR ---
     const fileEditRef = useRef(null);
@@ -47,24 +48,40 @@ export default function UserModals({
     if (!userToView && !userToEdit && !userToDelete) return null;
 
     const handleConfirmDelete = () => {
+        if (isDeleting) {
+            return;
+        }
+
         setIsDeleting(true);
-        confirmDeleteUser();
+
+        confirmDeleteUser({
+            onFinish: () => {
+                setIsDeleting(false);
+            },
+        });
     };
 
     // --- ADICIONAR ESTA FUNÇÃO NOVA ---
     const handleEditSubmit = (e) => {
-        e.preventDefault(); // Impede a página de recarregar
-        
-        // Envia todos os dados que alteraste para o backend
+        e.preventDefault();
+
+        if (isSaving) {
+            return;
+        }
+
+        setIsSaving(true);
+
         router.put(route('utilizadores.update', userToEdit.id), userToEdit, {
             preserveScroll: true,
             onSuccess: () => {
-                // Fecha o modal automaticamente se não houver erros
                 setUserToEdit(null);
+            },
+            onFinish: () => {
+                setIsSaving(false);
             },
         });
     };
-    
+
     // Verifica se o utilizador está a editar a sua própria conta
     const isEditingSelf = authUser?.id === userToEdit?.id;
 
@@ -336,8 +353,11 @@ export default function UserModals({
                             >Cancelar</button>
                             <button
                                 type="submit"
-                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors"
-                            >Guardar</button>
+                                disabled={isSaving}
+                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSaving ? "A processar..." : "Guardar"}
+                            </button>
                         </div>
                     </form>
                 </div>
