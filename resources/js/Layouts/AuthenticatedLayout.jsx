@@ -241,7 +241,7 @@ export default function AuthenticatedLayout({
                         <div className="pt-4 pb-2 px-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                             Gamificacao
                         </div>
-                        <MenuLink href={route("gamificacao.leaderboard")} label="Leaderboard" />
+                        <MenuLink href={route("dashboard")} label="Leaderboard" />
                         <MenuLink href={route("social.hub")} label="Rede Social" />
                     </nav>
                 </div>

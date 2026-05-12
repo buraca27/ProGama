@@ -55,10 +55,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
         Route::get('/{desafio}/historico', [DesafioAlunoController::class, 'historicoSubmissoes'])->name('historico');
     });
 
-    // --- 2.2. GAMIFICAÇÃO + SOCIAL ---
-    Route::prefix('gamificacao')->name('gamificacao.')->group(function () {
-        Route::get('/leaderboard', [GamificationController::class, 'leaderboard'])->name('leaderboard');
-    });
+    // --- 2.2. SOCIAL ---
 
     Route::prefix('social')->name('social.')->group(function () {
         Route::get('/', [SocialController::class, 'index'])->name('hub');
