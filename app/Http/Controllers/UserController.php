@@ -4,114 +4,325 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\{DB, Hash, Mail, Http, Log};
+use Illuminate\Support\Facades\Password;
 
 class UserController extends Controller
 {
-
-   public function index(Request $request)
+    /**
+     * CRIAÇÃO DE UTILIZADOR
+     */
+    public function store(Request $request)
     {
+        Log::info("--- NOVO PEDIDO DE CRIAÇÃO ---");
+        Log::info("Dados recebidos:", $request->all());
 
-        Gate::authorize('viewList', User::class);
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'role' => 'required|string|in:aluno,professor,secretaria',
+            'password' => 'required|string|min:10',
+            'nif' => 'required|string|size:9|unique:users',
+            'data_nascimento' => 'required|date',
+            'email_pessoal' => 'nullable|email',
+            'foto_perfil' => 'nullable|string',
+        ]);
 
+        $roleId = match ($request->role) {
+            'professor' => 2,
+            'secretaria' => 1,
+            default => 3
+        };
 
-        $users = User::all()->map(function ($user) use ($request) {
-            return [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'id_role' => $user->id_role,
+        $emailFormatado = strtolower(trim($request->email));
+        $password = $request->password;
 
+        try {
+            DB::beginTransaction();
 
-                'can' => [
-                    'update' => $request->user()->can('update', $user),
-                    'delete' => $request->user()->can('delete', $user),
-                ]
-            ];
-        });
+            // 1. Gravação na Base de Dados (Incluindo a Foto)
+            DB::table('users')->insert([
+                'name' => $request->name,
+                'email' => $emailFormatado,
+                'email_pessoal' => strtolower($request->email_pessoal ?? null),
+                'nmr_processo_interno' => $request->numero_interno,
+                'nif' => $request->nif,
+                'data_nascimento' => $request->data_nascimento,
+                'password' => Hash::make($password),
+                'id_role' => $roleId,
+                'id_nivel' => 1,
+                'foto_perfil' => $request->foto_perfil,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
+            // 2. Criação no Host (cPanel)
+            // Chamamos apenas uma vez para evitar duplicados
+            $this->manageCPanel($emailFormatado, $password, 'add_pop');
 
-        return response()->json(['users' => $users]);
+            DB::commit();
+
+            // 3. Envio de Email de Boas-vindas
+            // O travão interno na função impede o envio se o email_pessoal for null
+            $this->sendWelcomeEmail($request, $password);
+
+            return redirect()->route('dashboard')->with('success', 'Utilizador criado com sucesso.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Erro crítico ao criar utilizador: " . $e->getMessage());
+
+            return redirect()->back()->withErrors([
+                'error' => 'Falha ao criar conta: ' . $e->getMessage()
+            ]);
+        }
     }
 
-
-    public function destroy(User $user)
+/**
+     * EDIÇÃO DE UTILIZADOR
+     */
+    public function update(Request $request, $id)
     {
-        // 1. A BARREIRA DA POLICY (Se for o último admin, o código para aqui e devolve erro 403!)
-        Gate::authorize('delete', $user);
+        $user = User::findOrFail($id);
 
-        $emailInstitucional = $user->email;
-        $emailPessoal = $user->email_pessoal;
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email_pessoal' => 'nullable|email|max:255',
+            'nmr_processo_interno' => 'nullable|max:50', 
+            'nif' => 'required|string|size:9|unique:users,nif,' . $user->id,
+            'data_nascimento' => 'required|date',
+            'id_role' => 'required|integer|in:1,2,3',
+            'id_turma' => 'nullable|exists:Turmas,id', 
+            'foto_perfil' => 'nullable|string'
+        ]);
 
-        // 2. ENVIAR EMAIL DE AVISO (Código que estava nas rotas)
-        if (!empty($emailPessoal)) {
-            $htmlContent = <<<HTML
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            </head>
-            <body style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f0f4f8; margin: 0; padding: 40px 10px;">
-                <div style="background-color: #ffffff; padding: 0; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); overflow: hidden; max-width: 550px; margin: 0 auto; border: 1px solid #e2e8f0;">
-
-                    <div style="background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%); padding: 30px; text-align: center;">
-                        <h2 style="color: #ffffff; margin: 0; font-size: 26px; letter-spacing: -0.5px;">Aviso de Encerramento</h2>
-                    </div>
-
-                    <div style="padding: 40px 30px;">
-                        <p style="color: #475569; font-size: 17px; line-height: 1.6; margin-top: 0;">Olá, <strong>{$user->name}</strong>.</p>
-                        <p style="color: #475569; font-size: 16px; line-height: 1.6;">Este email serve para informar que a tua conta na plataforma ProGama foi terminada definitivamente pela Secretaria.</p>
-
-                        <div style="margin: 30px 0; background-color: #fef2f2; border: 2px dashed #fca5a5; border-radius: 12px; padding: 25px;">
-                            <div style="margin-bottom: 0;">
-                                <span style="display: block; color: #ef4444; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px;">Email Apagado</span>
-                                <div style="color: #7f1d1d; font-size: 18px; font-weight: 600; word-break: break-all; text-decoration: line-through;">
-                                    {$emailInstitucional}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="background-color: #f1f5f9; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-                        <p style="color: #94a3b8; font-size: 12px; margin: 0;">&copy; 2026 ProGama - Educação Tecnológica</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-HTML;
-
-            try {
-                \Illuminate\Support\Facades\Mail::html($htmlContent, function ($msg) use ($emailPessoal, $user) {
-                    $msg->to($emailPessoal, $user->name)
-                        ->subject('🚨 ProGama: A tua conta foi encerrada');
-                });
-            } catch (\Exception $e) {
-                \Log::error('Erro ao enviar email de apagamento: ' . $e->getMessage());
-            }
+        // REGRA: O utilizador não pode alterar o seu próprio cargo
+        if (auth()->id() == $user->id && $request->id_role != $user->id_role) {
+            return redirect()->back()->withErrors([
+                'error' => 'Ação negada: Não podes alterar o teu próprio cargo.'
+            ]);
         }
 
-        // 3. APAGAR DO CPANEL
-        $emailUser = explode('@', $emailInstitucional);
-        $domain = trim(env('CPANEL_DOMAIN'));
-        try {
-            \Illuminate\Support\Facades\Http::withoutVerifying()
-                ->withBasicAuth(env('CPANEL_USER'), env('CPANEL_PASS'))
-                ->get("https://{$domain}:2083/execute/Email/delete_pop", [
-                    'email' => $emailUser,
-                    'domain' => $domain,
-                ]);
-        } catch (\Exception $e) {
-            \Log::error('Erro cPanel ao apagar: ' . $e->getMessage());
+        $user->update([
+            'name' => $request->name,
+            // Proteção adicionada para evitar erro caso o email pessoal venha nulo
+            'email_pessoal' => $request->email_pessoal ? strtolower($request->email_pessoal) : null,
+            'nmr_processo_interno' => $request->nmr_processo_interno,
+            'nif' => $request->nif,
+            'data_nascimento' => $request->data_nascimento,
+            'id_role' => $request->id_role,
+            'id_turma' => $request->id_role == 3 ? $request->id_turma : null,
+            'foto_perfil' => $request->foto_perfil ?? $user->foto_perfil,
+        ]);
+
+        return redirect()->route('dashboard')->with('success', 'Utilizador atualizado com sucesso.');
+    }
+
+    /**
+     * ELIMINAÇÃO DE UTILIZADOR
+     */
+    public function destroy($id)
+    {
+        $user = User::findOrFail($id);
+
+        // REGRA: Não permitir apagar o último administrador do sistema
+        if ($user->id_role == 1 && User::where('id_role', 1)->count() <= 1) {
+            return redirect()->back()->withErrors([
+                'error' => 'Ação negada: Não é possível apagar o último administrador do sistema.'
+            ]);
         }
 
-        // 4. APAGAR DA BASE DE DADOS
+        // Notifica e remove do Host antes de apagar da BD
+        $this->sendTerminationEmail($user);
+        $this->manageCPanel($user->email, null, 'delete_pop');
+
         $user->delete();
 
-        // 5. DEVOLVER RESPOSTA
-        return redirect()->route('dashboard')->with('success', 'Conta apagada com sucesso!');
+        return redirect()->route('dashboard')->with('success', 'Utilizador apagado definitivamente.');
+    }
+
+    /**
+     * COMUNICAÇÃO COM O CPANEL (HOST)
+     */
+    private function manageCPanel($email, $password, $function)
+    {
+        $emailUser = explode('@', $email)[0];
+        $domain = trim(env('CPANEL_DOMAIN'));
+
+        Log::info("A tentar $function no cPanel para: " . $email);
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withBasicAuth(env('CPANEL_USER'), env('CPANEL_PASS'))
+                ->get("https://{$domain}:2083/execute/Email/{$function}", [
+                    'email' => $emailUser,
+                    'password' => $password,
+                    'domain' => $domain,
+                    'quota' => 500,
+                ]);
+
+            Log::info("Resposta Host ($function): " . $response->body());
+        } catch (\Exception $e) {
+            Log::error("Erro crítico no Host ($function): " . $e->getMessage());
+        }
+    }
+
+    /**
+     * EMAIL DE BOAS-VINDAS
+     */
+    private function sendWelcomeEmail($request, $password)
+    {
+        // TRAVÃO DE SEGURANÇA: Se não houver email pessoal, aborta o envio
+        if (empty($request->email_pessoal)) {
+            Log::info("Email de boas-vindas ignorado: Sem endereço pessoal definido.");
+            return;
+        }
+
+        $htmlContent = <<<HTML
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: sans-serif; background-color: #f0f4f8; padding: 40px 10px;">
+            <div style="background-color: #ffffff; border-radius: 16px; max-width: 550px; margin: 0 auto; border: 1px solid #e2e8f0; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 30px; text-align: center;">
+                    <h2 style="color: #ffffff; margin: 0;">Bem-vindo ao ProGama! 🚀</h2>
+                </div>
+                <div style="padding: 40px 30px;">
+                    <p>Olá, <strong>{$request->name}</strong>!</p>
+                    <p>A tua conta institucional foi criada. Aqui estão os teus dados de acesso:</p>
+                    <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 25px; margin: 20px 0;">
+                        <span style="font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase;">Email Institucional</span>
+                        <div style="font-size: 18px; font-weight: bold; color: #1e293b; margin-bottom: 15px;">{$request->email}</div>
+                        <span style="font-size: 11px; color: #94a3b8; font-weight: bold; text-transform: uppercase;">Password Provisória</span>
+                        <div style="background: white; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; text-align: center;">
+                            <code style="font-size: 20px; color: #2563eb; font-weight: bold;">{$password}</code>
+                        </div>
+                    </div>
+                    <p style="font-size: 13px; color: #64748b;">Dica: Altera a tua password após o primeiro login.</p>
+                    <div style="text-align: center; margin-top: 30px;">
+                        <a href="https://progama.pt" style="background-color: #2563eb; color: #ffffff; padding: 15px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;">Entrar no Workspace</a>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+HTML;
+
+        try {
+            Mail::html($htmlContent, function ($msg) use ($request) {
+                $msg->to($request->email_pessoal, $request->name)
+                    ->subject('🔑 Credenciais ProGama: ' . $request->name);
+            });
+        } catch (\Exception $e) {
+            Log::error('Erro Mail Boas-vindas: ' . $e->getMessage());
+        }
     }
 
 
-}
+    /**
+     * ENVIAR PEDIDO DE RESET DE PASSWORD (INDIVIDUAL)
+     */
+    public function sendPasswordReset($id)
+    {
+        $user = User::findOrFail($id);
 
+        if (empty($user->email_pessoal)) {
+            return redirect()->back()->withErrors([
+                'error' => "Ação negada: O utilizador {$user->name} não tem email pessoal configurado."
+            ]);
+        }
+
+        // Gera o token oficial do Laravel para reset de password
+        $token = Password::broker()->createToken($user);
+        $this->sendCustomResetEmail($user, $token);
+
+        return redirect()->route('dashboard')->with('success', "Pedido de reset enviado para o email pessoal de {$user->name}.");
+    }
+
+    /**
+     * 
+     * 
+     * /**
+     * EMAIL CUSTOMIZADO DE RESET (ENVIADO PARA EMAIL PESSOAL)
+     */
+    private function sendCustomResetEmail($user, $token)
+    {
+        // Cria a hiperligação para a página de reset de password do site
+        $resetLink = route('password.reset', ['token' => $token, 'email' => $user->email]);
+
+        $htmlContent = <<<HTML
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: sans-serif; background-color: #f0f4f8; padding: 40px 10px;">
+            <div style="background-color: #ffffff; border-radius: 16px; max-width: 550px; margin: 0 auto; border: 1px solid #e2e8f0; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 30px; text-align: center;">
+                    <h2 style="color: #ffffff; margin: 0;">Recuperação de Password 🔒</h2>
+                </div>
+                <div style="padding: 40px 30px;">
+                    <p>Olá, <strong>{$user->name}</strong>!</p>
+                    <p>A secretaria do ProGama solicitou a redefinição da tua password.</p>
+                    <p>Clica no botão abaixo para escolher uma nova password segura:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="{$resetLink}" style="background-color: #2563eb; color: #ffffff; padding: 15px 25px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Redefinir Password</a>
+                    </div>
+                    <p style="font-size: 13px; color: #64748b;">Conta Institucional: <strong>{$user->email}</strong></p>
+                    <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">Se não pediste ou não estavas à espera disto, podes ignorar o email. Este link expira automaticamente em 60 minutos.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+HTML;
+
+        try {
+            Mail::html($htmlContent, function ($msg) use ($user) {
+                $msg->to($user->email_pessoal, $user->name)
+                    ->subject('🔒 ProGama: Redefinição de Password');
+            });
+        } catch (\Exception $e) {
+            Log::error('Erro ao enviar pedido de reset para o email pessoal: ' . $e->getMessage());
+        }
+    }
+
+     /**
+     * EMAIL DE ENCERRAMENTO
+     */
+    private function sendTerminationEmail($user)
+    {
+        // TRAVÃO DE SEGURANÇA
+        if (empty($user->email_pessoal))
+            return;
+
+        $htmlContent = <<<HTML
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: sans-serif; background-color: #f0f4f8; padding: 40px 10px;">
+            <div style="background-color: #ffffff; border-radius: 16px; max-width: 550px; margin: 0 auto; border: 1px solid #e2e8f0; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%); padding: 30px; text-align: center;">
+                    <h2 style="color: #ffffff; margin: 0;">Aviso de Encerramento 🚨</h2>
+                </div>
+                <div style="padding: 40px 30px; text-align: center;">
+                    <p>Olá, <strong>{$user->name}</strong>.</p>
+                    <p>Informamos que a tua conta institucional foi encerrada definitivamente pela Secretaria.</p>
+                    <div style="margin: 30px 0; background-color: #fef2f2; border: 2px dashed #fca5a5; padding: 20px; border-radius: 12px;">
+                        <span style="color: #ef4444; font-weight: bold;">CONTA DESATIVADA</span>
+                        <div style="text-decoration: line-through; color: #7f1d1d; font-size: 18px;">{$user->email}</div>
+                    </div>
+                    <p style="font-size: 12px; color: #94a3b8;">&copy; 2026 ProGama</p>
+                </div>
+            </div>
+        </body>
+        </html>
+HTML;
+
+        try {
+            Mail::html($htmlContent, function ($msg) use ($user) {
+                $msg->to($user->email_pessoal, $user->name)
+                    ->subject('🚨 ProGama: A tua conta foi encerrada');
+            });
+        } catch (\Exception $e) {
+            Log::error('Erro Mail Encerramento: ' . $e->getMessage());
+        }
+    }
+}

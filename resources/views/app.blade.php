@@ -5,16 +5,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title inertia>{{ config('app.name', 'Laravel') }}</title>
+    <title inertia>{{ config('app.name', 'ProGama') }}</title>
 
     <script>
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark')
+            document.documentElement.classList.add('dark');
+            // Força o fundo escuro (gray-900 do Tailwind) antes do CSS carregar
+            document.documentElement.style.backgroundColor = '#111827'; 
         } else {
-            document.documentElement.classList.remove('dark')
+            document.documentElement.classList.remove('dark');
+            // Força o fundo claro (gray-100 do Tailwind) antes do CSS carregar
+            document.documentElement.style.backgroundColor = '#f3f4f6';
         }
     </script>
-
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 

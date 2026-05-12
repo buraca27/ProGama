@@ -41,11 +41,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('Categorias', function (Blueprint $table) {
-            $table->id();
-            $table->string('nome', 100);
-            $table->timestamps();
-        });
 
         Schema::create('Badges', function (Blueprint $table) {
             $table->id();
@@ -79,7 +74,7 @@ return new class extends Migration
             $table->string('password', 255);
             $table->string('nif', 20)->unique()->nullable();
             $table->date('data_nascimento')->nullable();
-            
+
             // RBAC e Gamificação
             $table->unsignedBigInteger('id_role')->nullable();
             $table->integer('xp_total')->default(0);
@@ -126,7 +121,7 @@ return new class extends Migration
             $table->string('nome', 100);
             $table->unsignedBigInteger('id_turma');
             $table->timestamps();
-            
+
             $table->foreign('id_turma')->references('id')->on('Turmas')->onDelete('cascade');
         });
 
@@ -136,7 +131,7 @@ return new class extends Migration
         Schema::create('Grupo_Alunos', function (Blueprint $table) {
             $table->unsignedBigInteger('id_grupo');
             $table->unsignedBigInteger('id_aluno');
-            
+
             $table->primary(['id_grupo', 'id_aluno']);
             $table->foreign('id_grupo')->references('id')->on('Grupos')->onDelete('cascade');
             $table->foreign('id_aluno')->references('id')->on('users')->onDelete('cascade');
@@ -145,7 +140,7 @@ return new class extends Migration
         Schema::create('Seguidores', function (Blueprint $table) {
             $table->unsignedBigInteger('id_seguidor');
             $table->unsignedBigInteger('id_seguido');
-            
+
             $table->primary(['id_seguidor', 'id_seguido']);
             $table->foreign('id_seguidor')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('id_seguido')->references('id')->on('users')->onDelete('cascade');
@@ -156,11 +151,9 @@ return new class extends Migration
             $table->text('texto');
             $table->enum('tipo_pergunta', ['Escolha_Multipla', 'Verdadeiro_Falso', 'Dissertativa', 'Preenchimento', 'Upload_Ficheiro']);
             $table->string('url_anexo_pergunta', 255)->nullable();
-            $table->unsignedBigInteger('id_categoria');
             $table->unsignedBigInteger('id_formador_criador');
             $table->timestamps();
 
-            $table->foreign('id_categoria')->references('id')->on('Categorias');
             $table->foreign('id_formador_criador')->references('id')->on('users');
         });
 
@@ -389,7 +382,6 @@ return new class extends Migration
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('users');
         Schema::dropIfExists('Roles_Permissoes');
-        Schema::dropIfExists('Categorias');
         Schema::dropIfExists('Permissoes');
         Schema::dropIfExists('Roles');
         Schema::dropIfExists('Niveis');

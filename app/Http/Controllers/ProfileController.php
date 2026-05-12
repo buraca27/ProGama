@@ -18,7 +18,8 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
-        return Inertia::render('Profile/Edit', [
+        // Altera 'Profile/Edit' para o caminho correto do ficheiro a partir da pasta Pages
+        return Inertia::render('Dashboard/Components/Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
         ]);

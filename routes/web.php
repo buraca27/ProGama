@@ -1,137 +1,117 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
-use App\Models\Turma;
-use App\Models\User;
-use Illuminate\Foundation\Application;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Mail;
+use App\Http\Controllers\TurmaController;
+use App\Http\Controllers\DisciplinaController;
+use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\AlunoDesafioController;
+use App\Http\Controllers\AlunoTesteController;
+use App\Http\Controllers\DesafioAlunoController;
+use App\Http\Controllers\ProfessorTesteController;
+use App\Http\Controllers\GamificationController;
+use App\Http\Controllers\SocialController;
+use App\Http\Controllers\NotificacaoController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // --- 1. LANDING PAGE ---
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return Inertia::render('LandingPage/LandingPage');
 });
 
-// --- 2. DASHBOARD ---
-Route::get('/dashboard', function (Request $request) {
-    $user = clone $request->user();
+// --- 2. ÁREA AUTENTICADA ---
+Route::middleware(['auth', 'verified', 'force_password_change'])->group(function () {
+    // Dashboard Principal
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    $listaUtilizadores = User::orderBy('created_at', 'desc')->get()->map(function ($u) use ($request) {
-    return [
-        'id' => $u->id,
-        'name' => $u->name,
-        'email' => $u->email,
-        'id_role' => $u->id_role,
-        'foto_perfil' => $u->foto_perfil,
-        'created_at' => $u->created_at,
-        'email_pessoal' => $u->email_pessoal,
+    // --- 2.1. ÁREA PROFESSOR (PERGUNTAS / TESTES) ---
+    Route::prefix('dashboard/professor')->name('professor.')->group(function () {
+        Route::post('/perguntas', [ProfessorTesteController::class, 'storePergunta'])->name('perguntas.store');
+        Route::put('/perguntas/{id}', [ProfessorTesteController::class, 'updatePergunta'])->name('perguntas.update');
 
-        'can' => [
-            'delete' => $request->user()->can('delete', $u),
-        ]
-    ];
-});
+        Route::post('/testes', [ProfessorTesteController::class, 'storeTeste'])->name('testes.store');
+        Route::put('/testes/{id}', [ProfessorTesteController::class, 'updateTeste'])->name('testes.update');
+        Route::post('/tarefas', [ProfessorTesteController::class, 'storeTarefa'])->name('tarefas.store');
+        Route::put('/tarefas/{idTarefa}', [ProfessorTesteController::class, 'updateTarefa'])->name('tarefas.update');
+        Route::post('/tarefas/{idTarefa}/terminar', [ProfessorTesteController::class, 'terminarTarefa'])->name('tarefas.terminar');
+        Route::delete('/tarefas/{idTarefa}', [ProfessorTesteController::class, 'destroyTarefa'])->name('tarefas.destroy');
+        Route::put('/correcoes/{idTesteRealizado}', [ProfessorTesteController::class, 'updateCorrecao'])->name('correcoes.update');
+    });
 
-    $estatisticas = [
-        'total_users' => DB::table('users')->count(),
-        'total_turmas' => tryCatchCount('Turmas'),
-        'total_desafios' => tryCatchCount('Desafios'),
-    ];
+    Route::prefix('dashboard/aluno')->name('aluno.')->group(function () {
+        Route::post('/testes/{idTarefa}/submeter', [AlunoTesteController::class, 'submeter'])->name('testes.submeter');
+        Route::post('/desafios/{idAtribuicao}/submeter', [AlunoDesafioController::class, 'submeter'])->name('desafios.submeter');
+    });
 
-    $roleMap = [1 => 'admin', 2 => 'professor', 3 => 'aluno'];
-    $cargoReal = $roleMap[$user->id_role] ?? 'admin';
+    // --- 2.1.1. DESAFIOS UNIFICADOS ---
+    Route::prefix('desafios')->name('desafios.')->group(function () {
+        Route::get('/', [DesafioAlunoController::class, 'index'])->name('index');
+        Route::get('/{desafio}', [DesafioAlunoController::class, 'show'])->name('show');
+        Route::post('/{desafio}/iniciar-quiz', [DesafioAlunoController::class, 'iniciarQuiz'])->name('iniciar-quiz');
+        Route::post('/{desafio}/submeter-quiz', [DesafioAlunoController::class, 'submeterQuiz'])->name('submeter-quiz');
+        Route::post('/{desafio}/submeter-tarefa', [DesafioAlunoController::class, 'submeterTarefa'])->name('submeter-tarefa');
+        Route::get('/{desafio}/historico', [DesafioAlunoController::class, 'historicoSubmissoes'])->name('historico');
+    });
 
-    $turmas = [];
-    if ($user->id_role === 1) {
-        $turmas = Turma::with(['professores', 'alunos'])->get();
-    } elseif ($user->id_role === 2) {
-        $turmas = User::find($user->id)->turmasLecionadas()->with(['alunos', 'professores'])->get();
-    } elseif ($user->id_role === 3) {
-        if ($user->id_turma) {
-            $turmas = Turma::where('id', $user->id_turma)->with(['professores', 'alunos'])->get();
-        }
-    }
+    // --- 2.2. SOCIAL ---
 
-    return Inertia::render('Dashboard', [
-        'userRoleReal' => $cargoReal,
-        'estatisticas' => $estatisticas,
-        'utilizadores' => $listaUtilizadores,
-        'turmas' => $turmas,
-    ]);
-})->middleware(['auth', 'verified'])->name('dashboard');
+    Route::prefix('social')->name('social.')->group(function () {
+        Route::get('/', [SocialController::class, 'index'])->name('hub');
+        Route::post('/seguir/{usuario}', [SocialController::class, 'seguir'])->name('seguir');
+        Route::delete('/seguir/{usuario}', [SocialController::class, 'deixarSeguir'])->name('deixar-seguir');
+    });
 
+    Route::prefix('notificacoes')->name('notificacoes.')->group(function () {
+        Route::get('/', [NotificacaoController::class, 'index'])->name('index');
+        Route::post('/ler-todas', [NotificacaoController::class, 'marcarTodasLidas'])->name('ler-todas');
+        Route::post('/{notificacao}/ler', [NotificacaoController::class, 'marcarLida'])->name('ler');
+    });
 
-// --- 3. GESTÃO DE UTILIZADORES E 4. TURMAS ---
-// Descomentei esta linha para proteger as rotas de novo!
-Route::middleware(['auth', 'admin'])->group(function () {
+    Route::get('/perfil/publico/{usuario}', [GamificationController::class, 'perfilPublico'])->name('perfil.publico');
 
-    // CRIAR
-    Route::post('/dashboard/utilizadores', function (Request $request) {
-        // ... (o teu código de criar utilizador fica igual) ...
-    })->name('utilizadores.store');
+    // --- 3. GESTÃO ADMINISTRATIVA (Apenas Admin) ---
+    Route::middleware(['admin'])->group(function () {
 
-    // EDITAR UTILIZADOR
-    Route::put('/dashboard/utilizadores/{id}', function (Request $request, $id) {
-        $request->validate(['name' => 'required|string|max:255', 'role' => 'required|integer|in:1,2,3']);
-        User::findOrFail($id)->update(['name' => $request->name, 'id_role' => $request->role]);
+        // Utilizadores (Criar, Editar, Apagar, Reset Passwords)
+        Route::prefix('dashboard/utilizadores')->name('utilizadores.')->group(function () {
+            Route::post('/reset-all', [UserController::class, 'sendPasswordResetAll'])->name('reset-all');
+            Route::post('/{id}/reset-password', [UserController::class, 'sendPasswordReset'])->name('reset-password');
+            Route::post('/', [UserController::class, 'store'])->name('store');
+            Route::put('/{id}', [UserController::class, 'update'])->name('update');
+            Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
+        });
+        // Turmas (Criar, Editar, Apagar, Atribuir)
+        Route::prefix('dashboard/turmas')->name('turmas.')->group(function () {
+            Route::post('/', [TurmaController::class, 'store'])->name('store');
+            Route::put('/{id}', [TurmaController::class, 'update'])->name('update');
+            Route::delete('/{id}', [TurmaController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/assign', [TurmaController::class, 'assign'])->name('assign');
+        });
 
-        return redirect()->route('dashboard')->with('success', 'Utilizador editado com sucesso.');
-    })->name('utilizadores.update');
+        // Disciplinas (Criar, Editar, Apagar) <-- 2. Adiciona este bloco
+        Route::prefix('dashboard/disciplinas')->name('disciplinas.')->group(function () {
+            Route::post('/', [DisciplinaController::class, 'store'])->name('store');
+            Route::put('/{id}', [DisciplinaController::class, 'update'])->name('update');
+            Route::delete('/{id}', [DisciplinaController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/assign', [DisciplinaController::class, 'assign'])->name('assign');
+        });
 
-    // APAGAR UTILIZADOR E REMOVER DO CPANEL (Agora ligado ao Controller como falámos!)
-    Route::delete('/dashboard/utilizadores/{user}', [UserController::class, 'destroy'])->name('utilizadores.destroy');
+        // Categorias (Criar, Editar, Apagar)
+        Route::prefix('dashboard/categorias')->name('categorias.')->group(function () {
+        Route::post('/', [CategoriaController::class, 'store'])->name('store');
+        Route::put('/{id}', [CategoriaController::class, 'update'])->name('update');
+        Route::delete('/{id}', [CategoriaController::class, 'destroy'])->name('destroy');
+    });
 
+    });
 
-    // --- 4. GESTÃO DE TURMAS ---
-    Route::post('/dashboard/turmas', function (Request $request) {
-        $validated = $request->validate(['nome' => 'required|string|max:100', 'ano_letivo' => 'required|string|max:20']);
-        Turma::create($validated);
-        return redirect()->route('dashboard')->with('success', 'Turma criada.');
-    })->name('turmas.store');
-
-    Route::put('/dashboard/turmas/{id}', function (Request $request, $id) {
-        $validated = $request->validate(['nome' => 'required|string|max:100', 'ano_letivo' => 'required|string|max:20']);
-        Turma::findOrFail($id)->update($validated);
-        return redirect()->route('dashboard')->with('success', 'Turma atualizada.');
-    })->name('turmas.update');
-
-    Route::delete('/dashboard/turmas/{id}', function (Request $request, $id) {
-        Turma::findOrFail($id)->delete();
-        return redirect()->route('dashboard')->with('success', 'Turma apagada.');
-    })->name('turmas.destroy');
-
-    Route::post('/dashboard/turmas/{id}/assign', function (Request $request, $id) {
-        // ... (o teu código de assign fica igual) ...
-        return redirect()->route('dashboard')->with('success', 'Atribuições guardadas!');
-    })->name('turmas.assign');
-
-}); // <-- ESTA CHAVETA FECHA O GRUPO DE SEGURANÇA! (Adiciona-a aqui antes do perfil)
-
-// --- 5. ROTAS DE PERFIL E AUTH ---
-Route::middleware('auth')->group(function () {
+    // --- 4. PERFIL DO UTILIZADOR ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+// --- 5. AUTHENTICATION ROUTES ---
 require __DIR__ . '/auth.php';
-
-function tryCatchCount($table)
-{
-    try {
-        return DB::table($table)->count();
-    } catch (\Exception $e) {
-        return 0;
-    }
-}
