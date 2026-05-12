@@ -334,6 +334,20 @@ class DesafioAlunoController extends Controller
             'resposta_texto' => $caminhoFicheiro,
         ]);
 
+        $idProfessor = (int) ($desafio->id_formador ?? 0);
+        if ($idProfessor) {
+            $usuario->loadMissing('turma');
+            $nomeTurma = $usuario->turma?->nome ?? 'Turma desconhecida';
+
+            $this->notificacaoService->notificarProfessorSubmissao(
+                $idProfessor,
+                (string) $usuario->name,
+                $nomeTurma,
+                (string) $desafio->titulo,
+                (int) $desafio->id,
+            );
+        }
+
         $payload = [
             'submissao_id' => $submissao->id,
             'mensagem' => 'Tarefa submetida com sucesso',

@@ -8,6 +8,7 @@ use App\Models\UserXp;
 use App\Models\Level;
 use App\Models\Badge;
 use App\Models\SubmissaoDesafioAluno;
+use App\Services\NotificacaoService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -83,6 +84,12 @@ class GamificationService
             'id_desafio_origem' => $idDesafioOrigem,
             'data_aquisicao' => now(),
         ]);
+
+        app(NotificacaoService::class)->notificarBadgeGanho(
+            (int) $usuario->id,
+            (string) $badge->nome,
+            (string) $badge->raridade,
+        );
 
         // Log no histórico
         $this->criarRegistoHistorico($usuario->id, 'badge_conquistada', [

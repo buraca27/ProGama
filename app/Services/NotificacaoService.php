@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Notificacao;
+use App\Models\Turma;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +56,31 @@ class NotificacaoService
         ])->all();
 
         DB::table('Notificacoes')->insert($rows);
+    }
+
+    public function notificarProfessorSubmissao(int $idProfessor, string $nomeAluno, string $nomeTurma, string $tituloDesafio, ?int $idDesafio = null): void
+    {
+        $mensagem = "{$nomeAluno} ({$nomeTurma}) submeteu o desafio \"{$tituloDesafio}\".";
+
+        $this->criarParaUtilizador(
+            $idProfessor,
+            'Submissao_Aluno',
+            $mensagem,
+            null,
+            null,
+            $idDesafio,
+        );
+    }
+
+    public function notificarBadgeGanho(int $idAluno, string $nomeBadge, string $raridade): void
+    {
+        $mensagem = "Conquistaste o badge \"{$nomeBadge}\" ({$raridade})!";
+
+        $this->criarParaUtilizador(
+            $idAluno,
+            'Badge_Ganho',
+            $mensagem,
+        );
     }
 
     public function notificarNovoDesafioTurma(int $idTurma, int $idDesafio, string $tituloDesafio): void

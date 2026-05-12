@@ -56,14 +56,19 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     });
 
     // --- 2.2. SOCIAL ---
-
     Route::prefix('social')->name('social.')->group(function () {
         Route::get('/', [SocialController::class, 'index'])->name('hub');
         Route::post('/seguir/{usuario}', [SocialController::class, 'seguir'])->name('seguir');
         Route::delete('/seguir/{usuario}', [SocialController::class, 'deixarSeguir'])->name('deixar-seguir');
     });
 
-    Route::prefix('notificacoes')->name('notificacoes.')->group(function () {
+    // --- 2.3. NOTIFICAÇÕES (apenas Alunos e Professores — role 1 bloqueado) ---
+    Route::prefix('notificacoes')->name('notificacoes.')->middleware(function ($request, $next) {
+        if ((int) $request->user()?->id_role === 1) {
+            abort(403, 'Administradores não têm acesso ao sistema de notificações.');
+        }
+        return $next($request);
+    })->group(function () {
         Route::get('/', [NotificacaoController::class, 'index'])->name('index');
         Route::post('/ler-todas', [NotificacaoController::class, 'marcarTodasLidas'])->name('ler-todas');
         Route::post('/{notificacao}/ler', [NotificacaoController::class, 'marcarLida'])->name('ler');
@@ -82,6 +87,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::put('/{id}', [UserController::class, 'update'])->name('update');
             Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
         });
+
         // Turmas (Criar, Editar, Apagar, Atribuir)
         Route::prefix('dashboard/turmas')->name('turmas.')->group(function () {
             Route::post('/', [TurmaController::class, 'store'])->name('store');
@@ -90,7 +96,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::post('/{id}/assign', [TurmaController::class, 'assign'])->name('assign');
         });
 
-        // Disciplinas (Criar, Editar, Apagar) <-- 2. Adiciona este bloco
+        // Disciplinas (Criar, Editar, Apagar)
         Route::prefix('dashboard/disciplinas')->name('disciplinas.')->group(function () {
             Route::post('/', [DisciplinaController::class, 'store'])->name('store');
             Route::put('/{id}', [DisciplinaController::class, 'update'])->name('update');
@@ -100,11 +106,10 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
 
         // Categorias (Criar, Editar, Apagar)
         Route::prefix('dashboard/categorias')->name('categorias.')->group(function () {
-        Route::post('/', [CategoriaController::class, 'store'])->name('store');
-        Route::put('/{id}', [CategoriaController::class, 'update'])->name('update');
-        Route::delete('/{id}', [CategoriaController::class, 'destroy'])->name('destroy');
-    });
-
+            Route::post('/', [CategoriaController::class, 'store'])->name('store');
+            Route::put('/{id}', [CategoriaController::class, 'update'])->name('update');
+            Route::delete('/{id}', [CategoriaController::class, 'destroy'])->name('destroy');
+        });
     });
 
     // --- 4. PERFIL DO UTILIZADOR ---
