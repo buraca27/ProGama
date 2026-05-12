@@ -1,6 +1,6 @@
 import ApplicationLogo from "@/Components/ApplicationLogo";
 import ResponsiveNavLink from "@/Components/ResponsiveNavLink";
-import { Link, usePage } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import Modal from "@/Components/Modal";
 import UpdatePasswordForm from "@/Pages/Dashboard/Components/Profile/UpdatePasswordForm";
 import Toast from "@/Components/Toast";
@@ -13,7 +13,7 @@ export default function AuthenticatedLayout({
     activeView,
     onViewChange,
 }) {
-    const { auth, flash } = usePage().props;
+    const { auth, flash, notifications } = usePage().props;
 
     // Verifica se o utilizador tem de mudar a password
     const mustChangePassword = auth.user.must_change_password;
@@ -24,6 +24,10 @@ export default function AuthenticatedLayout({
     const [dirtyEditors, setDirtyEditors] = useState({});
     const [pendingView, setPendingView] = useState(null);
     const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+
+    const unreadCount = notifications?.unread_count || 0;
+    const notificationItems = notifications?.items || [];
 
     const dirtyLabels = useMemo(
         () => Object.values(dirtyEditors).filter(Boolean),
@@ -117,6 +121,23 @@ export default function AuthenticatedLayout({
         </button>
     );
 
+    const MenuLink = ({ href, label }) => (
+        <Link
+            href={href}
+            className="flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 text-left font-medium text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+            {label}
+        </Link>
+    );
+
+    const markNotificationRead = (id) => {
+        router.post(route("notificacoes.ler", id), {}, { preserveScroll: true, preserveState: true });
+    };
+
+    const markAllNotificationsRead = () => {
+        router.post(route("notificacoes.ler-todas"), {}, { preserveScroll: true, preserveState: true });
+    };
+
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden transition-colors duration-200">
             {/* --- 1. BARRA LATERAL ESQUERDA (ASIDE) --- */}
@@ -179,11 +200,11 @@ export default function AuthenticatedLayout({
                                 />
                                 <MenuButton
                                     id="testes"
-                                    label="Testes e Avaliações"
+                                    label="Desafios"
                                 />
                                 <MenuButton
                                     id="tarefas"
-                                    label="Atribuir Tarefas"
+                                    label="Atribuir Desafios"
                                 />
                                 <MenuButton
                                     id="avaliacoes"
@@ -207,16 +228,80 @@ export default function AuthenticatedLayout({
                                     label="Trabalhos Pendentes"
                                 />
                                 <MenuButton
+                                    id="desafios"
+                                    label="Desafios"
+                                />
+                                <MenuButton
                                     id="boletim"
                                     label="Boletim de Notas"
                                 />
                             </>
                         )}
+
+                        <div className="pt-4 pb-2 px-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                            Gamificacao
+                        </div>
+                        <MenuLink href={route("gamificacao.leaderboard")} label="Leaderboard" />
+                        <MenuLink href={route("social.hub")} label="Rede Social" />
                     </nav>
                 </div>
 
                 {/* Perfil e Logout (Fundo da Sidebar) */}
                 <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50/50 dark:bg-gray-800">
+                    <div className="mb-3 px-3 relative">
+                        <button
+                            type="button"
+                            onClick={() => setShowNotifications((s) => !s)}
+                            className="w-full flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                            <span className="flex items-center gap-2">
+                                <span>🔔</span>
+                                <span>Notificacoes</span>
+                            </span>
+                            <span className={`min-w-5 h-5 px-1 rounded-full text-xs font-bold ${unreadCount > 0 ? "bg-red-500 text-white" : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"}`}>
+                                {unreadCount}
+                            </span>
+                        </button>
+
+                        {showNotifications && (
+                            <div className="absolute bottom-12 left-0 right-0 z-50 rounded-xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-800">
+                                <div className="max-h-72 overflow-y-auto space-y-1">
+                                    {notificationItems.length === 0 && (
+                                        <p className="px-2 py-2 text-xs text-gray-500">Sem notificacoes.</p>
+                                    )}
+
+                                    {notificationItems.map((item) => (
+                                        <button
+                                            type="button"
+                                            key={item.id}
+                                            onClick={() => markNotificationRead(item.id)}
+                                            className={`w-full rounded-lg px-2 py-2 text-left text-xs ${item.lida ? "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" : "bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200"}`}
+                                        >
+                                            <p className="font-semibold">{item.tipo_notificacao}</p>
+                                            <p className="mt-0.5 line-clamp-2">{item.mensagem}</p>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="mt-2 flex items-center justify-between gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={markAllNotificationsRead}
+                                        className="rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold dark:border-gray-700"
+                                    >
+                                        Ler todas
+                                    </button>
+                                    <Link
+                                        href={route("notificacoes.index")}
+                                        className="rounded-md bg-gray-900 px-2 py-1 text-xs font-semibold text-white dark:bg-gray-100 dark:text-gray-900"
+                                    >
+                                        Centro
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="mb-3 px-3">
                         <div className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
                             {currentUser.name}

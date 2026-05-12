@@ -20,6 +20,7 @@ import TestesView from "./Components/Professores/TestesView";
 import TarefasView from "./Components/Professores/TarefasView";
 import AvaliacoesView from "./Components/Professores/AvaliacoesView";
 import TrabalhosView from "./Components/Alunos/TrabalhosView";
+import DesafiosView from "./Components/Alunos/DesafiosView";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Incluindo tarefasAluno) ---
@@ -40,6 +41,8 @@ export default function Dashboard(props) {
         tarefasProfessor = [],
         tarefasAluno = [],
         submissoesAluno = [],
+        desafiosAluno = [],
+        inscricoesDesafiosAluno = [],
         correcoesProfessor = null,
         trabalhosPendentes = 0,
     } = props;
@@ -174,6 +177,13 @@ export default function Dashboard(props) {
                     <TrabalhosView
                         tarefasAluno={tarefasAluno}
                         submissoesAluno={submissoesAluno}
+                    />
+                )}
+
+                {activeView === "desafios" && (
+                    <DesafiosView
+                        desafiosAluno={desafiosAluno}
+                        inscricoesDesafiosAluno={inscricoesDesafiosAluno}
                     />
                 )}
 

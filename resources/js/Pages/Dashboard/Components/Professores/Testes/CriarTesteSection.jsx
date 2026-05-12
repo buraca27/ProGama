@@ -1,6 +1,6 @@
 import React from "react";
 import NovaPerguntaInline from "./NovaPerguntaInline";
-import { TIPO_AVALIACAO_OPTIONS } from "./constants";
+import { TIPO_DESAFIO_OPTIONS } from "./constants";
 import { CONTEXTO_AVALIACAO } from "./constants";
 
 export default function CriarTesteSection({
@@ -33,7 +33,7 @@ export default function CriarTesteSection({
 }) {
     const config =
         CONTEXTO_AVALIACAO[testeForm.data.tipo_avaliacao] ||
-        CONTEXTO_AVALIACAO.Teste_Formal;
+        CONTEXTO_AVALIACAO.Desafio;
 
     const obterRespostaPergunta = (pergunta) => {
         const opcoes = Array.isArray(pergunta?.opcoes) ? pergunta.opcoes : [];
@@ -98,16 +98,16 @@ export default function CriarTesteSection({
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Tipo de avaliação
+                        Tipo de desafio
                     </label>
                     <select
-                        value={testeForm.data.tipo_avaliacao}
+                        value={testeForm.data.tipo_desafio}
                         onChange={(e) =>
-                            testeForm.setData("tipo_avaliacao", e.target.value)
+                            testeForm.setData("tipo_desafio", e.target.value)
                         }
                         className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                     >
-                        {TIPO_AVALIACAO_OPTIONS.map((opt) => (
+                        {TIPO_DESAFIO_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
                                 {opt.label}
                             </option>
@@ -131,26 +131,28 @@ export default function CriarTesteSection({
                     />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Peso na nota final (%)
-                    </label>
-                    <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={testeForm.data.peso_avaliacao ?? "0"}
-                        onChange={(e) =>
-                            testeForm.setData("peso_avaliacao", e.target.value)
-                        }
-                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        placeholder="0 a 100"
-                    />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Define quanto esta avaliação conta para a nota final.
-                    </p>
-                </div>
+                {!config.semPesoNota && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Peso na nota final (%)
+                        </label>
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={testeForm.data.peso_avaliacao ?? "0"}
+                            onChange={(e) =>
+                                testeForm.setData("peso_avaliacao", e.target.value)
+                            }
+                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                            placeholder="0 a 100"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Define quanto esta avaliação conta para a nota final.
+                        </p>
+                    </div>
+                )}
             </div>
 
             {mostrarListaPerguntas && (
