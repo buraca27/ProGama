@@ -22,6 +22,9 @@ class User extends Authenticatable
         'id_role',
         'id_nivel',
         'id_turma',
+        'must_change_password',
+        'nif',
+        'data_nascimento',
     ];
 
     protected $hidden = [
@@ -49,5 +52,10 @@ class User extends Authenticatable
     public function turmasLecionadas()
     {
         return $this->belongsToMany(Turma::class, 'professor_turma', 'professor_id', 'turma_id');
+    }
+
+    public function historicoAtividades()
+    {
+        return $this->hasMany(HistoricoAtividade::class, 'id_aluno');
     }
 }
