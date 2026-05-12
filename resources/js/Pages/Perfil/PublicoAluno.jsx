@@ -30,11 +30,11 @@ export default function PublicoAluno({ usuario, xpTotal, nivelAtual, percentagem
                             <div className="flex items-center gap-2">
                                 {social?.is_following ? (
                                     <button onClick={deixarSeguir} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 dark:border-slate-600 dark:text-slate-100">
-                                        Deixar de seguir
+                                        Desconectar
                                     </button>
                                 ) : (
                                     <button onClick={seguir} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
-                                        Seguir
+                                        Conectar
                                     </button>
                                 )}
                             </div>
