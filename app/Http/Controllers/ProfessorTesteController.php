@@ -85,7 +85,7 @@ class ProfessorTesteController extends Controller
             $this->sincronizarDesafioAssociado($teste, $validated);
         });
 
-        return redirect()->route('dashboard')->with('success', 'Teste criado com sucesso.');
+        return redirect()->route('dashboard')->with('success', 'Desafio criado com sucesso.');
     }
 
     public function updateTeste(Request $request, int $id)
@@ -110,7 +110,7 @@ class ProfessorTesteController extends Controller
             $this->sincronizarDesafioAssociado($teste, $validated);
         });
 
-        return redirect()->route('dashboard')->with('success', 'Teste atualizado com sucesso.');
+        return redirect()->route('dashboard')->with('success', 'Desafio atualizado com sucesso.');
     }
 
     private function sincronizarPerguntasTeste(Teste $teste, array $validated): void
@@ -223,33 +223,14 @@ class ProfessorTesteController extends Controller
         DB::transaction(function () use ($teste, $turmasSelecionadas, $validated) {
             $desafioAssociado = null;
 
-            if ($teste->tipo_avaliacao === 'Desafio' && $this->desafioTemAssociacaoTeste()) {
-                $desafioAssociado = Desafio::firstOrCreate(
-                    [
-                        'id_teste_associado' => (int) $teste->id,
-                        'id_formador' => (int) Auth::id(),
-                    ],
-                    [
-                        'titulo' => $teste->titulo,
-                        'descricao' => $teste->instrucoes,
-                        'tipo_desafio' => 'Tarefa',
-                        'tipo_recorrencia' => 'Unico',
-                        'exige_submissao' => true,
-                        'data_inicio' => $validated['data_hora_abertura'],
-                        'data_fim' => $validated['data_hora_fecho'],
-                        'duracao_minutos' => $teste->duracao_minutos,
-                        'ativa' => true,
-                    ],
-                );
-
-                $desafioAssociado->update([
+            if ($teste->tipo_avaliacao === 'Desafio') {
+                $desafioAssociado = $this->sincronizarDesafioAssociado($teste, [
                     'titulo' => $teste->titulo,
-                    'descricao' => $teste->instrucoes,
+                    'instrucoes' => $teste->instrucoes,
                     'tipo_desafio' => 'Tarefa',
+                    'duracao_minutos' => $teste->duracao_minutos,
                     'data_inicio' => $validated['data_hora_abertura'],
                     'data_fim' => $validated['data_hora_fecho'],
-                    'duracao_minutos' => $teste->duracao_minutos,
-                    'ativa' => true,
                 ]);
             }
 
@@ -303,13 +284,15 @@ class ProfessorTesteController extends Controller
             'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
         ]);
 
-        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio' && $this->desafioTemAssociacaoTeste()) {
-            Desafio::where('id_teste_associado', (int) $tarefa->id_teste)
-                ->where('id_formador', (int) Auth::id())
-                ->update([
+        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio') {
+            $desafioAssociado = $this->obterDesafioAssociadoDoTeste($tarefa->teste);
+
+            if ($desafioAssociado) {
+                $desafioAssociado->update([
                     'data_inicio' => $validated['data_hora_abertura'],
                     'data_fim' => $validated['data_hora_fecho'],
                 ]);
+            }
         }
 
         return redirect()->route('dashboard')->with('success', 'Datas do desafio atualizadas com sucesso.');
@@ -326,12 +309,14 @@ class ProfessorTesteController extends Controller
             'data_hora_fecho' => $agora,
         ]);
 
-        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio' && $this->desafioTemAssociacaoTeste()) {
-            Desafio::where('id_teste_associado', (int) $tarefa->id_teste)
-                ->where('id_formador', (int) Auth::id())
-                ->update([
+        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio') {
+            $desafioAssociado = $this->obterDesafioAssociadoDoTeste($tarefa->teste);
+
+            if ($desafioAssociado) {
+                $desafioAssociado->update([
                     'data_fim' => $agora,
                 ]);
+            }
         }
 
         return redirect()->route('dashboard')->with('success', 'Desafio terminado com sucesso.');
@@ -343,10 +328,8 @@ class ProfessorTesteController extends Controller
 
         $tarefa = $this->obterTarefaDoProfessor($idTarefa);
 
-        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio' && $this->desafioTemAssociacaoTeste()) {
-            $desafio = Desafio::where('id_teste_associado', (int) $tarefa->id_teste)
-                ->where('id_formador', (int) Auth::id())
-                ->first();
+        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio') {
+            $desafio = $this->obterDesafioAssociadoDoTeste($tarefa->teste);
 
             if ($desafio) {
                 DesafioAtribuicao::where('id_desafio', (int) $desafio->id)
@@ -594,17 +577,20 @@ class ProfessorTesteController extends Controller
             ->firstOrFail();
     }
 
-    private function sincronizarDesafioAssociado(Teste $teste, array $validated): void
+    private function sincronizarDesafioAssociado(Teste $teste, array $validated): Desafio
     {
-        if (!$this->desafioTemAssociacaoTeste()) {
-            return;
+        $criteria = [
+            'id_formador' => (int) Auth::id(),
+        ];
+
+        if ($this->desafioTemAssociacaoTeste()) {
+            $criteria['id_teste_associado'] = (int) $teste->id;
+        } else {
+            $criteria['titulo'] = (string) $teste->titulo;
         }
 
-        Desafio::updateOrCreate(
-            [
-                'id_teste_associado' => (int) $teste->id,
-                'id_formador' => (int) Auth::id(),
-            ],
+        return Desafio::updateOrCreate(
+            $criteria,
             [
                 'titulo' => $validated['titulo'],
                 'descricao' => $validated['instrucoes'] ?? null,
@@ -612,11 +598,25 @@ class ProfessorTesteController extends Controller
                 'tipo_recorrencia' => 'Unico',
                 'exige_submissao' => true,
                 'duracao_minutos' => $validated['duracao_minutos'] ?? null,
-                'data_inicio' => now(),
-                'data_fim' => now()->addDays(30),
+                'data_inicio' => $validated['data_inicio'] ?? now(),
+                'data_fim' => $validated['data_fim'] ?? now()->addDays(30),
                 'ativa' => true,
             ],
         );
+    }
+
+    private function obterDesafioAssociadoDoTeste(Teste $teste): ?Desafio
+    {
+        if ($this->desafioTemAssociacaoTeste()) {
+            return Desafio::where('id_teste_associado', (int) $teste->id)
+                ->where('id_formador', (int) Auth::id())
+                ->first();
+        }
+
+        return Desafio::where('id_formador', (int) Auth::id())
+            ->where('titulo', (string) $teste->titulo)
+            ->latest('id')
+            ->first();
     }
 
     private function desafioTemAssociacaoTeste(): bool
