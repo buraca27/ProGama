@@ -175,152 +175,216 @@ export default function DisciplinasView({
                 3. LISTAGEM DE DISCIPLINAS
             --------------------------------------------------------- */}
             {filteredDisciplinas.length > 0 ? (
-                filteredDisciplinas.map((disciplina) => (
-                    <div
-                        key={disciplina.id}
-                        className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
-                    >
-                        {/* CABEÇALHO DA DISCIPLINA */}
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
-                            <h3 className="text-2xl font-bold text-blue-900 dark:text-blue-300">
-                                {disciplina.nome}
-                                {disciplina.codigo && (
-                                    <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
-                                        ({disciplina.codigo})
-                                    </span>
-                                )}
-                            </h3>
+                filteredDisciplinas.map((disciplina) => {
+                    const colegasDaTurma =
+                        disciplina.turmas?.[0]?.alunos?.length > 0
+                            ? disciplina.turmas[0].alunos
+                            : turmas?.[0]?.alunos || [];
 
-                            {/* Botões Admin */}
+                    return (
+                        <div
+                            key={disciplina.id}
+                            className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
+                        >
+                            {/* CABEÇALHO DA DISCIPLINA */}
+                            <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
+                                <h3 className="text-2xl font-bold text-blue-900 dark:text-blue-300">
+                                    {disciplina.nome}
+                                    {disciplina.codigo && (
+                                        <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                                            ({disciplina.codigo})
+                                        </span>
+                                    )}
+                                </h3>
+
+                                {/* Botões Admin */}
+                                {userRole === "admin" && (
+                                    <div className="flex gap-2">
+                                        <span className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs px-3 py-1 rounded-full font-bold flex items-center mr-2">
+                                            {disciplina.turmas?.length || 0}{" "}
+                                            Turmas
+                                        </span>
+                                        <span className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs px-3 py-1 rounded-full font-bold flex items-center mr-2">
+                                            {disciplina.professores?.length ||
+                                                0}{" "}
+                                            Professores
+                                        </span>
+                                        <button
+                                            onClick={() =>
+                                                setDisciplinaToEdit(disciplina)
+                                            }
+                                            className="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1 rounded font-bold text-sm transition-colors"
+                                        >
+                                            Editar
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                setDisciplinaToDelete(
+                                                    disciplina,
+                                                )
+                                            }
+                                            className="bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded font-bold text-sm transition-colors"
+                                        >
+                                            Apagar
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* DESCRIÇÃO DA DISCIPLINA */}
+                            {disciplina.descricao && (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 italic border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
+                                    {disciplina.descricao}
+                                </p>
+                            )}
+
+                            {/* ÁREA DE ADMIN: Editor de Atribuições */}
                             {userRole === "admin" && (
-                                <div className="flex gap-2">
-                                    <span className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs px-3 py-1 rounded-full font-bold flex items-center mr-2">
-                                        {disciplina.turmas?.length || 0} Turmas
-                                    </span>
-                                    <span className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs px-3 py-1 rounded-full font-bold flex items-center mr-2">
-                                        {disciplina.professores?.length || 0}{" "}
-                                        Professores
-                                    </span>
-                                    <button
-                                        onClick={() =>
-                                            setDisciplinaToEdit(disciplina)
-                                        }
-                                        className="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1 rounded font-bold text-sm transition-colors"
-                                    >
-                                        Editar
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            setDisciplinaToDelete(disciplina)
-                                        }
-                                        className="bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded font-bold text-sm transition-colors"
-                                    >
-                                        Apagar
-                                    </button>
+                                <div
+                                    className={`mt-4 ${!disciplina.descricao ? "border-t border-gray-100 dark:border-gray-700 pt-4" : ""}`}
+                                >
+                                    <DisciplinasAdminEditor
+                                        disciplina={disciplina}
+                                        utilizadores={utilizadores}
+                                        turmas={turmas}
+                                    />
+                                </div>
+                            )}
+
+                            {/* ÁREA DE ALUNO/PROFESSOR */}
+                            {userRole !== "admin" && (
+                                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Professores */}
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+                                            Professores
+                                        </h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {disciplina.professores &&
+                                            disciplina.professores.length >
+                                                0 ? (
+                                                disciplina.professores.map(
+                                                    (prof) => (
+                                                        <div
+                                                            key={prof.id}
+                                                            className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700"
+                                                        >
+                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm overflow-hidden shrink-0">
+                                                                {prof.foto_perfil ? (
+                                                                    <img
+                                                                        src={
+                                                                            prof.foto_perfil
+                                                                        }
+                                                                        alt={
+                                                                            prof.name
+                                                                        }
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    prof.name.charAt(
+                                                                        0,
+                                                                    )
+                                                                )}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                                                                    {prof.name}
+                                                                </p>
+                                                                <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-tighter">
+                                                                    Docente
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    ),
+                                                )
+                                            ) : (
+                                                <p className="text-gray-400 italic text-sm">
+                                                    Sem professores atribuídos.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Turmas (Professor) / Colegas da turma (Aluno) */}
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+                                            {userRole === "aluno"
+                                                ? "Colegas da Turma"
+                                                : "Turmas"}
+                                        </h4>
+                                        {userRole === "aluno" ? (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {colegasDaTurma.length > 0 ? (
+                                                    colegasDaTurma.map(
+                                                        (aluno) => (
+                                                            <div
+                                                                key={aluno.id}
+                                                                className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700"
+                                                            >
+                                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold text-sm overflow-hidden shrink-0">
+                                                                    {aluno.foto_perfil ? (
+                                                                        <img
+                                                                            src={
+                                                                                aluno.foto_perfil
+                                                                            }
+                                                                            alt={
+                                                                                aluno.name
+                                                                            }
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    ) : (
+                                                                        aluno.name.charAt(
+                                                                            0,
+                                                                        )
+                                                                    )}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                                                                        {
+                                                                            aluno.name
+                                                                        }
+                                                                    </p>
+                                                                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold uppercase tracking-tighter">
+                                                                        Colega
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        ),
+                                                    )
+                                                ) : (
+                                                    <p className="text-gray-400 italic text-sm">
+                                                        Sem colegas de turma
+                                                        para mostrar.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-2">
+                                                {disciplina.turmas &&
+                                                disciplina.turmas.length > 0 ? (
+                                                    disciplina.turmas.map(
+                                                        (t) => (
+                                                            <span
+                                                                key={t.id}
+                                                                className="bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-3 py-1 rounded-md text-sm font-bold border border-purple-100 dark:border-purple-800"
+                                                            >
+                                                                {t.nome}
+                                                            </span>
+                                                        ),
+                                                    )
+                                                ) : (
+                                                    <p className="text-gray-400 italic text-sm">
+                                                        Nenhuma turma associada.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
-
-                        {/* DESCRIÇÃO DA DISCIPLINA */}
-                        {disciplina.descricao && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 italic border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
-                                {disciplina.descricao}
-                            </p>
-                        )}
-
-                        {/* ÁREA DE ADMIN: Editor de Atribuições */}
-                        {userRole === "admin" && (
-                            <div
-                                className={`mt-4 ${!disciplina.descricao ? "border-t border-gray-100 dark:border-gray-700 pt-4" : ""}`}
-                            >
-                                <DisciplinasAdminEditor
-                                    disciplina={disciplina}
-                                    utilizadores={utilizadores}
-                                    turmas={turmas}
-                                />
-                            </div>
-                        )}
-
-                        {/* ÁREA DE ALUNO/PROFESSOR: Lista de Professores e Turmas */}
-                        {userRole !== "admin" && (
-                            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Professores */}
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-                                        Professores
-                                    </h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {disciplina.professores &&
-                                        disciplina.professores.length > 0 ? (
-                                            disciplina.professores.map(
-                                                (prof) => (
-                                                    <div
-                                                        key={prof.id}
-                                                        className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700"
-                                                    >
-                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm overflow-hidden shrink-0">
-                                                            {prof.foto_perfil ? (
-                                                                <img
-                                                                    src={
-                                                                        prof.foto_perfil
-                                                                    }
-                                                                    alt={
-                                                                        prof.name
-                                                                    }
-                                                                    className="w-full h-full object-cover"
-                                                                />
-                                                            ) : (
-                                                                prof.name.charAt(
-                                                                    0,
-                                                                )
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-                                                                {prof.name}
-                                                            </p>
-                                                            <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-tighter">
-                                                                Docente
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                ),
-                                            )
-                                        ) : (
-                                            <p className="text-gray-400 italic text-sm">
-                                                Sem professores atribuídos.
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Turmas */}
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-                                        Turmas
-                                    </h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {disciplina.turmas &&
-                                        disciplina.turmas.length > 0 ? (
-                                            disciplina.turmas.map((t) => (
-                                                <span
-                                                    key={t.id}
-                                                    className="bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-3 py-1 rounded-md text-sm font-bold border border-purple-100 dark:border-purple-800"
-                                                >
-                                                    {t.nome}
-                                                </span>
-                                            ))
-                                        ) : (
-                                            <p className="text-gray-400 italic text-sm">
-                                                Nenhuma turma associada.
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                ))
+                    );
+                })
             ) : (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-16 text-center border-2 border-dashed border-gray-200 dark:border-gray-700 transition-colors">
                     <span className="text-5xl mb-4 block opacity-50">📚</span>
