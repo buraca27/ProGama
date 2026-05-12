@@ -19,17 +19,18 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
         setData: setTurmaD,
         post: postTurma,
         processing: processingTurma,
-        reset: resetTurma
+        reset: resetTurma,
     } = useForm({
         nome: "",
-        ano_letivo: new Date().getFullYear() + "/" + (new Date().getFullYear() + 1)
+        ano_letivo:
+            new Date().getFullYear() + "/" + (new Date().getFullYear() + 1),
     });
 
     const submitNovaTurma = (e) => {
         e.preventDefault();
         postTurma(route("turmas.store"), {
             preserveScroll: true,
-            onSuccess: () => resetTurma()
+            onSuccess: () => resetTurma(),
         });
     };
 
@@ -38,36 +39,41 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
     // ==========================================
     const submitEditTurma = (e) => {
         e.preventDefault();
-        router.put(`/dashboard/turmas/${turmaToEdit.id}`, {
-            nome: turmaToEdit.nome,
-            ano_letivo: turmaToEdit.ano_letivo
-        }, {
-            preserveScroll: true,
-            onSuccess: () => setTurmaToEdit(null)
-        });
+        router.put(
+            `/dashboard/turmas/${turmaToEdit.id}`,
+            {
+                nome: turmaToEdit.nome,
+                ano_letivo: turmaToEdit.ano_letivo,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setTurmaToEdit(null),
+            },
+        );
     };
 
     const confirmDeleteTurma = () => {
         router.delete(`/dashboard/turmas/${turmaToDelete.id}`, {
             preserveScroll: true,
-            onSuccess: () => setTurmaToDelete(null)
+            onSuccess: () => setTurmaToDelete(null),
         });
     };
 
     // ==========================================
     // LÓGICA DO FILTRO DE PESQUISA
     // ==========================================
-    const filteredTurmas = turmas ? turmas.filter((t) => {
-        const search = searchTerm.toLowerCase();
-        return (
-            t.nome.toLowerCase().includes(search) ||
-            t.ano_letivo.toLowerCase().includes(search)
-        );
-    }) : [];
+    const filteredTurmas = turmas
+        ? turmas.filter((t) => {
+              const search = searchTerm.toLowerCase();
+              return (
+                  t.nome.toLowerCase().includes(search) ||
+                  t.ano_letivo.toLowerCase().includes(search)
+              );
+          })
+        : [];
 
     return (
         <div className="max-w-7xl mx-auto space-y-6">
-
             {/* ---------------------------------------------------------
                 1. FORMULÁRIO DE CRIAÇÃO (APENAS PARA ADMIN)
             --------------------------------------------------------- */}
@@ -83,7 +89,7 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                         <input
                             type="text"
                             value={turmaD.nome}
-                            onChange={e => setTurmaD("nome", e.target.value)}
+                            onChange={(e) => setTurmaD("nome", e.target.value)}
                             required
                             placeholder="Ex: TPSI 10"
                             className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
@@ -96,7 +102,9 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                         <input
                             type="text"
                             value={turmaD.ano_letivo}
-                            onChange={e => setTurmaD("ano_letivo", e.target.value)}
+                            onChange={(e) =>
+                                setTurmaD("ano_letivo", e.target.value)
+                            }
                             required
                             placeholder="Ex: 2026/2027"
                             className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
@@ -178,47 +186,107 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                             </div>
                         )}
 
-                        {/* ÁREA DE ALUNO/PROFESSOR: Lista de Colegas/Alunos */}
+                        {/* ÁREA DE ALUNO/PROFESSOR: Lista de Professores e Alunos da turma */}
                         {userRole !== "admin" && (
                             <div className="mt-6">
-                                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-                                    Membros da Turma
-                                </h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                    {turma.alunos && turma.alunos.length > 0 ? (
-                                        turma.alunos.map((aluno) => (
-                                            <div
-                                                key={aluno.id}
-                                                className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow duration-200"
-                                            >
-                                                {/* Foto ou Inicial */}
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm shadow-sm overflow-hidden shrink-0">
-                                                    {aluno.foto_perfil ? (
-                                                        <img
-                                                            src={aluno.foto_perfil}
-                                                            alt={aluno.name}
-                                                            className="w-full h-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        aluno.name.charAt(0)
-                                                    )}
-                                                </div>
-                                                {/* Nome e Cargo */}
-                                                <div className="min-w-0">
-                                                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-                                                        {aluno.name}
-                                                    </p>
-                                                    <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-tighter">
-                                                        Estudante
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p className="col-span-full text-center py-6 text-gray-400 italic text-sm">
-                                            Ainda não foram atribuídos membros a esta turma.
-                                        </p>
-                                    )}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+                                            Professores
+                                        </h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {turma.professores &&
+                                            turma.professores.length > 0 ? (
+                                                turma.professores.map(
+                                                    (professor) => (
+                                                        <div
+                                                            key={professor.id}
+                                                            className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow duration-200"
+                                                        >
+                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold text-sm shadow-sm overflow-hidden shrink-0">
+                                                                {professor.foto_perfil ? (
+                                                                    <img
+                                                                        src={
+                                                                            professor.foto_perfil
+                                                                        }
+                                                                        alt={
+                                                                            professor.name
+                                                                        }
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    professor.name.charAt(
+                                                                        0,
+                                                                    )
+                                                                )}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                                                                    {
+                                                                        professor.name
+                                                                    }
+                                                                </p>
+                                                                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-tighter">
+                                                                    Professor
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    ),
+                                                )
+                                            ) : (
+                                                <p className="text-gray-400 italic text-sm">
+                                                    Sem professores atribuídos.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+                                            Alunos
+                                        </h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {turma.alunos &&
+                                            turma.alunos.length > 0 ? (
+                                                turma.alunos.map((aluno) => (
+                                                    <div
+                                                        key={aluno.id}
+                                                        className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow duration-200"
+                                                    >
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm shadow-sm overflow-hidden shrink-0">
+                                                            {aluno.foto_perfil ? (
+                                                                <img
+                                                                    src={
+                                                                        aluno.foto_perfil
+                                                                    }
+                                                                    alt={
+                                                                        aluno.name
+                                                                    }
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                aluno.name.charAt(
+                                                                    0,
+                                                                )
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                                                                {aluno.name}
+                                                            </p>
+                                                            <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-tighter">
+                                                                Estudante
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <p className="text-gray-400 italic text-sm">
+                                                    Sem alunos atribuídos.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -233,9 +301,9 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                     <p className="text-gray-500 dark:text-gray-400 font-medium">
                         {searchTerm
                             ? "Não encontrámos nenhuma turma com essa pesquisa. Tenta noutro ano letivo ou nome."
-                            : (userRole === "admin"
-                                ? "Usa o formulário acima para criar a primeira turma."
-                                : "De momento, não estás associado a nenhuma turma.")}
+                            : userRole === "admin"
+                              ? "Usa o formulário acima para criar a primeira turma."
+                              : "De momento, não estás associado a nenhuma turma."}
                     </p>
                 </div>
             )}
@@ -247,14 +315,24 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
             {/* MODAL EDITAR TURMA */}
             {turmaToEdit && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <form onSubmit={submitEditTurma} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md border border-gray-200 dark:border-gray-700">
-                        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Editar Turma</h2>
+                    <form
+                        onSubmit={submitEditTurma}
+                        className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md border border-gray-200 dark:border-gray-700"
+                    >
+                        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+                            Editar Turma
+                        </h2>
                         <label className="block mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
                             Nome da Turma:
                             <input
                                 type="text"
                                 value={turmaToEdit.nome}
-                                onChange={e => setTurmaToEdit({...turmaToEdit, nome: e.target.value})}
+                                onChange={(e) =>
+                                    setTurmaToEdit({
+                                        ...turmaToEdit,
+                                        nome: e.target.value,
+                                    })
+                                }
                                 className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
                             />
                         </label>
@@ -263,13 +341,29 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                             <input
                                 type="text"
                                 value={turmaToEdit.ano_letivo}
-                                onChange={e => setTurmaToEdit({...turmaToEdit, ano_letivo: e.target.value})}
+                                onChange={(e) =>
+                                    setTurmaToEdit({
+                                        ...turmaToEdit,
+                                        ano_letivo: e.target.value,
+                                    })
+                                }
                                 className="w-full border-gray-300 rounded mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
                             />
                         </label>
                         <div className="flex justify-end gap-3">
-                            <button type="button" onClick={() => setTurmaToEdit(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">Cancelar</button>
-                            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors">Guardar Alterações</button>
+                            <button
+                                type="button"
+                                onClick={() => setTurmaToEdit(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors"
+                            >
+                                Guardar Alterações
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -279,18 +373,32 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
             {turmaToDelete && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md border border-red-200 dark:border-red-900">
-                        <h2 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">Apagar Turma?</h2>
+                        <h2 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">
+                            Apagar Turma?
+                        </h2>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">
-                            Tens a certeza que queres apagar a turma <strong>{turmaToDelete.nome}</strong>? Os alunos e professores alocados vão ficar sem esta turma, mas as suas contas não serão apagadas.
+                            Tens a certeza que queres apagar a turma{" "}
+                            <strong>{turmaToDelete.nome}</strong>? Os alunos e
+                            professores alocados vão ficar sem esta turma, mas
+                            as suas contas não serão apagadas.
                         </p>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setTurmaToDelete(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">Cancelar</button>
-                            <button onClick={confirmDeleteTurma} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-sm">Sim, Apagar Turma</button>
+                            <button
+                                onClick={() => setTurmaToDelete(null)}
+                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmDeleteTurma}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-sm"
+                            >
+                                Sim, Apagar Turma
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
-
         </div>
     );
 }

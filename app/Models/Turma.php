@@ -20,5 +20,14 @@ class Turma extends Model
         return $this->belongsToMany(User::class, 'professor_turma', 'turma_id', 'professor_id')->where('id_role', 2);
     }
 
+    // Obter as disciplinas associadas a esta turma
+    public function disciplinas()
+    {
+        return $this->belongsToMany(Disciplina::class, 'disciplina_turma', 'id_turma', 'id_disciplina');
+    }
 
+    public function atribuicoesTeste()
+    {
+        return $this->hasMany(TesteAtribuicao::class, 'id_turma');
+    }
 }

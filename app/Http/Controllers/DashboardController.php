@@ -42,12 +42,39 @@ class DashboardController extends Controller
         // 3. Definição das variáveis que estavam em falta (sublinhadas a vermelho)
         $turmas = match ($user->id_role) {
             1 => Turma::with(['professores', 'alunos'])->get(),
-            2 => User::find($user->id, ['*'])->turmasLecionadas()->with(['alunos', 'professores'])->get(),
+            2 => User::find($user->id, ['*'])
+                ->turmasLecionadas()
+                ->with(['alunos'])
+                ->get()
+                ->map(function ($turma) {
+                    $professoresDaTurma = User::where('id_role', 2)
+                        ->whereHas('turmasLecionadas', fn($query) => $query->where('Turmas.id', (int) $turma->id))
+                        ->get();
+
+                    $turma->setRelation('professores', $professoresDaTurma);
+
+                    return $turma;
+                }),
             3 => $user->id_turma ? Turma::where('id', '=', $user->id_turma, 'and')->with(['professores', 'alunos'])->get() : [],
             default => [],
         };
 
-        $disciplinas = Disciplina::with(['professores', 'turmas'])->get();
+        $disciplinas = match ($user->id_role) {
+            2 => Disciplina::with(['professores', 'turmas'])
+                ->whereHas('professores', fn($query) => $query->where('users.id', (int) $user->id))
+                ->get(),
+            3 => $user->id_turma
+                ? (Turma::find((int) $user->id_turma)?->disciplinas()
+                    ->with([
+                        'professores',
+                        'turmas' => fn($query) => $query
+                            ->where('Turmas.id', (int) $user->id_turma)
+                            ->with('alunos'),
+                    ])
+                    ->get() ?? collect())
+                : [],
+            default => Disciplina::with(['professores', 'turmas'])->get(),
+        };
         $categorias = Categoria::withCount(['desafios', 'testes'])->orderBy('nome')->get();
 
         // 4. Lógica para Tarefas do Aluno
