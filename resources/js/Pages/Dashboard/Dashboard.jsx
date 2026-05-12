@@ -76,12 +76,13 @@ export default function Dashboard(props) {
         });
     };
 
-    const confirmDeleteUser = () => {
+    const confirmDeleteUser = (options = {}) => {
         router.delete(`/dashboard/utilizadores/${userToDelete.id}`, {
             onSuccess: () => {
                 setUserToDelete(null);
                 setDeleteUserStep(0);
             },
+            onFinish: options.onFinish,
         });
     };
 

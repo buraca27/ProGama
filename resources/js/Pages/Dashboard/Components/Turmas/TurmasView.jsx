@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, router } from "@inertiajs/react";
 import TurmaAdminEditor from "./TurmaAdminEditor";
 import SearchBar from "@/Components/UI/SearchBar";
@@ -10,6 +10,8 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
     const [turmaToEdit, setTurmaToEdit] = useState(null);
     const [turmaToDelete, setTurmaToDelete] = useState(null);
     const [searchTerm, setSearchTerm] = useState(""); // <-- Novo estado para a pesquisa
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // ==========================================
     // LÓGICA DO FORMULÁRIO DE CRIAR TURMAS
@@ -43,16 +45,30 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
             ano_letivo: turmaToEdit.ano_letivo
         }, {
             preserveScroll: true,
-            onSuccess: () => setTurmaToEdit(null)
+            onSuccess: () => setTurmaToEdit(null),
+            onFinish: () => setIsSaving(false),
         });
     };
 
     const confirmDeleteTurma = () => {
+        if (isDeleting) {
+            return;
+        }
+
+        setIsDeleting(true);
+
         router.delete(`/dashboard/turmas/${turmaToDelete.id}`, {
             preserveScroll: true,
-            onSuccess: () => setTurmaToDelete(null)
+            onSuccess: () => setTurmaToDelete(null),
+            onFinish: () => setIsDeleting(false),
         });
     };
+
+    useEffect(() => {
+        if (!turmaToDelete) {
+            setIsDeleting(false);
+        }
+    }, [turmaToDelete]);
 
     // ==========================================
     // LÓGICA DO FILTRO DE PESQUISA
@@ -269,7 +285,13 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                         </label>
                         <div className="flex justify-end gap-3">
                             <button type="button" onClick={() => setTurmaToEdit(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">Cancelar</button>
-                            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors">Guardar Alterações</button>
+                            <button
+                                type="submit"
+                                disabled={isSaving}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSaving ? "A processar..." : "Guardar Alterações"}
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -284,8 +306,10 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                             Tens a certeza que queres apagar a turma <strong>{turmaToDelete.nome}</strong>? Os alunos e professores alocados vão ficar sem esta turma, mas as suas contas não serão apagadas.
                         </p>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setTurmaToDelete(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors">Cancelar</button>
-                            <button onClick={confirmDeleteTurma} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-sm">Sim, Apagar Turma</button>
+                            <button onClick={() => setTurmaToDelete(null)} disabled={isDeleting} className="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Cancelar</button>
+                            <button onClick={confirmDeleteTurma} disabled={isDeleting} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                                {isDeleting ? "A processar..." : "Sim, Apagar Turma"}
+                            </button>
                         </div>
                     </div>
                 </div>

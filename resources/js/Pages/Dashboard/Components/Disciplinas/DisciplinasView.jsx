@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, router } from "@inertiajs/react";
 import DisciplinasAdminEditor from "./DisciplinasAdminEditor";
 import SearchBar from "@/Components/UI/SearchBar";
@@ -15,6 +15,8 @@ export default function DisciplinasView({
     const [disciplinaToEdit, setDisciplinaToEdit] = useState(null);
     const [disciplinaToDelete, setDisciplinaToDelete] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // ==========================================
     // LÓGICA DO FORMULÁRIO DE CRIAR DISCIPLINAS
@@ -59,11 +61,23 @@ export default function DisciplinasView({
     };
 
     const confirmDeleteDisciplina = () => {
+        if (isDeleting) {
+            return;
+        }
+
+        setIsDeleting(true);
+
         router.delete(`/dashboard/disciplinas/${disciplinaToDelete.id}`, {
             preserveScroll: true,
             onSuccess: () => setDisciplinaToDelete(null),
         });
     };
+
+    useEffect(() => {
+        if (!disciplinaToDelete) {
+            setIsDeleting(false);
+        }
+    }, [disciplinaToDelete]);
 
     // ==========================================
     // LÓGICA DO FILTRO DE PESQUISA
