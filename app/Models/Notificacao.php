@@ -13,8 +13,6 @@ class Notificacao extends Model
         'id_utilizador',
         'tipo_notificacao',
         'mensagem',
-        'id_teste',
-        'id_desafio',
         'id_desafio_relacionado',
         'lida',
     ];

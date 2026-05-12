@@ -17,11 +17,13 @@ class Desafio extends Model
         'descricao',
         'id_formador',
         'id_disciplina',
+        'id_categoria',
         'data_inicio',
         'data_fim',
         'tipo_avaliacao',
         'publica',
         'ativa',
+        'ativo',
         'pontuacao_automatica',
         'tentativas_maximas',
         'peso_nota',
@@ -30,7 +32,6 @@ class Desafio extends Model
         'exige_submissao',
         'cooldown_minutos',
         'tipo_recorrencia',
-        'id_teste_associado',
         'duracao_minutos',
         'tipo_desafio',
         'xp_base',
@@ -42,6 +43,7 @@ class Desafio extends Model
         'data_inicio' => 'datetime',
         'data_fim' => 'datetime',
         'ativa' => 'boolean',
+        'ativo' => 'boolean',
         'publica' => 'boolean',
         'exige_submissao' => 'boolean',
         'pontuacao_automatica' => 'boolean',
@@ -67,6 +69,14 @@ class Desafio extends Model
     public function disciplina(): BelongsTo
     {
         return $this->belongsTo(Disciplina::class, 'id_disciplina');
+    }
+
+    /**
+     * A categoria associada
+     */
+    public function categoria(): BelongsTo
+    {
+        return $this->belongsTo(Categoria::class, 'id_categoria');
     }
 
     /**

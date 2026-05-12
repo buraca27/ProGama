@@ -13,16 +13,12 @@ class NotificacaoService
         int $idUtilizador,
         string $tipo,
         string $mensagem,
-        ?int $idTeste = null,
-        ?int $idDesafio = null,
         ?int $idDesafioRelacionado = null
     ): Notificacao {
         return Notificacao::create([
             'id_utilizador' => $idUtilizador,
             'tipo_notificacao' => $tipo,
             'mensagem' => mb_substr($mensagem, 0, 255),
-            'id_teste' => $idTeste,
-            'id_desafio' => $idDesafio,
             'id_desafio_relacionado' => $idDesafioRelacionado,
             'lida' => false,
         ]);
@@ -32,8 +28,6 @@ class NotificacaoService
         array $idsUtilizadores,
         string $tipo,
         string $mensagem,
-        ?int $idTeste = null,
-        ?int $idDesafio = null,
         ?int $idDesafioRelacionado = null
     ): void {
         $ids = collect($idsUtilizadores)->map(fn($id) => (int) $id)->unique()->values();
@@ -46,8 +40,6 @@ class NotificacaoService
             'id_utilizador' => $id,
             'tipo_notificacao' => $tipo,
             'mensagem' => mb_substr($mensagem, 0, 255),
-            'id_teste' => $idTeste,
-            'id_desafio' => $idDesafio,
             'id_desafio_relacionado' => $idDesafioRelacionado,
             'lida' => false,
             'created_at' => $agora,
@@ -76,22 +68,7 @@ class NotificacaoService
         );
     }
 
-    public function notificarTesteCorrigido(int $idAluno, ?int $idTeste, ?float $notaFinal = null): void
-    {
-        $mensagem = 'O teu teste foi corrigido.';
-        if ($notaFinal !== null) {
-            $mensagem .= ' Nota: ' . number_format($notaFinal, 2);
-        }
 
-        $this->criarParaUtilizador(
-            $idAluno,
-            'Teste_Corrigido',
-            $mensagem,
-            $idTeste,
-            null,
-            null
-        );
-    }
 
     public function notificarDesafioCorrigido(int $idAluno, int $idDesafio, ?float $nota = null): void
     {
@@ -102,10 +79,8 @@ class NotificacaoService
 
         $this->criarParaUtilizador(
             $idAluno,
-            'Teste_Corrigido',
+            'Desafio_Corrigido',
             $mensagem,
-            null,
-            null,
             $idDesafio
         );
     }

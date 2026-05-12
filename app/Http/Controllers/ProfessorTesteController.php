@@ -13,6 +13,7 @@ use App\Services\NotificacaoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ProfessorTesteController extends Controller
@@ -69,18 +70,7 @@ class ProfessorTesteController extends Controller
         $validated = $this->validarTeste($request);
 
         DB::transaction(function () use ($validated) {
-            $desafio = Desafio::create([
-                'titulo' => $validated['titulo'],
-                'descricao' => $validated['instrucoes'] ?? null,
-                'id_formador' => (int) Auth::id(),
-                'tipo_desafio' => $validated['tipo_desafio'],
-                'tipo_recorrencia' => 'Unico',
-                'exige_submissao' => true,
-                'duracao_minutos' => $validated['duracao_minutos'] ?? null,
-                'data_inicio' => now(),
-                'data_fim' => now()->addDays(30),
-                'ativa' => true,
-            ]);
+            $desafio = Desafio::create($this->montarPayloadDesafioCriacao($validated));
 
             $this->sincronizarPerguntasDesafio($desafio, $validated);
         });
@@ -98,12 +88,7 @@ class ProfessorTesteController extends Controller
             ->firstOrFail();
 
         DB::transaction(function () use ($desafio, $validated) {
-            $desafio->update([
-                'titulo' => $validated['titulo'],
-                'descricao' => $validated['instrucoes'] ?? null,
-                'tipo_desafio' => $validated['tipo_desafio'],
-                'duracao_minutos' => $validated['duracao_minutos'] ?? null,
-            ]);
+            $desafio->update($this->montarPayloadDesafioAtualizacao($validated));
 
             $this->sincronizarPerguntasDesafio($desafio, $validated);
         });
@@ -219,10 +204,7 @@ class ProfessorTesteController extends Controller
         }
 
         DB::transaction(function () use ($desafio, $turmasSelecionadas, $validated) {
-            $desafio->update([
-                'data_inicio' => $validated['data_hora_abertura'],
-                'data_fim' => $validated['data_hora_fecho'],
-            ]);
+            $this->atualizarJanelaDesafio($desafio, $validated['data_hora_abertura'], $validated['data_hora_fecho']);
 
             foreach ($turmasSelecionadas as $turmaId) {
                 AtribuicaoDesafio::updateOrCreate([
@@ -265,10 +247,9 @@ class ProfessorTesteController extends Controller
             'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
         ]);
 
-        $tarefa->desafio?->update([
-            'data_inicio' => $validated['data_hora_abertura'],
-            'data_fim' => $validated['data_hora_fecho'],
-        ]);
+        if ($tarefa->desafio) {
+            $this->atualizarJanelaDesafio($tarefa->desafio, $validated['data_hora_abertura'], $validated['data_hora_fecho']);
+        }
 
         return redirect()->route('dashboard')->with('success', 'Datas do desafio atualizadas com sucesso.');
     }
@@ -284,9 +265,9 @@ class ProfessorTesteController extends Controller
             'data_fim_tentativas' => $agora,
         ]);
 
-        $tarefa->desafio?->update([
-            'data_fim' => $agora,
-        ]);
+        if ($tarefa->desafio) {
+            $this->atualizarJanelaDesafio($tarefa->desafio, null, $agora);
+        }
 
         return redirect()->route('dashboard')->with('success', 'Desafio terminado com sucesso.');
     }
@@ -537,6 +518,129 @@ class ProfessorTesteController extends Controller
             ->where('id', '=', $idTarefa, 'and')
             ->whereHas('desafio', fn($query) => $query->where('id_formador', '=', (int) Auth::id(), 'and'))
             ->firstOrFail();
+    }
+
+    private function montarPayloadDesafioCriacao(array $validated): array
+    {
+        $tabelaDesafios = $this->obterTabelaDesafio();
+
+        $payload = [
+            'titulo' => $validated['titulo'],
+            'descricao' => $validated['instrucoes'] ?? null,
+            'id_formador' => (int) Auth::id(),
+            'tipo_desafio' => $this->normalizarTipoDesafioParaTabela((string) $validated['tipo_desafio']),
+            'duracao_minutos' => $validated['duracao_minutos'] ?? null,
+            'tipo_recorrencia' => 'Unico',
+            'exige_submissao' => true,
+            'data_inicio' => now(),
+            'data_fim' => now()->addDays(30),
+        ];
+
+        if (Schema::hasColumn($tabelaDesafios, 'ativa')) {
+            $payload['ativa'] = true;
+        }
+
+        if (Schema::hasColumn($tabelaDesafios, 'ativo')) {
+            $payload['ativo'] = true;
+        }
+
+        return $this->filtrarPayloadPorColunasDesafio($payload);
+    }
+
+    private function montarPayloadDesafioAtualizacao(array $validated): array
+    {
+        return $this->filtrarPayloadPorColunasDesafio([
+            'titulo' => $validated['titulo'],
+            'descricao' => $validated['instrucoes'] ?? null,
+            'tipo_desafio' => $this->normalizarTipoDesafioParaTabela((string) $validated['tipo_desafio']),
+            'duracao_minutos' => $validated['duracao_minutos'] ?? null,
+        ]);
+    }
+
+    private function atualizarJanelaDesafio(Desafio $desafio, mixed $dataInicio = null, mixed $dataFim = null): void
+    {
+        $tabelaDesafios = $this->obterTabelaDesafio();
+        $payload = [];
+
+        if ($dataInicio !== null && Schema::hasColumn($tabelaDesafios, 'data_inicio')) {
+            $payload['data_inicio'] = $dataInicio;
+        }
+
+        if ($dataFim !== null && Schema::hasColumn($tabelaDesafios, 'data_fim')) {
+            $payload['data_fim'] = $dataFim;
+        }
+
+        if (!empty($payload)) {
+            $desafio->update($payload);
+        }
+    }
+
+    private function filtrarPayloadPorColunasDesafio(array $payload): array
+    {
+        $tabelaDesafios = $this->obterTabelaDesafio();
+        $filtrado = [];
+        foreach ($payload as $coluna => $valor) {
+            if (Schema::hasColumn($tabelaDesafios, $coluna)) {
+                $filtrado[$coluna] = $valor;
+            }
+        }
+
+        return $filtrado;
+    }
+
+    private function obterTabelaDesafio(): string
+    {
+        return (new Desafio())->getTable();
+    }
+
+    private function normalizarTipoDesafioParaTabela(string $tipoRecebido): string
+    {
+        $tabelaDesafios = $this->obterTabelaDesafio();
+        $valoresPermitidos = $this->obterValoresEnumDaColuna($tabelaDesafios, 'tipo_desafio');
+
+        if (empty($valoresPermitidos)) {
+            return $tipoRecebido;
+        }
+
+        if (in_array($tipoRecebido, $valoresPermitidos, true)) {
+            return $tipoRecebido;
+        }
+
+        $candidatosPorTipo = [
+            'Quiz' => ['Quiz', 'Obrigatorio', 'Opcional'],
+            'Tarefa' => ['Tarefa', 'Opcional', 'Obrigatorio'],
+        ];
+
+        foreach (($candidatosPorTipo[$tipoRecebido] ?? [$tipoRecebido]) as $candidato) {
+            if (in_array($candidato, $valoresPermitidos, true)) {
+                return $candidato;
+            }
+        }
+
+        return $valoresPermitidos[0];
+    }
+
+    private function obterValoresEnumDaColuna(string $tabela, string $coluna): array
+    {
+        $database = DB::connection()->getDatabaseName();
+
+        $resultado = DB::selectOne(
+            'SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1',
+            [$database, $tabela, $coluna],
+        );
+
+        if (!$resultado || !isset($resultado->COLUMN_TYPE) || !is_string($resultado->COLUMN_TYPE)) {
+            return [];
+        }
+
+        if (!preg_match("/^enum\\((.*)\\)$/", $resultado->COLUMN_TYPE, $matches)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            str_getcsv($matches[1], ',', "'"),
+            fn($valor) => is_string($valor) && $valor !== '',
+        ));
     }
 
     private function assertProfessor(): void
