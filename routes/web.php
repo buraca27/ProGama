@@ -7,7 +7,6 @@ use App\Http\Controllers\TurmaController;
 use App\Http\Controllers\DisciplinaController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\AlunoDesafioController;
-use App\Http\Controllers\AlunoTesteController;
 use App\Http\Controllers\DesafioAlunoController;
 use App\Http\Controllers\ProfessorTesteController;
 use App\Http\Controllers\GamificationController;
@@ -41,7 +40,6 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     });
 
     Route::prefix('dashboard/aluno')->name('aluno.')->group(function () {
-        Route::post('/testes/{idTarefa}/submeter', [AlunoTesteController::class, 'submeter'])->name('testes.submeter');
         Route::post('/desafios/{idAtribuicao}/submeter', [AlunoDesafioController::class, 'submeter'])->name('desafios.submeter');
     });
 

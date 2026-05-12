@@ -19,8 +19,8 @@ import CategoriasView from "./Components/Categorias/CategoriasView";
 import TestesView from "./Components/Professores/TestesView";
 import TarefasView from "./Components/Professores/TarefasView";
 import AvaliacoesView from "./Components/Professores/AvaliacoesView";
-import TrabalhosView from "./Components/Alunos/TrabalhosView";
 import DesafiosView from "./Components/Alunos/DesafiosView";
+import LeaderboardView from "./Components/Gamificacao/LeaderboardView";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Incluindo tarefasAluno) ---
@@ -34,6 +34,7 @@ export default function Dashboard(props) {
         categorias = [],
         status,
         mustVerifyEmail,
+        initialView = "dashboard",
         perguntasProfessor = [],
         perguntasBancoProfessor = null,
         perguntasBancoFiltros = null,
@@ -45,12 +46,16 @@ export default function Dashboard(props) {
         inscricoesDesafiosAluno = [],
         correcoesProfessor = null,
         trabalhosPendentes = 0,
+        podio = [],
+        ranking_xp = [],
+        ranking_nivel = [],
+        ranking_badges = [],
     } = props;
 
     // =============================================================================
     // ESTADOS DE NAVEGAÇÃO E INTERFACE
     // =============================================================================
-    const [activeView, setActiveView] = useState("dashboard");
+    const [activeView, setActiveView] = useState(initialView || "dashboard");
     const [showNovoUserForm, setShowNovoUserForm] = useState(false);
 
     // =============================================================================
@@ -174,9 +179,9 @@ export default function Dashboard(props) {
 
                 {/* 6. VISTA TRABALHOS PENDENTES (ALUNO) */}
                 {activeView === "trabalhos" && (
-                    <TrabalhosView
-                        tarefasAluno={tarefasAluno}
-                        submissoesAluno={submissoesAluno}
+                    <DesafiosView
+                        desafiosAluno={desafiosAluno}
+                        inscricoesDesafiosAluno={inscricoesDesafiosAluno}
                     />
                 )}
 
@@ -193,6 +198,15 @@ export default function Dashboard(props) {
                 )}
                 {activeView === "boletim" && (
                     <PlaceholderView title="Boletim de Notas" icon="🎓" />
+                )}
+
+                {activeView === "leaderboard" && (
+                    <LeaderboardView
+                        podio={podio}
+                        ranking_xp={ranking_xp}
+                        ranking_nivel={ranking_nivel}
+                        ranking_badges={ranking_badges}
+                    />
                 )}
             </div>
 
