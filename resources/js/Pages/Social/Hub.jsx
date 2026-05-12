@@ -41,7 +41,7 @@ export default function Hub({ sugestoes = [], seguindo = [], social_stats = {} }
                         <h1 className="text-2xl font-black text-slate-900 dark:text-white">Rede Social</h1>
                         <p className="text-sm text-slate-500">Segue colegas, cria conexoes e acompanha niveis e badges.</p>
                     </div>
-                    <Link href={route("dashboard")} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
+                    <Link href={route("dashboard", { view: "leaderboard" })} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
                         Ver Leaderboard
                     </Link>
                 </div>

@@ -3,19 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\OpcaoPergunta;
+use App\Models\AtribuicaoDesafio;
 use App\Models\Desafio;
-use App\Models\DesafioAtribuicao;
 use App\Models\Pergunta;
-use App\Models\RespostaAluno;
-use App\Models\TesteAtribuicao;
-use App\Models\Teste;
-use App\Models\TesteRealizado;
+use App\Models\RespostaDesafioAluno;
+use App\Models\SubmissaoDesafioAluno;
 use App\Models\User;
 use App\Services\NotificacaoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ProfessorTesteController extends Controller
@@ -72,17 +69,20 @@ class ProfessorTesteController extends Controller
         $validated = $this->validarTeste($request);
 
         DB::transaction(function () use ($validated) {
-            $teste = Teste::create([
+            $desafio = Desafio::create([
                 'titulo' => $validated['titulo'],
-                'tipo_avaliacao' => 'Desafio',
-                'instrucoes' => $validated['instrucoes'] ?? null,
+                'descricao' => $validated['instrucoes'] ?? null,
                 'id_formador' => (int) Auth::id(),
-                'peso_avaliacao' => 0,
+                'tipo_desafio' => $validated['tipo_desafio'],
+                'tipo_recorrencia' => 'Unico',
+                'exige_submissao' => true,
                 'duracao_minutos' => $validated['duracao_minutos'] ?? null,
+                'data_inicio' => now(),
+                'data_fim' => now()->addDays(30),
+                'ativa' => true,
             ]);
 
-            $this->sincronizarPerguntasTeste($teste, $validated);
-            $this->sincronizarDesafioAssociado($teste, $validated);
+            $this->sincronizarPerguntasDesafio($desafio, $validated);
         });
 
         return redirect()->route('dashboard')->with('success', 'Desafio criado com sucesso.');
@@ -93,27 +93,25 @@ class ProfessorTesteController extends Controller
         $this->assertProfessor();
         $validated = $this->validarTeste($request);
 
-        $teste = Teste::where('id', '=', $id, 'and')
+        $desafio = Desafio::where('id', '=', $id, 'and')
             ->where('id_formador', '=', (int) Auth::id(), 'and')
             ->firstOrFail();
 
-        DB::transaction(function () use ($teste, $validated) {
-            $teste->update([
+        DB::transaction(function () use ($desafio, $validated) {
+            $desafio->update([
                 'titulo' => $validated['titulo'],
-                'tipo_avaliacao' => 'Desafio',
-                'instrucoes' => $validated['instrucoes'] ?? null,
-                'peso_avaliacao' => 0,
+                'descricao' => $validated['instrucoes'] ?? null,
+                'tipo_desafio' => $validated['tipo_desafio'],
                 'duracao_minutos' => $validated['duracao_minutos'] ?? null,
             ]);
 
-            $this->sincronizarPerguntasTeste($teste, $validated);
-            $this->sincronizarDesafioAssociado($teste, $validated);
+            $this->sincronizarPerguntasDesafio($desafio, $validated);
         });
 
         return redirect()->route('dashboard')->with('success', 'Desafio atualizado com sucesso.');
     }
 
-    private function sincronizarPerguntasTeste(Teste $teste, array $validated): void
+    private function sincronizarPerguntasDesafio(Desafio $desafio, array $validated): void
     {
         $idsPerguntas = collect($validated['pergunta_ids'] ?? [])->map(fn($id) => (int) $id)->unique()->values()->all();
 
@@ -136,18 +134,18 @@ class ProfessorTesteController extends Controller
         $syncData = [];
         foreach ($idsPerguntas as $perguntaId) {
             $syncData[$perguntaId] = [
-                'valor_pontuacao' => $pontuacoesPorPergunta[$perguntaId] ?? 1
+                'pontuacao_extra' => $pontuacoesPorPergunta[$perguntaId] ?? 1
             ];
         }
 
-        $totalPontuacao = collect($syncData)->sum('valor_pontuacao');
+        $totalPontuacao = collect($syncData)->sum('pontuacao_extra');
         if ($totalPontuacao > 20) {
             throw ValidationException::withMessages([
                 'total_pontuacao' => 'A soma da pontuação das perguntas não pode ultrapassar 20. Ajusta os valores antes de guardar o teste.',
             ]);
         }
 
-        $teste->perguntas()->sync($syncData);
+        $desafio->perguntas()->sync($syncData);
     }
 
     private function validarTeste(Request $request): array
@@ -185,7 +183,7 @@ class ProfessorTesteController extends Controller
         $this->assertProfessor();
 
         $validated = $request->validate([
-            'id_teste' => 'required|integer|exists:Testes,id',
+            'id_desafio' => 'required|integer|exists:Desafio,id',
             'turma_ids' => 'required|array|min:1',
             'turma_ids.*' => 'integer|exists:Turmas,id',
             'data_hora_abertura' => 'required|date',
@@ -195,7 +193,7 @@ class ProfessorTesteController extends Controller
 
         $professorId = (int) Auth::id();
 
-        $teste = Teste::where('id', '=', $validated['id_teste'], 'and')
+        $desafio = Desafio::where('id', '=', $validated['id_desafio'], 'and')
             ->where('id_formador', '=', $professorId, 'and')
             ->firstOrFail();
 
@@ -220,46 +218,29 @@ class ProfessorTesteController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($teste, $turmasSelecionadas, $validated) {
-            $desafioAssociado = null;
-
-            if ($teste->tipo_avaliacao === 'Desafio') {
-                $desafioAssociado = $this->sincronizarDesafioAssociado($teste, [
-                    'titulo' => $teste->titulo,
-                    'instrucoes' => $teste->instrucoes,
-                    'tipo_desafio' => 'Tarefa',
-                    'duracao_minutos' => $teste->duracao_minutos,
-                    'data_inicio' => $validated['data_hora_abertura'],
-                    'data_fim' => $validated['data_hora_fecho'],
-                ]);
-            }
+        DB::transaction(function () use ($desafio, $turmasSelecionadas, $validated) {
+            $desafio->update([
+                'data_inicio' => $validated['data_hora_abertura'],
+                'data_fim' => $validated['data_hora_fecho'],
+            ]);
 
             foreach ($turmasSelecionadas as $turmaId) {
-                TesteAtribuicao::updateOrCreate([
-                    'id_teste' => $teste->id,
+                AtribuicaoDesafio::updateOrCreate([
+                    'id_desafio' => $desafio->id,
                     'id_turma' => $turmaId,
                     'id_grupo' => null,
                     'id_aluno' => null,
                 ], [
-                    'data_hora_abertura' => $validated['data_hora_abertura'],
-                    'data_hora_fecho' => $validated['data_hora_fecho'],
+                    'data_inicio_tentativas' => $validated['data_hora_abertura'],
+                    'data_fim_tentativas' => $validated['data_hora_fecho'],
                     'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
                 ]);
 
-                if ($desafioAssociado) {
-                    DesafioAtribuicao::updateOrCreate([
-                        'id_desafio' => (int) $desafioAssociado->id,
-                        'id_turma' => (int) $turmaId,
-                        'id_grupo' => null,
-                        'id_aluno' => null,
-                    ]);
-
-                    $this->notificacaoService->notificarNovoDesafioTurma(
-                        (int) $turmaId,
-                        (int) $desafioAssociado->id,
-                        (string) $desafioAssociado->titulo,
-                    );
-                }
+                $this->notificacaoService->notificarNovoDesafioTurma(
+                    (int) $turmaId,
+                    (int) $desafio->id,
+                    (string) $desafio->titulo,
+                );
             }
         });
 
@@ -279,21 +260,15 @@ class ProfessorTesteController extends Controller
         $tarefa = $this->obterTarefaDoProfessor($idTarefa);
 
         $tarefa->update([
-            'data_hora_abertura' => $validated['data_hora_abertura'],
-            'data_hora_fecho' => $validated['data_hora_fecho'],
+            'data_inicio_tentativas' => $validated['data_hora_abertura'],
+            'data_fim_tentativas' => $validated['data_hora_fecho'],
             'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
         ]);
 
-        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio') {
-            $desafioAssociado = $this->obterDesafioAssociadoDoTeste($tarefa->teste);
-
-            if ($desafioAssociado) {
-                $desafioAssociado->update([
-                    'data_inicio' => $validated['data_hora_abertura'],
-                    'data_fim' => $validated['data_hora_fecho'],
-                ]);
-            }
-        }
+        $tarefa->desafio?->update([
+            'data_inicio' => $validated['data_hora_abertura'],
+            'data_fim' => $validated['data_hora_fecho'],
+        ]);
 
         return redirect()->route('dashboard')->with('success', 'Datas do desafio atualizadas com sucesso.');
     }
@@ -306,18 +281,12 @@ class ProfessorTesteController extends Controller
         $agora = now();
 
         $tarefa->update([
-            'data_hora_fecho' => $agora,
+            'data_fim_tentativas' => $agora,
         ]);
 
-        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio') {
-            $desafioAssociado = $this->obterDesafioAssociadoDoTeste($tarefa->teste);
-
-            if ($desafioAssociado) {
-                $desafioAssociado->update([
-                    'data_fim' => $agora,
-                ]);
-            }
-        }
+        $tarefa->desafio?->update([
+            'data_fim' => $agora,
+        ]);
 
         return redirect()->route('dashboard')->with('success', 'Desafio terminado com sucesso.');
     }
@@ -328,19 +297,7 @@ class ProfessorTesteController extends Controller
 
         $tarefa = $this->obterTarefaDoProfessor($idTarefa);
 
-        if ($tarefa->teste && $tarefa->teste->tipo_avaliacao === 'Desafio') {
-            $desafio = $this->obterDesafioAssociadoDoTeste($tarefa->teste);
-
-            if ($desafio) {
-                DesafioAtribuicao::where('id_desafio', (int) $desafio->id)
-                    ->where('id_turma', (int) $tarefa->id_turma)
-                    ->whereNull('id_aluno')
-                    ->whereNull('id_grupo')
-                    ->delete();
-            }
-        }
-
-        TesteAtribuicao::destroy((int) $tarefa->id);
+        AtribuicaoDesafio::destroy((int) $tarefa->id);
 
         return redirect()->route('dashboard')->with('success', 'Desafio eliminado com sucesso.');
     }
@@ -352,33 +309,33 @@ class ProfessorTesteController extends Controller
         $validated = $request->validate([
             'publicar' => 'nullable|boolean',
             'respostas' => 'required|array|min:1',
-            'respostas.*.id' => 'required|integer|exists:Respostas_Alunos,id',
+            'respostas.*.id' => 'required|integer|exists:Respostas_Desafio_Aluno,id',
             'respostas.*.status_correcao' => 'required|string|in:Correto,Errado,Por_Avaliar',
             'respostas.*.pontuacao_obtida' => 'required|integer|min:0|max:20',
             'respostas.*.comentario_formador' => 'nullable|string',
         ]);
 
-        $testeRealizado = TesteRealizado::with(['teste.perguntas', 'respostas'])
+        $submissao = SubmissaoDesafioAluno::with(['desafio.perguntas', 'respostas'])
             ->where('id', '=', $idTesteRealizado, 'and')
-            ->whereHas('teste', fn($q) => $q->where('id_formador', (int) Auth::id()))
+            ->whereHas('desafio', fn($q) => $q->where('id_formador', (int) Auth::id()))
             ->firstOrFail();
 
-        DB::transaction(function () use ($validated, $testeRealizado) {
+        DB::transaction(function () use ($validated, $submissao) {
             $respostasPayload = collect($validated['respostas'])
                 ->keyBy(fn($item) => (int) $item['id']);
 
-            $maxPontuacaoPorPergunta = $testeRealizado->teste->perguntas
+            $maxPontuacaoPorPergunta = $submissao->desafio->perguntas
                 ->mapWithKeys(fn($pergunta) => [
-                    (int) $pergunta->id => (int) ($pergunta->pivot->valor_pontuacao ?? 1),
+                    (int) $pergunta->id => (int) ($pergunta->pivot->pontuacao_extra ?? 1),
                 ]);
 
-            $respostasBanco = RespostaAluno::whereIn('id', $respostasPayload->keys()->all(), 'and', false)
-                ->where('id_teste_realizado', '=', $testeRealizado->id, 'and')
+            $respostasBanco = RespostaDesafioAluno::whereIn('id', $respostasPayload->keys()->all(), 'and', false)
+                ->where('id_submissao', '=', $submissao->id, 'and')
                 ->get()
                 ->keyBy('id');
 
             foreach ($respostasPayload as $idResposta => $dadosResposta) {
-                /** @var RespostaAluno|null $resposta */
+                /** @var RespostaDesafioAluno|null $resposta */
                 $resposta = $respostasBanco->get((int) $idResposta);
                 if (!$resposta) {
                     continue;
@@ -394,17 +351,18 @@ class ProfessorTesteController extends Controller
                 }
 
                 $resposta->update([
-                    'status_correcao' => $dadosResposta['status_correcao'],
-                    'pontuacao_obtida' => $pontuacaoObtida,
-                    'comentario_formador' => $dadosResposta['comentario_formador'] ?? null,
+                    'correta' => $dadosResposta['status_correcao'] === 'Por_Avaliar'
+                        ? null
+                        : $dadosResposta['status_correcao'] === 'Correto',
+                    'pontuacao' => $pontuacaoObtida,
                 ]);
             }
 
-            $respostasAtualizadas = RespostaAluno::where('id_teste_realizado', '=', $testeRealizado->id, 'and')->get();
-            $totalObtido = (int) $respostasAtualizadas->sum('pontuacao_obtida');
+            $respostasAtualizadas = RespostaDesafioAluno::where('id_submissao', '=', $submissao->id, 'and')->get();
+            $totalObtido = (int) $respostasAtualizadas->sum('pontuacao');
 
-            $pontuacaoPorPergunta = $testeRealizado->teste->perguntas
-                ->map(fn($pergunta) => (int) ($pergunta->pivot->valor_pontuacao ?? 1));
+            $pontuacaoPorPergunta = $submissao->desafio->perguntas
+                ->map(fn($pergunta) => (int) ($pergunta->pivot->pontuacao_extra ?? 1));
             $totalMaximo = (int) $pontuacaoPorPergunta->sum();
 
             $notaFinal = $totalMaximo > 0
@@ -412,26 +370,30 @@ class ProfessorTesteController extends Controller
                 : 0;
 
             $temPendentes = $respostasAtualizadas
-                ->contains(fn($resposta) => $resposta->status_correcao === 'Por_Avaliar');
+                ->contains(fn($resposta) => $resposta->correta === null);
 
             $publicar = (bool) ($validated['publicar'] ?? false);
             $novoEstado = $temPendentes
-                ? 'Aguardando_Correcao'
-                : ($publicar ? 'Corrigido' : 'Aguardando_Correcao');
+                ? SubmissaoDesafioAluno::SUBMETIDO
+                : ($publicar ? SubmissaoDesafioAluno::AVALIADO : SubmissaoDesafioAluno::SUBMETIDO);
             $agora = now();
 
-            $testeRealizado->update([
-                'nota_final' => $notaFinal,
+            $feedback = collect($validated['respostas'])
+                ->pluck('comentario_formador')
+                ->filter(fn($txt) => filled($txt))
+                ->implode("\n");
+
+            $submissao->update([
+                'nota' => $notaFinal,
                 'estado' => $novoEstado,
-                'corrigido_por' => (int) Auth::id(),
-                'corrigido_em' => $agora,
-                'publicado_em' => ($publicar && !$temPendentes) ? $agora : null,
+                'feedback_professor' => $feedback ?: null,
+                'updated_at' => $agora,
             ]);
 
             if ($publicar && !$temPendentes) {
-                $this->notificacaoService->notificarTesteCorrigido(
-                    (int) $testeRealizado->id_aluno,
-                    (int) $testeRealizado->id_teste,
+                $this->notificacaoService->notificarDesafioCorrigido(
+                    (int) $submissao->id_aluno,
+                    (int) $submissao->id_desafio,
                     (float) $notaFinal,
                 );
             }
@@ -569,59 +531,12 @@ class ProfessorTesteController extends Controller
         ]);
     }
 
-    private function obterTarefaDoProfessor(int $idTarefa): TesteAtribuicao
+    private function obterTarefaDoProfessor(int $idTarefa): AtribuicaoDesafio
     {
-        return TesteAtribuicao::with('teste')
+        return AtribuicaoDesafio::with('desafio')
             ->where('id', '=', $idTarefa, 'and')
-            ->whereHas('teste', fn($query) => $query->where('id_formador', '=', (int) Auth::id(), 'and'))
+            ->whereHas('desafio', fn($query) => $query->where('id_formador', '=', (int) Auth::id(), 'and'))
             ->firstOrFail();
-    }
-
-    private function sincronizarDesafioAssociado(Teste $teste, array $validated): Desafio
-    {
-        $criteria = [
-            'id_formador' => (int) Auth::id(),
-        ];
-
-        if ($this->desafioTemAssociacaoTeste()) {
-            $criteria['id_teste_associado'] = (int) $teste->id;
-        } else {
-            $criteria['titulo'] = (string) $teste->titulo;
-        }
-
-        return Desafio::updateOrCreate(
-            $criteria,
-            [
-                'titulo' => $validated['titulo'],
-                'descricao' => $validated['instrucoes'] ?? null,
-                'tipo_desafio' => $validated['tipo_desafio'],
-                'tipo_recorrencia' => 'Unico',
-                'exige_submissao' => true,
-                'duracao_minutos' => $validated['duracao_minutos'] ?? null,
-                'data_inicio' => $validated['data_inicio'] ?? now(),
-                'data_fim' => $validated['data_fim'] ?? now()->addDays(30),
-                'ativa' => true,
-            ],
-        );
-    }
-
-    private function obterDesafioAssociadoDoTeste(Teste $teste): ?Desafio
-    {
-        if ($this->desafioTemAssociacaoTeste()) {
-            return Desafio::where('id_teste_associado', (int) $teste->id)
-                ->where('id_formador', (int) Auth::id())
-                ->first();
-        }
-
-        return Desafio::where('id_formador', (int) Auth::id())
-            ->where('titulo', (string) $teste->titulo)
-            ->latest('id')
-            ->first();
-    }
-
-    private function desafioTemAssociacaoTeste(): bool
-    {
-        return Schema::hasColumn('Desafio', 'id_teste_associado');
     }
 
     private function assertProfessor(): void

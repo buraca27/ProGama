@@ -74,22 +74,12 @@ class Desafio extends Model
      */
     public function perguntas(): BelongsToMany
     {
-        // Se for Quiz, usa Testes_Perguntas. Se for Tarefa, usa Desafios_Perguntas
-        if ($this->tipo_desafio === 'Quiz') {
-            return $this->belongsToMany(
-                Pergunta::class,
-                'Testes_Perguntas',
-                'id_teste',
-                'id_pergunta'
-            )->withPivot('valor_pontuacao')->withTimestamps();
-        } else {
-            return $this->belongsToMany(
-                Pergunta::class,
-                'Desafios_Perguntas',
-                'id_desafio',
-                'id_pergunta'
-            )->withPivot('pontuacao_extra')->withTimestamps();
-        }
+        return $this->belongsToMany(
+            Pergunta::class,
+            'Desafios_Perguntas',
+            'id_desafio',
+            'id_pergunta'
+        )->withPivot('pontuacao_extra')->withTimestamps();
     }
 
     /**

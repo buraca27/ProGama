@@ -4,22 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Models\Turma;
 use App\Models\Disciplina;
+use App\Models\Desafio;
 use App\Models\Categoria;
+use App\Models\AtribuicaoDesafio;
 use App\Models\DesafioAtribuicao;
 use App\Models\InscricaoDesafio;
-use App\Models\User;
-use App\Models\Pergunta;
-use App\Models\Teste;
+use App\Models\SubmissaoDesafioAluno;
 use App\Models\TesteAtribuicao;
 use App\Models\TesteRealizado;
+use App\Models\User;
+use App\Models\Pergunta;
+use App\Services\GamificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, GamificationService $gamificationService)
     {
         $user = $request->user();
         $perguntasProfessor = [];
@@ -175,28 +177,138 @@ class DashboardController extends Controller
                 ->paginate(8, ['*'], 'perguntas_page')
                 ->withQueryString();
 
-            $correcoesProfessor = TesteRealizado::with([
+            $correcoesProfessor = SubmissaoDesafioAluno::with([
                 'aluno:id,name,email',
-                'teste:id,titulo,id_formador',
-                'teste.perguntas:id',
+                'desafio:id,titulo,id_formador',
+                'desafio.perguntas:id',
                 'respostas.pergunta:id,texto,tipo_pergunta',
                 'respostas.pergunta.opcoes:id,id_pergunta,texto_opcao,is_correct',
-                'respostas.opcaoEscolhida:id,texto_opcao',
-                'corrigidoPor:id,name',
             ])
-                ->whereHas('teste', fn($query) => $query->where('id_formador', $user->id))
-                ->orderByRaw("CASE WHEN estado = 'Aguardando_Correcao' THEN 0 WHEN estado = 'Em_Resolucao' THEN 1 ELSE 2 END")
+                ->whereHas('desafio', fn($query) => $query->where('id_formador', $user->id))
+                ->orderByRaw("CASE WHEN estado = 'Submetido' THEN 0 WHEN estado = 'Em_Resolucao' THEN 1 ELSE 2 END")
                 ->orderByDesc('created_at')
                 ->paginate(10, ['*'], 'correcoes_page')
-                ->withQueryString();
+                ->withQueryString()
+                ->through(function (SubmissaoDesafioAluno $submissao) use ($user) {
+                    $perguntas = \collect($submissao->desafio?->perguntas ?? [])->map(function ($pergunta) {
+                        return [
+                            'id' => (int) $pergunta->id,
+                            'pivot' => [
+                                'valor_pontuacao' => (int) ($pergunta->pivot->pontuacao_extra ?? 1),
+                            ],
+                        ];
+                    })->values()->all();
 
-            $trabalhosPendentes = TesteRealizado::whereHas('teste', fn($query) => $query->where('id_formador', $user->id))
-                ->where('estado', '=', 'Aguardando_Correcao', 'and')
+                    $respostas = \collect($submissao->respostas ?? [])->map(function ($resposta) {
+                        return [
+                            'id' => (int) $resposta->id,
+                            'id_pergunta' => (int) $resposta->id_pergunta,
+                            'ids_opcoes_escolhidas' => $resposta->ids_opcoes_escolhidas,
+                            'resposta_texto' => $resposta->resposta_texto,
+                            'status_correcao' => $resposta->correta === null
+                                ? 'Por_Avaliar'
+                                : ($resposta->correta ? 'Correto' : 'Errado'),
+                            'pontuacao_obtida' => (int) ($resposta->pontuacao ?? 0),
+                            'comentario_formador' => null,
+                            'pergunta' => $resposta->pergunta,
+                            'opcao_escolhida' => null,
+                        ];
+                    })->values()->all();
+
+                    return [
+                        'id' => (int) $submissao->id,
+                        'estado' => $submissao->estado === 'Avaliado'
+                            ? 'Corrigido'
+                            : ($submissao->estado === 'Submetido' ? 'Aguardando_Correcao' : $submissao->estado),
+                        'nota_final' => $submissao->nota,
+                        'corrigido_em' => $submissao->updated_at,
+                        'publicado_em' => $submissao->estado === 'Avaliado' ? $submissao->updated_at : null,
+                        'corrigido_por' => [
+                            'id' => (int) $user->id,
+                            'name' => (string) $user->name,
+                        ],
+                        'aluno' => $submissao->aluno,
+                        'teste' => [
+                            'id' => (int) ($submissao->desafio?->id ?? 0),
+                            'titulo' => (string) ($submissao->desafio?->titulo ?? 'Desafio'),
+                            'perguntas' => $perguntas,
+                        ],
+                        'respostas' => $respostas,
+                    ];
+                });
+
+            $trabalhosPendentes = SubmissaoDesafioAluno::whereHas('desafio', fn($query) => $query->where('id_formador', $user->id))
+                ->where('estado', '=', 'Submetido', 'and')
                 ->count();
         }
 
+        $initialView = (string) $request->query('view', 'dashboard');
+        $allowedViews = [
+            'dashboard',
+            'utilizadores',
+            'turmas',
+            'minhas-turmas',
+            'disciplinas',
+            'categorias',
+            'perfil',
+            'definicoes',
+            'testes',
+            'tarefas',
+            'trabalhos',
+            'desafios',
+            'avaliacoes',
+            'boletim',
+            'leaderboard',
+        ];
+
+        if (!in_array($initialView, $allowedViews, true)) {
+            $initialView = 'dashboard';
+        }
+
+        $topXp = $gamificationService->getTopXp(10);
+        $topNivel = $gamificationService->getTopNivel(10);
+        $topBadges = $gamificationService->getTopBadgesPontuacao(10);
+
+        $podio = $topXp->take(3)->map(function ($userXp, $index) {
+            return [
+                'posicao' => $index + 1,
+                'usuario' => $userXp->usuario,
+                'xp_total' => $userXp->xp_total,
+                'nivel' => $userXp->nivel_atual,
+            ];
+        });
+
+        $rankingXp = $topXp->map(function ($userXp, $index) {
+            return [
+                'posicao' => $index + 1,
+                'usuario' => $userXp->usuario,
+                'xp_total' => $userXp->xp_total,
+                'nivel' => $userXp->nivel_atual,
+            ];
+        });
+
+        $rankingBadges = $topBadges->map(function ($row, $index) {
+            $usuario = User::find($row->id);
+            return [
+                'posicao' => $index + 1,
+                'usuario' => $usuario,
+                'total_badges' => $row->total_badges,
+                'badge_score' => $row->badge_score,
+            ];
+        });
+
+        $rankingNivel = $topNivel->map(function ($userXp, $index) {
+            return [
+                'posicao' => $index + 1,
+                'usuario' => $userXp->usuario,
+                'nivel' => $userXp->nivel_atual,
+                'xp_total' => $userXp->xp_total,
+            ];
+        });
+
         // 5. Renderização Final
         return Inertia::render('Dashboard/Dashboard', [
+            'initialView' => $initialView,
             'userRoleReal' => $cargoReal,
             'estatisticas' => $estatisticas,
             'utilizadores' => User::with(['turma', 'turmasLecionadas'])->orderBy('created_at', 'desc')->get(),
@@ -221,24 +333,56 @@ class DashboardController extends Controller
 
             'testesProfessor' => $cargoReal === 'professor'
                 ? (function () use ($user) {
-                    $query = Teste::with(['perguntas'])
+                    $query = Desafio::with(['perguntas'])
                         ->where('id_formador', $user->id)
                         ->orderBy('created_at', 'desc');
 
-                    if (Schema::hasColumn('Desafio', 'id_teste_associado')) {
-                        $query->with(['desafioAssociado:id,id_teste_associado,tipo_desafio']);
-                    }
+                    return $query->get()->map(function (Desafio $desafio) {
+                        $perguntas = \collect($desafio->perguntas ?? [])->map(function ($pergunta) {
+                            $pergunta->pivot->valor_pontuacao = (int) ($pergunta->pivot->pontuacao_extra ?? 1);
+                            return $pergunta;
+                        });
 
-                    return $query->get();
+                        return [
+                            'id' => (int) $desafio->id,
+                            'titulo' => (string) $desafio->titulo,
+                            'instrucoes' => (string) ($desafio->descricao ?? ''),
+                            'peso_avaliacao' => (float) ($desafio->peso_nota ?? 0),
+                            'duracao_minutos' => $desafio->duracao_minutos,
+                            'perguntas' => $perguntas,
+                            'desafio_associado' => [
+                                'tipo_desafio' => $desafio->tipo_desafio ?? 'Quiz',
+                            ],
+                        ];
+                    })->values();
                 })()
                 : [],
 
             'tarefasProfessor' => $cargoReal === 'professor'
-                ? TesteAtribuicao::with(['teste', 'turma'])
-                    ->whereHas('teste', fn($q) => $q->where('id_formador', $user->id))
-                    ->orderBy('created_at', 'desc')->get() : [],
+                ? AtribuicaoDesafio::with(['desafio', 'turma'])
+                    ->whereHas('desafio', fn($q) => $q->where('id_formador', $user->id))
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                    ->map(fn(AtribuicaoDesafio $atribuicao) => [
+                        'id' => (int) $atribuicao->id,
+                        'id_desafio' => (int) $atribuicao->id_desafio,
+                        'data_hora_abertura' => $atribuicao->data_inicio_tentativas,
+                        'data_hora_fecho' => $atribuicao->data_fim_tentativas,
+                        'tentativas_maximas' => $atribuicao->tentativas_maximas,
+                        'created_at' => $atribuicao->created_at,
+                        'turma' => $atribuicao->turma,
+                        'teste' => [
+                            'id' => (int) ($atribuicao->desafio?->id ?? 0),
+                            'titulo' => (string) ($atribuicao->desafio?->titulo ?? 'Desafio'),
+                        ],
+                    ])
+                    : [],
             'correcoesProfessor' => $correcoesProfessor,
             'trabalhosPendentes' => $trabalhosPendentes,
+            'podio' => $podio,
+            'ranking_xp' => $rankingXp,
+            'ranking_nivel' => $rankingNivel,
+            'ranking_badges' => $rankingBadges,
         ]);
 
 
