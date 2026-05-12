@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class SocialController extends Controller
@@ -73,18 +74,25 @@ class SocialController extends Controller
             return back()->with('error', 'Nao pode seguir o proprio utilizador.');
         }
 
-        if (!$authUser->isSeguindo($usuario->id)) {
-            $authUser->seguindo()->attach($usuario->id);
-        }
+        DB::transaction(function () use ($authUser, $usuario) {
+            // Em modo "connect", criamos o vinculo nos dois sentidos.
+            $authUser->seguindo()->syncWithoutDetaching([$usuario->id]);
+            $usuario->seguindo()->syncWithoutDetaching([$authUser->id]);
+        });
 
-        return back()->with('success', 'Agora estas a seguir ' . $usuario->name . '.');
+        return back()->with('success', 'Conexao estabelecida com ' . $usuario->name . '.');
     }
 
     public function deixarSeguir(User $usuario, Request $request)
     {
         $authUser = $request->user();
-        $authUser->seguindo()->detach($usuario->id);
 
-        return back()->with('success', 'Deixaste de seguir ' . $usuario->name . '.');
+        DB::transaction(function () use ($authUser, $usuario) {
+            // Ao desconectar, removemos os dois sentidos para manter simetria.
+            $authUser->seguindo()->detach($usuario->id);
+            $usuario->seguindo()->detach($authUser->id);
+        });
+
+        return back()->with('success', 'Conexao removida com ' . $usuario->name . '.');
     }
 }

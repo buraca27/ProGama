@@ -18,11 +18,11 @@ function UserCard({ user, isFollowing }) {
 
                 {isFollowing ? (
                     <button onClick={deixar} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold dark:border-slate-600">
-                        Deixar
+                        Desconectar
                     </button>
                 ) : (
                     <button onClick={seguir} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
-                        Seguir
+                        Conectar
                     </button>
                 )}
             </div>
