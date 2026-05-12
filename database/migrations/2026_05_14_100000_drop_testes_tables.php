@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Drop das tabelas Testes na ordem correta (sem DROP se não existirem)
+        // Drop das tabelas antigas de Testes
         if (Schema::hasTable('Testes_Realizados')) {
             Schema::drop('Testes_Realizados');
         }
@@ -26,6 +26,27 @@ return new class extends Migration
 
         if (Schema::hasTable('Testes')) {
             Schema::drop('Testes');
+        }
+
+        // Drop das tabelas antigas de Desafios (não consolidadas)
+        if (Schema::hasTable('Desafios_Atribuicoes')) {
+            Schema::drop('Desafios_Atribuicoes');
+        }
+
+        if (Schema::hasTable('Regras_Recompensa_Desafio')) {
+            Schema::drop('Regras_Recompensa_Desafio');
+        }
+
+        if (Schema::hasTable('Inscricoes_Desafios')) {
+            Schema::drop('Inscricoes_Desafios');
+        }
+
+        if (Schema::hasTable('Desafios_Perguntas')) {
+            Schema::drop('Desafios_Perguntas');
+        }
+
+        if (Schema::hasTable('Desafios')) {
+            Schema::drop('Desafios');
         }
 
         // Remover coluna id_teste da tabela Notificacoes se existir
