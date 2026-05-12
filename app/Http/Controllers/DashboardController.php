@@ -14,6 +14,7 @@ use App\Models\TesteAtribuicao;
 use App\Models\TesteRealizado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -219,10 +220,17 @@ class DashboardController extends Controller
                 : null,
 
             'testesProfessor' => $cargoReal === 'professor'
-                ? Teste::with(['perguntas', 'desafioAssociado:id,id_teste_associado,tipo_desafio'])
-                    ->where('id_formador', $user->id)
-                    ->orderBy('created_at', 'desc')
-                    ->get()
+                ? (function () use ($user) {
+                    $query = Teste::with(['perguntas'])
+                        ->where('id_formador', $user->id)
+                        ->orderBy('created_at', 'desc');
+
+                    if (Schema::hasColumn('Desafio', 'id_teste_associado')) {
+                        $query->with(['desafioAssociado:id,id_teste_associado,tipo_desafio']);
+                    }
+
+                    return $query->get();
+                })()
                 : [],
 
             'tarefasProfessor' => $cargoReal === 'professor'

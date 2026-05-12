@@ -58,10 +58,6 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     // --- 2.2. GAMIFICAÇÃO + SOCIAL ---
     Route::prefix('gamificacao')->name('gamificacao.')->group(function () {
         Route::get('/leaderboard', [GamificationController::class, 'leaderboard'])->name('leaderboard');
-        Route::get('/ranking/xp', [GamificationController::class, 'rankingXp'])->name('ranking.xp');
-        Route::get('/ranking/badges', [GamificationController::class, 'rankingBadges'])->name('ranking.badges');
-        Route::get('/meu-xp', [GamificationController::class, 'meuXp'])->name('meu-xp');
-        Route::get('/niveis', [GamificationController::class, 'niveis'])->name('niveis');
     });
 
     Route::prefix('social')->name('social.')->group(function () {
