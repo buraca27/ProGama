@@ -17,11 +17,13 @@ class Desafio extends Model
         'descricao',
         'id_formador',
         'id_disciplina',
+        'id_categoria',
         'data_inicio',
         'data_fim',
         'tipo_avaliacao',
         'publica',
         'ativa',
+        'ativo',
         'pontuacao_automatica',
         'tentativas_maximas',
         'peso_nota',
@@ -30,7 +32,6 @@ class Desafio extends Model
         'exige_submissao',
         'cooldown_minutos',
         'tipo_recorrencia',
-        'id_teste_associado',
         'duracao_minutos',
         'tipo_desafio',
         'xp_base',
@@ -42,6 +43,7 @@ class Desafio extends Model
         'data_inicio' => 'datetime',
         'data_fim' => 'datetime',
         'ativa' => 'boolean',
+        'ativo' => 'boolean',
         'publica' => 'boolean',
         'exige_submissao' => 'boolean',
         'pontuacao_automatica' => 'boolean',
@@ -70,26 +72,24 @@ class Desafio extends Model
     }
 
     /**
+     * A categoria associada
+     */
+    public function categoria(): BelongsTo
+    {
+        return $this->belongsTo(Categoria::class, 'id_categoria');
+    }
+
+    /**
      * Perguntas associadas ao desafio
      */
     public function perguntas(): BelongsToMany
     {
-        // Se for Quiz, usa Testes_Perguntas. Se for Tarefa, usa Desafios_Perguntas
-        if ($this->tipo_desafio === 'Quiz') {
-            return $this->belongsToMany(
-                Pergunta::class,
-                'Testes_Perguntas',
-                'id_teste',
-                'id_pergunta'
-            )->withPivot('valor_pontuacao')->withTimestamps();
-        } else {
-            return $this->belongsToMany(
-                Pergunta::class,
-                'Desafios_Perguntas',
-                'id_desafio',
-                'id_pergunta'
-            )->withPivot('pontuacao_extra')->withTimestamps();
-        }
+        return $this->belongsToMany(
+            Pergunta::class,
+            'Desafios_Perguntas',
+            'id_desafio',
+            'id_pergunta'
+        )->withPivot('pontuacao_extra')->withTimestamps();
     }
 
     /**

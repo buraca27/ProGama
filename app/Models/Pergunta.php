@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\OpcaoPergunta;
-use App\Models\Teste;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -26,10 +25,15 @@ class Pergunta extends Model
         return $this->hasMany(OpcaoPergunta::class, 'id_pergunta');
     }
 
+    public function desafios()
+    {
+        return $this->belongsToMany(Desafio::class, 'Desafios_Perguntas', 'id_pergunta', 'id_desafio')
+            ->withPivot('pontuacao_extra')
+            ->withTimestamps();
+    }
+
     public function testes()
     {
-        return $this->belongsToMany(Teste::class, 'Testes_Perguntas', 'id_pergunta', 'id_teste')
-            ->withPivot('valor_pontuacao')
-            ->withTimestamps();
+        return $this->desafios();
     }
 }

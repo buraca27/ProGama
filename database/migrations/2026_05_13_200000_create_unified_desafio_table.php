@@ -43,7 +43,6 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('id_formador')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('id_teste_associado')->references('id')->on('Testes')->onDelete('set null');
         });
     }
 

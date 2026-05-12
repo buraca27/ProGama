@@ -16,7 +16,7 @@ export default function TarefasView({
     const menusRef = useRef({});
 
     const tarefaForm = useForm({
-        id_teste: "",
+        id_desafio: "",
         turma_ids: [],
         data_hora_abertura: "",
         data_hora_fecho: "",
@@ -80,7 +80,7 @@ export default function TarefasView({
             onSuccess: () => {
                 tarefaForm.reset();
                 tarefaForm.setData({
-                    id_teste: "",
+                    id_desafio: "",
                     turma_ids: [],
                     data_hora_abertura: "",
                     data_hora_fecho: "",
@@ -165,17 +165,17 @@ export default function TarefasView({
                                 Escolher desafio
                             </label>
                             <select
-                                value={tarefaForm.data.id_teste}
+                                value={tarefaForm.data.id_desafio}
                                 onChange={(e) =>
                                     tarefaForm.setData(
-                                        "id_teste",
+                                        "id_desafio",
                                         e.target.value,
                                     )
                                 }
                                 className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                 required
                             >
-                                <option value="">Seleciona um teste...</option>
+                                <option value="">Seleciona um desafio...</option>
                                 {testesDisponiveis.map((teste) => (
                                     <option key={teste.id} value={teste.id}>
                                         {teste.titulo}
