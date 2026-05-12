@@ -1,0 +1,48 @@
+# ==========================================
+# CLAUDE IGNORE FILE
+# ==========================================
+
+# 1. Dependências Node.js
+node_modules/
+package-lock.json
+yarn.lock
+npm-debug.log
+yarn-error.log
+
+# 2. Dependências PHP / Laravel
+vendor/
+storage/framework/
+storage/logs/
+bootstrap/cache/
+*.log
+
+# 3. Ficheiros de Build e Assets Compilados
+public/build/
+public/hot/
+dist/
+build/
+
+# 4. Ficheiros de Ambiente e Segurança (Prevenção e Privacidade)
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# 5. Bases de Dados e Dumps (Evita indexar milhares de linhas de SQL)
+*.sqlite
+*.sqlite3
+*.sql
+*.db
+
+# 6. Diretórios de Controlo de Versões e IDEs
+.git/
+.github/
+.vscode/
+.idea/
+
+# 7. Ficheiros de Sistema Operativo (Linux, etc.)
+.DS_Store
+Thumbs.db
+*~
+*.swp

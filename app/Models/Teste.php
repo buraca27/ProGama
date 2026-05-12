@@ -47,4 +47,9 @@ class Teste extends Model
     {
         return $this->morphMany(HistoricoAtividade::class, 'referencia');
     }
+
+    public function desafioAssociado()
+    {
+        return $this->hasOne(Desafio::class, 'id_teste_associado', 'id');
+    }
 }

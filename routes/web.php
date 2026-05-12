@@ -6,8 +6,13 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\TurmaController;
 use App\Http\Controllers\DisciplinaController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\AlunoDesafioController;
 use App\Http\Controllers\AlunoTesteController;
+use App\Http\Controllers\DesafioAlunoController;
 use App\Http\Controllers\ProfessorTesteController;
+use App\Http\Controllers\GamificationController;
+use App\Http\Controllers\SocialController;
+use App\Http\Controllers\NotificacaoController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -37,7 +42,41 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
 
     Route::prefix('dashboard/aluno')->name('aluno.')->group(function () {
         Route::post('/testes/{idTarefa}/submeter', [AlunoTesteController::class, 'submeter'])->name('testes.submeter');
+        Route::post('/desafios/{idAtribuicao}/submeter', [AlunoDesafioController::class, 'submeter'])->name('desafios.submeter');
     });
+
+    // --- 2.1.1. DESAFIOS UNIFICADOS ---
+    Route::prefix('desafios')->name('desafios.')->group(function () {
+        Route::get('/', [DesafioAlunoController::class, 'index'])->name('index');
+        Route::get('/{desafio}', [DesafioAlunoController::class, 'show'])->name('show');
+        Route::post('/{desafio}/iniciar-quiz', [DesafioAlunoController::class, 'iniciarQuiz'])->name('iniciar-quiz');
+        Route::post('/{desafio}/submeter-quiz', [DesafioAlunoController::class, 'submeterQuiz'])->name('submeter-quiz');
+        Route::post('/{desafio}/submeter-tarefa', [DesafioAlunoController::class, 'submeterTarefa'])->name('submeter-tarefa');
+        Route::get('/{desafio}/historico', [DesafioAlunoController::class, 'historicoSubmissoes'])->name('historico');
+    });
+
+    // --- 2.2. GAMIFICAÇÃO + SOCIAL ---
+    Route::prefix('gamificacao')->name('gamificacao.')->group(function () {
+        Route::get('/leaderboard', [GamificationController::class, 'leaderboard'])->name('leaderboard');
+        Route::get('/ranking/xp', [GamificationController::class, 'rankingXp'])->name('ranking.xp');
+        Route::get('/ranking/badges', [GamificationController::class, 'rankingBadges'])->name('ranking.badges');
+        Route::get('/meu-xp', [GamificationController::class, 'meuXp'])->name('meu-xp');
+        Route::get('/niveis', [GamificationController::class, 'niveis'])->name('niveis');
+    });
+
+    Route::prefix('social')->name('social.')->group(function () {
+        Route::get('/', [SocialController::class, 'index'])->name('hub');
+        Route::post('/seguir/{usuario}', [SocialController::class, 'seguir'])->name('seguir');
+        Route::delete('/seguir/{usuario}', [SocialController::class, 'deixarSeguir'])->name('deixar-seguir');
+    });
+
+    Route::prefix('notificacoes')->name('notificacoes.')->group(function () {
+        Route::get('/', [NotificacaoController::class, 'index'])->name('index');
+        Route::post('/ler-todas', [NotificacaoController::class, 'marcarTodasLidas'])->name('ler-todas');
+        Route::post('/{notificacao}/ler', [NotificacaoController::class, 'marcarLida'])->name('ler');
+    });
+
+    Route::get('/perfil/publico/{usuario}', [GamificationController::class, 'perfilPublico'])->name('perfil.publico');
 
     // --- 3. GESTÃO ADMINISTRATIVA (Apenas Admin) ---
     Route::middleware(['admin'])->group(function () {

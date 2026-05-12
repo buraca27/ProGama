@@ -285,8 +285,11 @@ export default function TestesView({
             testeForm.setData("novas_perguntas", novasPerguntasLimpas);
         }
         testeForm.setData("pontuacao_por_pergunta", pontuacoesNormalizadas);
-        const tipoAvaliacao = testeForm.data.tipo_avaliacao;
+        const tipoAvaliacao = "Desafio";
         const configAtual = CONTEXTO_AVALIACAO[tipoAvaliacao];
+        if (configAtual?.semPesoNota) {
+            testeForm.setData("peso_avaliacao", "0");
+        }
         if (configAtual?.escalaFixa20 && totalPontuacaoTeste < 20) {
             mostrarToast(
                 `O teste tem de ter exatamente 20 valores. Atualmente tem ${totalPontuacaoTeste} valor(es).`,
@@ -312,6 +315,8 @@ export default function TestesView({
 
         const transformFn = (data) => ({
             ...data,
+            tipo_avaliacao: "Desafio",
+            peso_avaliacao: configAtual?.semPesoNota ? 0 : data.peso_avaliacao,
             novas_perguntas: novasPerguntasLimpas,
             pontuacao_por_pergunta: pontuacoesNormalizadas,
             pontuacoes_perguntas: pontuacoesExplicitas,
@@ -339,7 +344,8 @@ export default function TestesView({
         testeForm.setData({
             titulo: teste.titulo || "",
             instrucoes: teste.instrucoes || "",
-            tipo_avaliacao: teste.tipo_avaliacao || "Teste_Formal",
+            tipo_avaliacao: "Desafio",
+            tipo_desafio: teste.desafio_associado?.tipo_desafio || "Quiz",
             peso_avaliacao: teste.peso_avaliacao ?? "0",
             duracao_minutos: teste.duracao_minutos ?? "",
             pergunta_ids: (teste.perguntas || []).map((p) => p.id),
@@ -416,7 +422,7 @@ export default function TestesView({
                                 : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                         }`}
                     >
-                        Criar Teste
+                        Criar Desafio
                     </button>
                 </div>
             </div>

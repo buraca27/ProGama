@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Turma;
 use App\Models\Disciplina;
 use App\Models\Categoria;
+use App\Models\DesafioAtribuicao;
+use App\Models\InscricaoDesafio;
 use App\Models\User;
 use App\Models\Pergunta;
 use App\Models\Teste;
@@ -23,6 +25,8 @@ class DashboardController extends Controller
         $perguntasBancoProfessor = null;
         $correcoesProfessor = null;
         $submissoesAluno = [];
+        $desafiosAluno = [];
+        $inscricoesDesafiosAluno = [];
 
         // 1. Estatísticas Gerais
         $estatisticas = [
@@ -53,6 +57,7 @@ class DashboardController extends Controller
             $idTurmaAluno = $user->id_turma ? (int) $user->id_turma : null;
 
             $tarefasAluno = TesteAtribuicao::with(['teste'])
+                ->whereHas('teste', fn($query) => $query->where('tipo_avaliacao', '!=', 'Desafio'))
                 ->where(function ($query) use ($user, $idTurmaAluno) {
                     $query->where('id_aluno', '=', (int) $user->id, 'and')
                         ->orWhere(function ($or) use ($idTurmaAluno) {
@@ -87,6 +92,49 @@ class DashboardController extends Controller
                 ])
                     ->where('id_aluno', (int) $user->id)
                     ->whereIn('id_teste', $idsTestesAtribuidos->all())
+                    ->orderByDesc('created_at')
+                    ->get();
+            }
+
+            $desafiosAluno = DesafioAtribuicao::with([
+                'desafio' => fn($query) => $query->with([
+                    'perguntas' => fn($perguntas) => $perguntas
+                        ->with('opcoes')
+                        ->withPivot('pontuacao_extra'),
+                    'testeAssociado' => fn($teste) => $teste->with([
+                        'perguntas' => fn($perguntas) => $perguntas
+                            ->with('opcoes')
+                            ->withPivot('valor_pontuacao'),
+                    ]),
+                ]),
+            ])
+                ->where(function ($query) use ($user, $idTurmaAluno) {
+                    $query->where('id_aluno', '=', (int) $user->id, 'and')
+                        ->orWhere(function ($or) use ($idTurmaAluno) {
+                            $or->whereNull('id_aluno');
+
+                            if ($idTurmaAluno) {
+                                $or->where('id_turma', '=', $idTurmaAluno, 'and');
+                            } else {
+                                $or->whereRaw('1 = 0');
+                            }
+                        });
+                })
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $idsDesafiosAtribuidos = $desafiosAluno
+                ->pluck('id_desafio')
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            if ($idsDesafiosAtribuidos->isNotEmpty()) {
+                $inscricoesDesafiosAluno = InscricaoDesafio::with([
+                    'respostas:id,id_inscricao_desafio,id_pergunta,id_opcao_escolhida,ids_opcoes_escolhidas,resposta_texto,status_correcao,pontuacao_obtida,comentario_formador',
+                ])
+                    ->where('id_formando', (int) $user->id)
+                    ->whereIn('id_desafio', $idsDesafiosAtribuidos->all())
                     ->orderByDesc('created_at')
                     ->get();
             }
@@ -156,6 +204,8 @@ class DashboardController extends Controller
             'categorias' => $categorias,
             'tarefasAluno' => $tarefasAluno,
             'submissoesAluno' => $submissoesAluno,
+            'desafiosAluno' => $desafiosAluno,
+            'inscricoesDesafiosAluno' => $inscricoesDesafiosAluno,
 
             // Variáveis específicas do Professor
             'perguntasProfessor' => $perguntasProfessor,
@@ -169,7 +219,11 @@ class DashboardController extends Controller
                 : null,
 
             'testesProfessor' => $cargoReal === 'professor'
-                ? Teste::with('perguntas')->where('id_formador', $user->id)->orderBy('created_at', 'desc')->get() : [],
+                ? Teste::with(['perguntas', 'desafioAssociado:id,id_teste_associado,tipo_desafio'])
+                    ->where('id_formador', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                : [],
 
             'tarefasProfessor' => $cargoReal === 'professor'
                 ? TesteAtribuicao::with(['teste', 'turma'])

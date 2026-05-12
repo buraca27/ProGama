@@ -4,10 +4,9 @@ export const TIPO_PERGUNTA_OPTIONS = [
     { value: "Verdadeiro_Falso", label: "Verdadeiro ou Falso" },
 ];
 
-export const TIPO_AVALIACAO_OPTIONS = [
-    { value: "Teste_Formal", label: "Teste Formal" },
-    { value: "Ficha_Trabalho", label: "Ficha de Trabalho" },
-    { value: "Exame_Final", label: "Exame Final" },
+export const TIPO_DESAFIO_OPTIONS = [
+    { value: "Quiz", label: "Quiz" },
+    { value: "Tarefa", label: "Tarefa" },
 ];
 
 export const createPerguntaFormDefaults = () => ({
@@ -23,7 +22,8 @@ export const createPerguntaFormDefaults = () => ({
 
 export const createTesteFormDefaults = () => ({
     titulo: "",
-    tipo_avaliacao: "Teste_Formal",
+    tipo_avaliacao: "Desafio",
+    tipo_desafio: "Quiz",
     peso_avaliacao: "0",
     duracao_minutos: "",
     pergunta_ids: [],
@@ -38,22 +38,11 @@ export const createNovaPerguntaTesteDefaults = () => ({
 });
 
 export const CONTEXTO_AVALIACAO = {
-    Ficha_Trabalho: {
-        nome: "Ficha de Trabalho",
-        placeholderTitulo: "Ex: Ficha de Trabalho - HTML",
+    Desafio: {
+        nome: "Desafio",
+        placeholderTitulo: "Ex: Desafio de Logica - Semana 3",
         temInstrucoes: true,
         escalaFixa20: false,
-    },
-    Teste_Formal: {
-        nome: "Teste",
-        placeholderTitulo: "Ex: Teste de Programação - Módulo 1",
-        temInstrucoes: false,
-        escalaFixa20: true,
-    },
-    Exame_Final: {
-        nome: "Exame",
-        placeholderTitulo: "Ex: Exame Final - Época Normal",
-        temInstrucoes: true,
-        escalaFixa20: true,
+        semPesoNota: true,
     },
 };

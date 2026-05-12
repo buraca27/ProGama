@@ -132,7 +132,7 @@ export default function TarefasView({
 
     const eliminarTarefa = (idTarefa) => {
         if (
-            !window.confirm("Tens a certeza que queres eliminar esta tarefa?")
+            !window.confirm("Tens a certeza que queres eliminar este desafio?")
         ) {
             return;
         }
@@ -147,14 +147,14 @@ export default function TarefasView({
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
                 <div className="flex items-center justify-between">
                     <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                        Atribuir Tarefas
+                        Atribuir Desafios
                     </h3>
                     <button
                         type="button"
                         onClick={() => setShowTaskForm((s) => !s)}
                         className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold"
                     >
-                        {showTaskForm ? "Fechar" : "Nova Tarefa"}
+                        {showTaskForm ? "Fechar" : "Novo Desafio"}
                     </button>
                 </div>
 
@@ -162,7 +162,7 @@ export default function TarefasView({
                     <form onSubmit={submitTarefa} className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Escolher teste
+                                Escolher desafio
                             </label>
                             <select
                                 value={tarefaForm.data.id_teste}
@@ -292,7 +292,7 @@ export default function TarefasView({
 
                         {Object.values(tarefaForm.errors || {}).length > 0 && (
                             <p className="text-sm text-red-600 dark:text-red-400">
-                                Não foi possível criar a tarefa. Verifica os
+                                Não foi possível criar o desafio. Verifica os
                                 campos.
                             </p>
                         )}
@@ -306,7 +306,7 @@ export default function TarefasView({
                             >
                                 {tarefaForm.processing
                                     ? "A atribuir..."
-                                    : "Atribuir Tarefa"}
+                                    : "Atribuir Desafio"}
                             </button>
                         </div>
                     </form>
@@ -316,13 +316,13 @@ export default function TarefasView({
             {/* SECÇÃO TAREFAS CRIADAS */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                    Tarefas Criadas
+                    Desafios Atribuidos
                 </h3>
 
                 <div className="space-y-3">
                     {tarefasProfessor.length === 0 && (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Ainda não criaste nenhuma tarefa.
+                            Ainda não atribuiste nenhum desafio.
                         </p>
                     )}
 
@@ -428,7 +428,7 @@ export default function TarefasView({
                                                 }}
                                                 className="w-full text-left px-3 py-2 text-sm rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                                             >
-                                                Eliminar tarefa
+                                                Eliminar desafio
                                             </button>
                                         </div>
                                     )}
