@@ -85,8 +85,8 @@ class DashboardController extends Controller
                 $submissoesAluno = TesteRealizado::with([
                     'respostas:id,id_teste_realizado,id_pergunta,id_opcao_escolhida,ids_opcoes_escolhidas,resposta_texto,status_correcao,pontuacao_obtida,comentario_formador',
                 ])
-                    ->where('id_aluno', '=', (int) $user->id, 'and')
-                    ->whereIn('id_teste', $idsTestesAtribuidos->all(), 'and', false)
+                    ->where('id_aluno', (int) $user->id)
+                    ->whereIn('id_teste', $idsTestesAtribuidos->all())
                     ->orderByDesc('created_at')
                     ->get();
             }

@@ -19,113 +19,121 @@ class AlunoTesteController extends Controller
         $aluno = $request->user();
         $tarefa = $this->obterTarefaDoAluno($idTarefa, (int) $aluno->id);
 
+        // true  → submissão final com todas as validações
+        // false → guardar rascunho (sem validar respostas completas)
+        $finalizar = filter_var($request->input('finalizar', true), FILTER_VALIDATE_BOOLEAN);
+
+        // Validação de janela de tempo — aplica-se SEMPRE (rascunho e final)
         $agora = now();
+
         if ($tarefa->data_hora_abertura && $agora->lt($tarefa->data_hora_abertura)) {
             throw ValidationException::withMessages([
-                'tarefa' => 'Este teste ainda nao abriu para resolucao.',
+                'tarefa' => 'Este teste ainda não abriu para resolução.',
             ]);
         }
 
         if ($tarefa->data_hora_fecho && $agora->gt($tarefa->data_hora_fecho)) {
             throw ValidationException::withMessages([
-                'tarefa' => 'O prazo para este teste ja terminou.',
+                'tarefa' => 'O prazo para este teste já terminou.',
             ]);
         }
 
+        // Validação base das respostas recebidas
         $validated = $request->validate([
             'respostas' => 'required|array|min:1',
             'respostas.*.id_pergunta' => 'required|integer',
             'respostas.*.id_opcao_escolhida' => 'nullable|integer|exists:Opcoes_Pergunta,id',
-            'respostas.*.id_opcoes_escolhidas' => 'nullable|array',
-            'respostas.*.id_opcoes_escolhidas.*' => 'integer|exists:Opcoes_Pergunta,id',
             'respostas.*.resposta_texto' => 'nullable|string',
         ]);
 
         $teste = $tarefa->teste;
         $perguntasTeste = $teste->perguntas->keyBy('id');
+        $tentativasMaximas = $tarefa->tentativas_maximas ? (int) $tarefa->tentativas_maximas : null;
+        $tentativasFeitas = TesteRealizado::where('id_teste', (int) $teste->id)
+            ->where('id_aluno', (int) $aluno->id)
+            ->whereNotNull('data_submissao')
+            ->count();
 
-        if ($perguntasTeste->isEmpty()) {
+        if ($tentativasMaximas && $tentativasFeitas >= $tentativasMaximas && $finalizar) {
             throw ValidationException::withMessages([
-                'respostas' => 'Este teste nao possui perguntas para responder.',
+                'tarefa' => 'Atingiste o número máximo de tentativas para este teste.',
             ]);
         }
 
-        $respostasPorPergunta = collect($validated['respostas'])
-            ->keyBy(fn($resposta) => (int) $resposta['id_pergunta']);
+        if ($perguntasTeste->isEmpty()) {
+            throw ValidationException::withMessages([
+                'respostas' => 'Este teste não possui perguntas para responder.',
+            ]);
+        }
 
-        foreach ($perguntasTeste as $pergunta) {
-            $respostaPayload = $respostasPorPergunta->get((int) $pergunta->id);
+        // Validações adicionais apenas na submissão final
+        if ($finalizar) {
+            $respostasPorPergunta = collect($validated['respostas'])
+                ->keyBy(fn($r) => (int) $r['id_pergunta']);
 
-            if (!$respostaPayload) {
-                throw ValidationException::withMessages([
-                    'respostas' => 'Todas as perguntas devem ser respondidas antes da submissao.',
-                ]);
-            }
+            foreach ($perguntasTeste as $pergunta) {
+                $respostaPayload = $respostasPorPergunta->get((int) $pergunta->id);
 
-            if ($pergunta->tipo_pergunta === 'Dissertativa') {
-                if (!filled($respostaPayload['resposta_texto'] ?? null)) {
+                if (!$respostaPayload) {
                     throw ValidationException::withMessages([
-                        'respostas' => 'A resposta dissertativa nao pode ficar vazia.',
+                        'respostas' => 'Todas as perguntas devem ser respondidas antes da submissão.',
                     ]);
                 }
 
-                continue;
-            }
+                if ($pergunta->tipo_pergunta === 'Dissertativa') {
+                    if (!filled($respostaPayload['resposta_texto'] ?? null)) {
+                        throw ValidationException::withMessages([
+                            'respostas' => 'A resposta dissertativa não pode ficar vazia.',
+                        ]);
+                    }
+                    continue;
+                }
 
-            if ($pergunta->tipo_pergunta === 'Escolha_Multipla') {
-                $idsOpcoesEscolhidas = collect($respostaPayload['id_opcoes_escolhidas'] ?? [])
-                    ->when(
-                        isset($respostaPayload['id_opcao_escolhida']) && filled($respostaPayload['id_opcao_escolhida']),
-                        fn($collection) => $collection->push((int) $respostaPayload['id_opcao_escolhida'])
-                    )
-                    ->map(fn($id) => (int) $id)
-                    ->unique()
-                    ->values();
+                $idOpcaoEscolhida = $respostaPayload['id_opcao_escolhida'] ?? null;
 
-                if ($idsOpcoesEscolhidas->isEmpty()) {
+                if (!$idOpcaoEscolhida) {
                     throw ValidationException::withMessages([
-                        'respostas' => 'Seleciona pelo menos uma opcao para todas as perguntas de escolha multipla.',
+                        'respostas' => 'Seleciona uma opção para todas as perguntas objetivas.',
                     ]);
                 }
 
-                $opcoesPergunta = $pergunta->opcoes->pluck('id')->map(fn($id) => (int) $id)->all();
-                $opcaoInvalida = $idsOpcoesEscolhidas->contains(fn($id) => !in_array($id, $opcoesPergunta, true));
-                if ($opcaoInvalida) {
+                $opcaoValida = $pergunta->opcoes->contains(
+                    fn($opcao) => (int) $opcao->id === (int) $idOpcaoEscolhida
+                );
+
+                if (!$opcaoValida) {
                     throw ValidationException::withMessages([
-                        'respostas' => 'Foi selecionada uma opcao invalida para uma das perguntas.',
+                        'respostas' => 'Foi selecionada uma opção inválida para uma das perguntas.',
                     ]);
                 }
-
-                continue;
-            }
-
-            $idOpcaoEscolhida = $respostaPayload['id_opcao_escolhida'] ?? null;
-            if (!$idOpcaoEscolhida) {
-                throw ValidationException::withMessages([
-                    'respostas' => 'Seleciona uma opcao para todas as perguntas objetivas.',
-                ]);
-            }
-
-            $opcaoValida = $pergunta->opcoes->contains(fn($opcao) => (int) $opcao->id === (int) $idOpcaoEscolhida);
-            if (!$opcaoValida) {
-                throw ValidationException::withMessages([
-                    'respostas' => 'Foi selecionada uma opcao invalida para uma das perguntas.',
-                ]);
             }
         }
 
-        DB::transaction(function () use ($aluno, $teste, $validated) {
-            $testeRealizado = TesteRealizado::where('id_teste', '=', (int) $teste->id, 'and')
-                ->where('id_aluno', '=', (int) $aluno->id, 'and')
+        DB::transaction(function () use ($aluno, $teste, $validated, $finalizar, $tentativasMaximas, $tentativasFeitas) {
+            // Obter o último teste realizado do aluno para este teste
+            $testeRealizado = TesteRealizado::where('id_teste', (int) $teste->id)
+                ->where('id_aluno', (int) $aluno->id)
                 ->latest('id')
                 ->first();
 
+            // Se o último registro já foi submetido e ainda há tentativas disponíveis,
+            // cria um novo registo para o próximo ciclo de tentativa.
             if ($testeRealizado && $testeRealizado->data_submissao) {
-                throw ValidationException::withMessages([
-                    'tarefa' => 'Este teste ja foi submetido por ti.',
+                if ($tentativasMaximas && $tentativasFeitas >= $tentativasMaximas) {
+                    throw ValidationException::withMessages([
+                        'tarefa' => 'Atingiste o número máximo de tentativas para este teste.',
+                    ]);
+                }
+
+                $testeRealizado = TesteRealizado::create([
+                    'id_teste' => (int) $teste->id,
+                    'id_aluno' => (int) $aluno->id,
+                    'data_inicio_resolucao' => now(),
+                    'estado' => 'Em_Resolucao',
                 ]);
             }
 
+            // Criar registo se ainda não existe (primeiro rascunho ou submissão direta)
             if (!$testeRealizado) {
                 $testeRealizado = TesteRealizado::create([
                     'id_teste' => (int) $teste->id,
@@ -137,6 +145,7 @@ class AlunoTesteController extends Controller
 
             $perguntasTeste = $teste->perguntas->keyBy('id');
 
+            // Guardar / actualizar cada resposta
             foreach ($validated['respostas'] as $respostaPayload) {
                 $idPergunta = (int) $respostaPayload['id_pergunta'];
                 $pergunta = $perguntasTeste->get($idPergunta);
@@ -148,40 +157,12 @@ class AlunoTesteController extends Controller
                 $idOpcaoEscolhida = isset($respostaPayload['id_opcao_escolhida'])
                     ? (int) $respostaPayload['id_opcao_escolhida']
                     : null;
-                $idsOpcoesEscolhidas = collect($respostaPayload['id_opcoes_escolhidas'] ?? [])
-                    ->when(
-                        $pergunta->tipo_pergunta === 'Escolha_Multipla' && $idOpcaoEscolhida,
-                        fn($collection) => $collection->push($idOpcaoEscolhida)
-                    )
-                    ->map(fn($id) => (int) $id)
-                    ->unique()
-                    ->values();
 
+                // Correcção automática para objetivas; dissertativas ficam Por_Avaliar
                 $statusCorrecao = 'Por_Avaliar';
                 $pontuacaoObtida = 0;
 
-                if ($pergunta->tipo_pergunta === 'Escolha_Multipla') {
-                    $idsCorretos = $pergunta->opcoes
-                        ->filter(fn($opcao) => (bool) $opcao->is_correct)
-                        ->pluck('id')
-                        ->map(fn($id) => (int) $id)
-                        ->unique()
-                        ->sort()
-                        ->values()
-                        ->all();
-
-                    $idsSelecionados = $idsOpcoesEscolhidas
-                        ->sort()
-                        ->values()
-                        ->all();
-
-                    $isCorreta = $idsCorretos === $idsSelecionados;
-
-                    $statusCorrecao = $isCorreta ? 'Correto' : 'Errado';
-                    $pontuacaoObtida = $isCorreta
-                        ? (int) ($pergunta->pivot->valor_pontuacao ?? 1)
-                        : 0;
-                } elseif ($pergunta->tipo_pergunta !== 'Dissertativa' && $idOpcaoEscolhida) {
+                if ($pergunta->tipo_pergunta !== 'Dissertativa' && $idOpcaoEscolhida) {
                     $opcao = $pergunta->opcoes->firstWhere('id', $idOpcaoEscolhida);
                     $isCorreta = (bool) ($opcao?->is_correct ?? false);
 
@@ -191,33 +172,47 @@ class AlunoTesteController extends Controller
                         : 0;
                 }
 
-                RespostaAluno::updateOrCreate([
-                    'id_teste_realizado' => (int) $testeRealizado->id,
-                    'id_pergunta' => $idPergunta,
-                ], [
-                    'id_opcao_escolhida' => $idsOpcoesEscolhidas->count() === 1
-                        ? (int) $idsOpcoesEscolhidas->first()
-                        : $idOpcaoEscolhida,
-                    'ids_opcoes_escolhidas' => $idsOpcoesEscolhidas->isNotEmpty()
-                        ? $idsOpcoesEscolhidas->all()
-                        : null,
-                    'resposta_texto' => filled($respostaPayload['resposta_texto'] ?? null)
-                        ? trim((string) $respostaPayload['resposta_texto'])
-                        : null,
-                    'status_correcao' => $statusCorrecao,
-                    'pontuacao_obtida' => $pontuacaoObtida,
-                    'comentario_formador' => null,
-                ]);
+                RespostaAluno::updateOrCreate(
+                    [
+                        'id_teste_realizado' => (int) $testeRealizado->id,
+                        'id_pergunta' => $idPergunta,
+                    ],
+                    [
+                        'id_opcao_escolhida' => $idOpcaoEscolhida ?: null,
+                        'resposta_texto' => filled($respostaPayload['resposta_texto'] ?? null)
+                            ? trim((string) $respostaPayload['resposta_texto'])
+                            : null,
+                        'status_correcao' => $statusCorrecao,
+                        'pontuacao_obtida' => $pontuacaoObtida,
+                        'comentario_formador' => null,
+                    ]
+                );
             }
 
-            $testeRealizado->update([
-                'data_submissao' => now(),
-                'estado' => 'Aguardando_Correcao',
-            ]);
+            // Actualizar estado conforme rascunho ou submissão final
+            if ($finalizar) {
+                $testeRealizado->update([
+                    'data_submissao' => now(),
+                    'estado' => 'Aguardando_Correcao',
+                ]);
+            } else {
+                // Apenas garante que estado reflecte rascunho em curso
+                $testeRealizado->update([
+                    'estado' => 'Em_Resolucao',
+                ]);
+            }
         });
 
-        return redirect()->route('dashboard')->with('success', 'Teste submetido com sucesso.');
+        if ($finalizar) {
+            return redirect()->route('dashboard')
+                ->with('success', 'Teste submetido com sucesso.');
+        }
+
+        // Rascunho: volta para a mesma página sem redirect completo
+        return back()->with('success', 'Rascunho guardado com sucesso.');
     }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private function obterTarefaDoAluno(int $idTarefa, int $idAluno): TesteAtribuicao
     {
@@ -227,12 +222,12 @@ class AlunoTesteController extends Controller
         return TesteAtribuicao::with([
             'teste.perguntas' => fn($query) => $query->with('opcoes'),
         ])
-            ->where('id', '=', $idTarefa, 'and')
+            ->where('id', $idTarefa)
             ->where(function ($query) use ($idAluno, $idTurmaAluno) {
-                $query->where('id_aluno', '=', $idAluno, 'and')
+                $query->where('id_aluno', $idAluno)
                     ->orWhere(function ($or) use ($idTurmaAluno) {
                         $or->whereNull('id_aluno')
-                            ->where('id_turma', '=', $idTurmaAluno, 'and');
+                            ->where('id_turma', $idTurmaAluno);
                     });
             })
             ->firstOrFail();
