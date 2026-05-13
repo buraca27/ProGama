@@ -39,6 +39,6 @@ class InscricaoDesafio extends Model
 
     public function respostas()
     {
-        return $this->hasMany(RespostaDesafioAluno::class, 'id_inscricao_desafio');
+        return $this->hasMany(RespostaDesafioAluno::class, 'id_submissao');
     }
 }

@@ -8,7 +8,7 @@ use App\Models\Badge;
 use App\Models\Desafio;
 use App\Models\Pergunta;
 use App\Models\RespostaDesafioAluno;
-use App\Models\InscricaoDesafio;
+use App\Models\SubmissaoDesafioAluno;
 use App\Models\Turma;
 use App\Services\NotificacaoService;
 use Illuminate\Http\Request;
@@ -313,22 +313,22 @@ class ProfessorTesteController extends Controller
             'respostas.*.comentario_formador' => 'nullable|string',
         ]);
 
-        $inscricao = InscricaoDesafio::with(['desafio.perguntas', 'respostas'])
+        $submissao = SubmissaoDesafioAluno::with(['desafio' => fn($q) => $q->with('perguntas'), 'respostas'])
             ->where('id', '=', $idTesteRealizado)
             ->whereHas('desafio', fn($q) => $q->where('id_formador', (int) Auth::id()))
             ->firstOrFail();
 
-        DB::transaction(function () use ($validated, $inscricao) {
+        DB::transaction(function () use ($validated, $submissao) {
             $respostasPayload = collect($validated['respostas'])
                 ->keyBy(fn($item) => (int) $item['id']);
 
-            $maxPontuacaoPorPergunta = $inscricao->desafio->perguntas
+            $maxPontuacaoPorPergunta = $submissao->desafio->perguntas
                 ->mapWithKeys(fn($pergunta) => [
                     (int) $pergunta->id => (int) ($pergunta->pivot->pontuacao_extra ?? 1),
                 ]);
 
             $respostasBanco = RespostaDesafioAluno::whereIn('id', $respostasPayload->keys()->all(), 'and', false)
-                ->where('id_inscricao_desafio', '=', $inscricao->id, 'and')
+                ->where('id_submissao', '=', $submissao->id, 'and')
                 ->get()
                 ->keyBy('id');
 
@@ -355,10 +355,10 @@ class ProfessorTesteController extends Controller
                 ]);
             }
 
-            $respostasAtualizadas = RespostaDesafioAluno::where('id_inscricao_desafio', '=', $inscricao->id, 'and')->get();
+            $respostasAtualizadas = RespostaDesafioAluno::where('id_submissao', '=', $submissao->id, 'and')->get();
             $totalObtido = (int) $respostasAtualizadas->sum('pontuacao_obtida');
 
-            $pontuacaoPorPergunta = $inscricao->desafio->perguntas
+            $pontuacaoPorPergunta = $submissao->desafio->perguntas
                 ->map(fn($pergunta) => (int) ($pergunta->pivot->pontuacao_extra ?? 1));
             $totalMaximo = (int) $pontuacaoPorPergunta->sum();
 
@@ -380,16 +380,17 @@ class ProfessorTesteController extends Controller
                 ->filter(fn($txt) => filled($txt))
                 ->implode("\n");
 
-            $inscricao->update([
+            $submissao->update([
                 'estado' => $novoEstado,
-                'data_ultima_tentativa' => $agora,
+                'data_submissao' => $agora,
+                'nota' => $notaFinal,
                 'updated_at' => $agora,
             ]);
 
             if ($publicar && !$temPendentes) {
                 $this->notificacaoService->notificarDesafioCorrigido(
-                    (int) $inscricao->id_formando,
-                    (int) $inscricao->id_desafio,
+                    (int) $submissao->id_aluno,
+                    (int) $submissao->id_desafio,
                     (float) $notaFinal,
                 );
             }

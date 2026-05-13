@@ -10,7 +10,7 @@ class RespostaDesafioAluno extends Model
     protected $table = 'Respostas_Desafios_Alunos';
 
     protected $fillable = [
-        'id_inscricao_desafio',
+        'id_submissao',
         'id_pergunta',
         'id_opcao_escolhida',
         'ids_opcoes_escolhidas',
@@ -27,11 +27,19 @@ class RespostaDesafioAluno extends Model
     ];
 
     /**
-     * A inscrição no desafio a que pertence esta resposta
+     * A submissão do desafio a que pertence esta resposta
+     */
+    public function submissao(): BelongsTo
+    {
+        return $this->belongsTo(SubmissaoDesafioAluno::class, 'id_submissao');
+    }
+
+    /**
+     * Compatibilidade com código antigo
      */
     public function inscricaoDesafio(): BelongsTo
     {
-        return $this->belongsTo(InscricaoDesafio::class, 'id_inscricao_desafio');
+        return $this->submissao();
     }
 
     /**

@@ -205,7 +205,7 @@ class AlunoDesafioController extends Controller
 
                 RespostaDesafioAluno::updateOrCreate(
                     [
-                        'id_inscricao_desafio' => (int) $inscricao->id,
+                        'id_submissao' => (int) $inscricao->id,
                         'id_pergunta' => $idPergunta,
                     ],
                     [
