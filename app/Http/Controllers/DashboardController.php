@@ -9,6 +9,7 @@ use App\Models\Categoria;
 use App\Models\AtribuicaoDesafio;
 use App\Models\SubmissaoDesafioAluno;
 use App\Models\User;
+use App\Models\Notificacao;
 use App\Models\Pergunta;
 use App\Services\GamificationService;
 use Illuminate\Http\Request;
@@ -224,6 +225,8 @@ class DashboardController extends Controller
                 ->count();
         }
 
+        $initialSubmissaoId = $request->filled('submissao_id') ? (int) $request->query('submissao_id') : null;
+        $initialDesafioModalId = $request->filled('desafio_modal_id') ? (int) $request->query('desafio_modal_id') : null;
         $initialView = (string) $request->query('view', 'dashboard');
         $allowedViews = [
             'dashboard',
@@ -241,6 +244,7 @@ class DashboardController extends Controller
             'avaliacoes',
             'boletim',
             'leaderboard',
+            'notificacoes',
         ];
 
         if (!in_array($initialView, $allowedViews, true)) {
@@ -291,6 +295,8 @@ class DashboardController extends Controller
         // 5. Renderização Final
         return Inertia::render('Dashboard/Dashboard', [
             'initialView' => $initialView,
+            'initialSubmissaoId' => $initialSubmissaoId,
+            'initialDesafioModalId' => $initialDesafioModalId,
             'userRoleReal' => $cargoReal,
             'estatisticas' => $estatisticas,
             'utilizadores' => User::with(['turma', 'turmasLecionadas'])->orderBy('created_at', 'desc')->get(),
@@ -365,6 +371,12 @@ class DashboardController extends Controller
             'ranking_xp' => $rankingXp,
             'ranking_nivel' => $rankingNivel,
             'ranking_badges' => $rankingBadges,
+            'notificacoesData' => in_array($cargoReal, ['aluno', 'professor'])
+                ? Notificacao::where('id_utilizador', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->paginate(10, ['*'], 'notif_page')
+                    ->withQueryString()
+                : null,
         ]);
 
 

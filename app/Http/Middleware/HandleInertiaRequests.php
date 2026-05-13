@@ -36,11 +36,15 @@ class HandleInertiaRequests extends Middleware
             app(NotificacaoService::class)->dispararLembretesPrazoParaAluno($user);
         }
 
+        $roleMap = [1 => 'admin', 2 => 'professor', 3 => 'aluno'];
+        $userRoleReal = $user ? ($roleMap[$user->id_role] ?? 'aluno') : null;
+
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $user,
             ],
+            'userRoleReal' => $userRoleReal,
             'flash' => [
                 'success' => fn() => $request->session()->get('success'),
                 'error' => fn() => $request->session()->get('error'),

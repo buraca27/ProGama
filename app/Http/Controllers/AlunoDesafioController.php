@@ -6,6 +6,7 @@ use App\Models\Desafio;
 use App\Models\DesafioAtribuicao;
 use App\Models\InscricaoDesafio;
 use App\Models\RespostaDesafioAluno;
+use App\Services\NotificacaoService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class AlunoDesafioController extends Controller
 {
+    public function __construct(private NotificacaoService $notificacaoService) {}
+
     public function submeter(Request $request, int $idAtribuicao)
     {
         $this->assertAluno();
@@ -29,6 +32,7 @@ class AlunoDesafioController extends Controller
         }
 
         $finalizar = filter_var($request->input('finalizar', true), FILTER_VALIDATE_BOOLEAN);
+        $tabSwitches = max(0, (int) $request->integer('tab_switches', 0));
         $agora = now();
 
         if ($desafio->data_inicio && $agora->lt($desafio->data_inicio)) {
@@ -112,7 +116,7 @@ class AlunoDesafioController extends Controller
             }
         }
 
-        DB::transaction(function () use ($aluno, $desafio, $validated, $finalizar, $perguntasDesafio) {
+        DB::transaction(function () use ($aluno, $desafio, $validated, $finalizar, $perguntasDesafio, $tabSwitches) {
             $inscricao = InscricaoDesafio::where('id_desafio', (int) $desafio->id)
                 ->where('id_formando', (int) $aluno->id)
                 ->latest('id')
@@ -210,6 +214,7 @@ class AlunoDesafioController extends Controller
                 $inscricao->update([
                     'estado' => 'Submetido',
                     'data_ultima_tentativa' => now(),
+                    'tab_switches' => $tabSwitches,
                 ]);
             } else {
                 $inscricao->update([
@@ -219,6 +224,19 @@ class AlunoDesafioController extends Controller
         });
 
         if ($finalizar) {
+            $professorId = $desafio->id_formador ?? null;
+            if ($professorId) {
+                $tituloNotif = $desafio->titulo . ($tabSwitches > 0 ? " ({$tabSwitches} troca(s) de aba)" : '');
+                $this->notificacaoService->notificarSubmissaoAluno(
+                    (int) $professorId,
+                    (int) $aluno->id,
+                    (string) $aluno->name,
+                    (int) $desafio->id,
+                    $tituloNotif,
+                    null
+                );
+            }
+
             return redirect()->route('dashboard')
                 ->with('success', 'Desafio submetido com sucesso.');
         }

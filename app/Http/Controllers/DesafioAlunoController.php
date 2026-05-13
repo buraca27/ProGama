@@ -227,6 +227,17 @@ class DesafioAlunoController extends Controller
             $submissao->update(['estado' => SubmissaoDesafioAluno::SUBMETIDO]);
         }
 
+        if ($desafio->id_formador) {
+            $this->notificacaoService->notificarSubmissaoAluno(
+                (int) $desafio->id_formador,
+                (int) $usuario->id,
+                (string) $usuario->name,
+                (int) $desafio->id,
+                (string) $desafio->titulo,
+                (int) $submissao->id
+            );
+        }
+
         $payload = [
             'submissao_id' => $submissao->id,
             'nota' => $submissao->nota,
@@ -333,6 +344,17 @@ class DesafioAlunoController extends Controller
             'id_submissao' => $submissao->id,
             'resposta_texto' => $caminhoFicheiro,
         ]);
+
+        if ($desafio->id_formador) {
+            $this->notificacaoService->notificarSubmissaoAluno(
+                (int) $desafio->id_formador,
+                (int) $usuario->id,
+                (string) $usuario->name,
+                (int) $desafio->id,
+                (string) $desafio->titulo,
+                (int) $submissao->id
+            );
+        }
 
         $payload = [
             'submissao_id' => $submissao->id,

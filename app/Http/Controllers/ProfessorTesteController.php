@@ -178,7 +178,8 @@ class ProfessorTesteController extends Controller
 
         $professorId = (int) Auth::id();
 
-        $desafio = Desafio::where('id', '=', $validated['id_desafio'], 'and')
+        $desafio = Desafio::with('categoria')
+            ->where('id', '=', $validated['id_desafio'], 'and')
             ->where('id_formador', '=', $professorId, 'and')
             ->firstOrFail();
 
@@ -218,10 +219,15 @@ class ProfessorTesteController extends Controller
                     'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
                 ]);
 
+                // NOVA CHAMADA ATUALIZADA
                 $this->notificacaoService->notificarNovoDesafioTurma(
                     (int) $turmaId,
                     (int) $desafio->id,
                     (string) $desafio->titulo,
+                    $validated['data_hora_abertura'],
+                    $validated['data_hora_fecho'],
+                    $desafio->categoria?->nome,
+                    $desafio->duracao_minutos ? (int) $desafio->duracao_minutos : null
                 );
             }
         });
