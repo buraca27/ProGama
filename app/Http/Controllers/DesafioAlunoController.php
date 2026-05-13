@@ -115,7 +115,7 @@ class DesafioAlunoController extends Controller
             'desafio' => $desafio,
             'perguntas' => $perguntas,
             'atribuicao' => $atribuicao,
-            'tentativas_restantes' => $atribuicao->tentativasRestantes(),
+            'tentativas_restantes' => $atribuicao->tentativasRestantes((int) $usuario->id),
             'submissao_ativa' => $submissaoAtiva,
         ]);
     }
@@ -133,7 +133,7 @@ class DesafioAlunoController extends Controller
         return Inertia::render('Desafios/Tarefa/Show', [
             'desafio' => $desafio,
             'atribuicao' => $atribuicao,
-            'tentativas_restantes' => $atribuicao->tentativasRestantes(),
+            'tentativas_restantes' => $atribuicao->tentativasRestantes((int) $usuario->id),
             'submissao_recente' => $submissaoRecente,
             'anexos_professor' => collect($desafio->anexos_professor_json ?? [])
                 ->filter(fn($anexo) => is_array($anexo) && !empty($anexo['caminho']))
@@ -211,6 +211,15 @@ class DesafioAlunoController extends Controller
             'id_atribuicao' => 'required|integer',
             'respostas' => 'required|array|min:1',
         ]);
+
+        // Validar tentativas
+        $atribuicao = AtribuicaoDesafio::findOrFail($request->input('id_atribuicao'));
+
+        if (!$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {
+            return back()->withErrors([
+                'desafio' => 'Esgotaste o número máximo de tentativas para este desafio.',
+            ]);
+        }
 
         $respostas = $request->input('respostas'); // Array com id_pergunta => id_opcao ou resposta_texto
 
@@ -322,7 +331,7 @@ class DesafioAlunoController extends Controller
             ->where('id_aluno', $usuario->id)
             ->first();
 
-        if (!$atribuicao || !$atribuicao->temTentativasDisponiveis()) {
+        if (!$atribuicao || !$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {
             return $request->expectsJson()
                 ? response()->json(['erro' => 'Não pode submeter'], 403)
                 : back()->with('error', 'Nao pode submeter.');

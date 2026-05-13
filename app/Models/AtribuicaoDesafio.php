@@ -52,11 +52,21 @@ class AtribuicaoDesafio extends Model
     }
 
     /**
-     * As submissões feitas para esta atribuição
+     * As inscrições (tentativas) feitas para esta atribuição
+     * Contamos através do desafio, já que não há id_atribuicao em Inscricoes_Desafios
      */
     public function submissoes(): HasMany
     {
         return $this->hasMany(SubmissaoDesafioAluno::class, 'id_atribuicao');
+    }
+
+    /**
+     * As inscrições do desafio (para contar tentativas)
+     */
+    public function inscricoes()
+    {
+        return InscricaoDesafio::where('id_desafio', $this->id_desafio)
+            ->whereIn('estado', ['Submetido', 'Concluido', 'Falhado']);
     }
 
     /**
@@ -68,19 +78,33 @@ class AtribuicaoDesafio extends Model
     }
 
     /**
-     * Obtém o número de tentativas restantes
+     * Obtém o número de tentativas restantes para um aluno específico
      */
-    public function tentativasRestantes(): int
+    public function tentativasRestantes(int $idAluno): int
     {
-        $tentativasFeitas = $this->submissoes()->count();
+        // Se null, tentativas ilimitadas
+        if ($this->tentativas_maximas === null) {
+            return 999; // Número grande para representar ilimitado
+        }
+
+        $tentativasFeitas = InscricaoDesafio::where('id_desafio', $this->id_desafio)
+            ->where('id_formando', $idAluno)
+            ->whereIn('estado', ['Submetido', 'Concluido', 'Falhado'])
+            ->count();
+
         return max(0, $this->tentativas_maximas - $tentativasFeitas);
     }
 
     /**
-     * Verifica se ainda há tentativas disponíveis
+     * Verifica se ainda há tentativas disponíveis para um aluno
      */
-    public function temTentativasDisponiveis(): bool
+    public function temTentativasDisponiveis(int $idAluno): bool
     {
-        return $this->tentativasRestantes() > 0;
+        // Se null, sempre tem tentativas (ilimitado)
+        if ($this->tentativas_maximas === null) {
+            return true;
+        }
+
+        return $this->tentativasRestantes($idAluno) > 0;
     }
 }

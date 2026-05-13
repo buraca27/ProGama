@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Desafio;
-use App\Models\DesafioAtribuicao;
+use App\Models\AtribuicaoDesafio;
 use App\Models\InscricaoDesafio;
 use App\Models\RespostaDesafioAluno;
 use Illuminate\Database\Eloquent\Collection;
@@ -22,7 +22,7 @@ class AlunoDesafioController extends Controller
         $atribuicao = $this->obterAtribuicaoDoAluno($idAtribuicao, (int) $aluno->id);
         $desafio = $atribuicao->desafio;
 
-        if (!$desafio || !(bool) $desafio->ativo) {
+        if (!$desafio || !(bool) $desafio->ativa) {
             throw ValidationException::withMessages([
                 'desafio' => 'Este desafio não está disponível.',
             ]);
@@ -40,6 +40,15 @@ class AlunoDesafioController extends Controller
         if ($desafio->data_fim && $agora->gt($desafio->data_fim)) {
             throw ValidationException::withMessages([
                 'desafio' => 'O prazo para este desafio já terminou.',
+            ]);
+        }
+
+        // Validar se ainda tem tentativas disponíveis
+        $tentativasRestantes = $atribuicao->tentativasRestantes((int) $aluno->id);
+
+        if (!$atribuicao->temTentativasDisponiveis((int) $aluno->id)) {
+            throw ValidationException::withMessages([
+                'desafio' => 'Esgotaste o número máximo de tentativas para este desafio.',
             ]);
         }
 
@@ -112,7 +121,7 @@ class AlunoDesafioController extends Controller
             }
         }
 
-        DB::transaction(function () use ($aluno, $desafio, $validated, $finalizar, $perguntasDesafio) {
+        DB::transaction(function () use ($aluno, $desafio, $atribuicao, $validated, $finalizar, $perguntasDesafio) {
             $inscricao = InscricaoDesafio::where('id_desafio', (int) $desafio->id)
                 ->where('id_formando', (int) $aluno->id)
                 ->latest('id')
@@ -201,7 +210,6 @@ class AlunoDesafioController extends Controller
                             : null,
                         'status_correcao' => $statusCorrecao,
                         'pontuacao_obtida' => $pontuacaoObtida,
-                        'comentario_formador' => null,
                     ]
                 );
             }
@@ -226,14 +234,13 @@ class AlunoDesafioController extends Controller
         return back()->with('success', 'Rascunho do desafio guardado com sucesso.');
     }
 
-    private function obterAtribuicaoDoAluno(int $idAtribuicao, int $idAluno): DesafioAtribuicao
+    private function obterAtribuicaoDoAluno(int $idAtribuicao, int $idAluno): AtribuicaoDesafio
     {
         $aluno = Auth::user();
         $idTurmaAluno = (int) ($aluno?->id_turma ?? 0);
 
-        return DesafioAtribuicao::with([
+        return AtribuicaoDesafio::with([
             'desafio.perguntas' => fn($query) => $query->with('opcoes'),
-            'desafio.testeAssociado.perguntas' => fn($query) => $query->with('opcoes'),
         ])
             ->where('id', $idAtribuicao)
             ->where(function ($query) use ($idAluno, $idTurmaAluno) {
@@ -252,17 +259,9 @@ class AlunoDesafioController extends Controller
             return $desafio->perguntas;
         }
 
-        if ($desafio->relationLoaded('testeAssociado') && $desafio->testeAssociado) {
-            return $desafio->testeAssociado->perguntas ?? collect();
-        }
+        $desafio->loadMissing('perguntas.opcoes');
 
-        $desafio->loadMissing('perguntas.opcoes', 'testeAssociado.perguntas.opcoes');
-
-        if ($desafio->perguntas->isNotEmpty()) {
-            return $desafio->perguntas;
-        }
-
-        return $desafio->testeAssociado?->perguntas ?? collect();
+        return $desafio->perguntas;
     }
 
     private function assertAluno(): void

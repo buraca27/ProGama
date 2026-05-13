@@ -8,7 +8,7 @@ use App\Models\Badge;
 use App\Models\Desafio;
 use App\Models\Pergunta;
 use App\Models\RespostaDesafioAluno;
-use App\Models\SubmissaoDesafioAluno;
+use App\Models\InscricaoDesafio;
 use App\Models\Turma;
 use App\Services\NotificacaoService;
 use Illuminate\Http\Request;
@@ -226,7 +226,7 @@ class ProfessorTesteController extends Controller
                 ], [
                     'data_inicio_tentativas' => $validated['data_hora_abertura'],
                     'data_fim_tentativas' => $validated['data_hora_fecho'],
-                    'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
+                    'tentativas_maximas' => $validated['tentativas_maximas'] ?? 1,
                 ]);
 
                 $this->notificacaoService->notificarNovoDesafioTurma(
@@ -301,28 +301,28 @@ class ProfessorTesteController extends Controller
         $validated = $request->validate([
             'publicar' => 'nullable|boolean',
             'respostas' => 'required|array|min:1',
-            'respostas.*.id' => 'required|integer|exists:Respostas_Desafio_Aluno,id',
+            'respostas.*.id' => 'required|integer|exists:Respostas_Desafios_Alunos,id',
             'respostas.*.status_correcao' => 'required|string|in:Correto,Errado,Por_Avaliar',
             'respostas.*.pontuacao_obtida' => 'required|integer|min:0|max:20',
             'respostas.*.comentario_formador' => 'nullable|string',
         ]);
 
-        $submissao = SubmissaoDesafioAluno::with(['desafio.perguntas', 'respostas'])
-            ->where('id', '=', $idTesteRealizado, 'and')
+        $inscricao = InscricaoDesafio::with(['desafio.perguntas', 'respostas'])
+            ->where('id', '=', $idTesteRealizado)
             ->whereHas('desafio', fn($q) => $q->where('id_formador', (int) Auth::id()))
             ->firstOrFail();
 
-        DB::transaction(function () use ($validated, $submissao) {
+        DB::transaction(function () use ($validated, $inscricao) {
             $respostasPayload = collect($validated['respostas'])
                 ->keyBy(fn($item) => (int) $item['id']);
 
-            $maxPontuacaoPorPergunta = $submissao->desafio->perguntas
+            $maxPontuacaoPorPergunta = $inscricao->desafio->perguntas
                 ->mapWithKeys(fn($pergunta) => [
                     (int) $pergunta->id => (int) ($pergunta->pivot->pontuacao_extra ?? 1),
                 ]);
 
-            $respostasBanco = RespostaDesafioAluno::whereIn('id', $respostasPayload->keys()->all(), 'and', false)
-                ->where('id_submissao', '=', $submissao->id, 'and')
+            $respostasBanco = RespostaDesafioAluno::whereIn('id', $respostasPayload->keys()->all())
+                ->where('id_inscricao_desafio', '=', $inscricao->id)
                 ->get()
                 ->keyBy('id');
 
@@ -343,17 +343,16 @@ class ProfessorTesteController extends Controller
                 }
 
                 $resposta->update([
-                    'correta' => $dadosResposta['status_correcao'] === 'Por_Avaliar'
-                        ? null
-                        : $dadosResposta['status_correcao'] === 'Correto',
-                    'pontuacao' => $pontuacaoObtida,
+                    'status_correcao' => $dadosResposta['status_correcao'],
+                    'pontuacao_obtida' => $pontuacaoObtida,
+                    'comentario_formador' => $dadosResposta['comentario_formador'] ?? null,
                 ]);
             }
 
-            $respostasAtualizadas = RespostaDesafioAluno::where('id_submissao', '=', $submissao->id, 'and')->get();
-            $totalObtido = (int) $respostasAtualizadas->sum('pontuacao');
+            $respostasAtualizadas = RespostaDesafioAluno::where('id_inscricao_desafio', '=', $inscricao->id)->get();
+            $totalObtido = (int) $respostasAtualizadas->sum('pontuacao_obtida');
 
-            $pontuacaoPorPergunta = $submissao->desafio->perguntas
+            $pontuacaoPorPergunta = $inscricao->desafio->perguntas
                 ->map(fn($pergunta) => (int) ($pergunta->pivot->pontuacao_extra ?? 1));
             $totalMaximo = (int) $pontuacaoPorPergunta->sum();
 
@@ -362,12 +361,12 @@ class ProfessorTesteController extends Controller
                 : 0;
 
             $temPendentes = $respostasAtualizadas
-                ->contains(fn($resposta) => $resposta->correta === null);
+                ->contains(fn($resposta) => $resposta->status_correcao === 'Por_Avaliar');
 
             $publicar = (bool) ($validated['publicar'] ?? false);
             $novoEstado = $temPendentes
-                ? SubmissaoDesafioAluno::SUBMETIDO
-                : ($publicar ? SubmissaoDesafioAluno::AVALIADO : SubmissaoDesafioAluno::SUBMETIDO);
+                ? 'Submetido'
+                : ($publicar ? 'Concluido' : 'Submetido');
             $agora = now();
 
             $feedback = collect($validated['respostas'])
@@ -375,17 +374,16 @@ class ProfessorTesteController extends Controller
                 ->filter(fn($txt) => filled($txt))
                 ->implode("\n");
 
-            $submissao->update([
-                'nota' => $notaFinal,
+            $inscricao->update([
                 'estado' => $novoEstado,
-                'feedback_professor' => $feedback ?: null,
+                'data_ultima_tentativa' => $agora,
                 'updated_at' => $agora,
             ]);
 
             if ($publicar && !$temPendentes) {
                 $this->notificacaoService->notificarDesafioCorrigido(
-                    (int) $submissao->id_aluno,
-                    (int) $submissao->id_desafio,
+                    (int) $inscricao->id_formando,
+                    (int) $inscricao->id_desafio,
                     (float) $notaFinal,
                 );
             }
@@ -552,15 +550,8 @@ class ProfessorTesteController extends Controller
             'badges_json' => $badgeSelecionada ? [$badgeSelecionada] : null,
             'url_anexo_global' => $anexoGlobal,
             'anexos_professor_json' => null,
+            'ativa' => true,
         ];
-
-        if (Schema::hasColumn($tabelaDesafios, 'ativa')) {
-            $payload['ativa'] = true;
-        }
-
-        if (Schema::hasColumn($tabelaDesafios, 'ativo')) {
-            $payload['ativo'] = true;
-        }
 
         return $this->filtrarPayloadPorColunasDesafio($payload);
     }
