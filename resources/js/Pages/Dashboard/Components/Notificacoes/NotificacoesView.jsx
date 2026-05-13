@@ -9,6 +9,8 @@ const TIPO_LABEL = {
     Novo_Nivel: "Novo Nível",
     Badge_Ganho: "Badge Ganha",
     Submissao_Aluno: "Submissão de Aluno",
+    Alerta_Integridade: "Alerta de Integridade",
+    Alteracao_Datas: "Datas Alteradas",
 };
 
 const TIPO_COR = {
@@ -20,6 +22,8 @@ const TIPO_COR = {
     Novo_Nivel: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
     Badge_Ganho: "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
     Submissao_Aluno: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+    Alerta_Integridade: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    Alteracao_Datas: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
 };
 
 const TIPO_ICONE = {
@@ -31,6 +35,8 @@ const TIPO_ICONE = {
     Novo_Nivel: "🚀",
     Badge_Ganho: "🏅",
     Submissao_Aluno: "📝",
+    Alerta_Integridade: "🚨",
+    Alteracao_Datas: "📅",
 };
 
 export default function NotificacoesView({ notificacoesData }) {

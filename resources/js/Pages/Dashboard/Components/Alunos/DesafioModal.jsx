@@ -23,6 +23,7 @@ function getPerguntas(desafio) {
 export default function DesafioModal({ atribuicao, inscricao, onClose }) {
     const desafio = atribuicao?.desafio || null;
     const perguntas = getPerguntas(desafio);
+    const semConsulta = !!(atribuicao?.sem_consulta);
 
     // --- Deteção de troca de aba/janela ---
     const [tabSwitches, setTabSwitches] = useState(0);
@@ -214,11 +215,19 @@ export default function DesafioModal({ atribuicao, inscricao, onClose }) {
                     </div>
 
                     {/* Aviso de trocas de aba */}
-                    {tabSwitches > 0 && (
-                        <div className="flex items-center gap-2 px-6 py-2.5 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-800 flex-shrink-0">
-                            <span>⚠️</span>
-                            <p className="text-sm font-semibold text-orange-700 dark:text-orange-300">
-                                Atenção: {tabSwitches} troca{tabSwitches !== 1 ? "s" : ""} de janela/aba detetada{tabSwitches !== 1 ? "s" : ""} — isto é registado.
+                    {semConsulta && tabSwitches === 0 && (
+                        <div className="flex items-center gap-2 px-6 py-2.5 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 flex-shrink-0">
+                            <span>🚫</span>
+                            <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                                Este teste é <strong>sem consulta</strong>. Não mudes de aba ou janela — as trocas são registadas e podem resultar na anulação automática.
+                            </p>
+                        </div>
+                    )}
+                    {semConsulta && tabSwitches > 0 && (
+                        <div className="flex items-center gap-2 px-6 py-2.5 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 flex-shrink-0">
+                            <span>🚨</span>
+                            <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                                ATENÇÃO — Foi detetada uma troca de aba/janela. Este teste é sem consulta — as trocas são registadas e podem resultar na anulação da submissão.
                             </p>
                         </div>
                     )}

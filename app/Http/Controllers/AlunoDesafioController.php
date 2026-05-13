@@ -225,6 +225,8 @@ class AlunoDesafioController extends Controller
 
         if ($finalizar) {
             $professorId = $desafio->id_formador ?? null;
+            $semConsulta = (bool) ($atribuicao->sem_consulta ?? false);
+
             if ($professorId) {
                 $tituloNotif = $desafio->titulo . ($tabSwitches > 0 ? " ({$tabSwitches} troca(s) de aba)" : '');
                 $this->notificacaoService->notificarSubmissaoAluno(
@@ -235,6 +237,17 @@ class AlunoDesafioController extends Controller
                     $tituloNotif,
                     null
                 );
+
+                if ($semConsulta && $tabSwitches > 3) {
+                    $this->notificacaoService->notificarAlertaIntegridade(
+                        (int) $professorId,
+                        (int) $aluno->id,
+                        (string) $aluno->name,
+                        (int) $desafio->id,
+                        (string) $desafio->titulo,
+                        $tabSwitches
+                    );
+                }
             }
 
             return redirect()->route('dashboard')

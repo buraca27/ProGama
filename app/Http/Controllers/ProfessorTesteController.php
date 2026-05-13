@@ -174,6 +174,7 @@ class ProfessorTesteController extends Controller
             'data_hora_abertura' => 'required|date',
             'data_hora_fecho' => 'required|date|after:data_hora_abertura',
             'tentativas_maximas' => 'nullable|integer|min:1|max:10',
+            'sem_consulta' => 'nullable|boolean',
         ]);
 
         $professorId = (int) Auth::id();
@@ -217,6 +218,7 @@ class ProfessorTesteController extends Controller
                     'data_inicio_tentativas' => $validated['data_hora_abertura'],
                     'data_fim_tentativas' => $validated['data_hora_fecho'],
                     'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
+                    'sem_consulta' => (bool) ($validated['sem_consulta'] ?? false),
                 ]);
 
                 // NOVA CHAMADA ATUALIZADA
@@ -243,6 +245,7 @@ class ProfessorTesteController extends Controller
             'data_hora_abertura' => 'required|date',
             'data_hora_fecho' => 'required|date|after:data_hora_abertura',
             'tentativas_maximas' => 'nullable|integer|min:1|max:10',
+            'sem_consulta' => 'nullable|boolean',
         ]);
 
         $tarefa = $this->obterTarefaDoProfessor($idTarefa);
@@ -251,10 +254,21 @@ class ProfessorTesteController extends Controller
             'data_inicio_tentativas' => $validated['data_hora_abertura'],
             'data_fim_tentativas' => $validated['data_hora_fecho'],
             'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
+            'sem_consulta' => (bool) ($validated['sem_consulta'] ?? $tarefa->sem_consulta),
         ]);
 
         if ($tarefa->desafio) {
             $this->atualizarJanelaDesafio($tarefa->desafio, $validated['data_hora_abertura'], $validated['data_hora_fecho']);
+        }
+
+        if ($tarefa->id_turma && $tarefa->desafio) {
+            $this->notificacaoService->notificarAlteracaoDatasDesafio(
+                (int) $tarefa->id_turma,
+                (int) $tarefa->id_desafio,
+                (string) $tarefa->desafio->titulo,
+                $validated['data_hora_abertura'],
+                $validated['data_hora_fecho']
+            );
         }
 
         return redirect()->route('dashboard')->with('success', 'Datas do desafio atualizadas com sucesso.');
