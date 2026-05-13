@@ -7,7 +7,6 @@ use App\Http\Controllers\TurmaController;
 use App\Http\Controllers\DisciplinaController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\AlunoDesafioController;
-use App\Http\Controllers\AlunoTesteController;
 use App\Http\Controllers\DesafioAlunoController;
 use App\Http\Controllers\ProfessorTesteController;
 use App\Http\Controllers\GamificationController;
@@ -41,7 +40,6 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     });
 
     Route::prefix('dashboard/aluno')->name('aluno.')->group(function () {
-        Route::post('/testes/{idTarefa}/submeter', [AlunoTesteController::class, 'submeter'])->name('testes.submeter');
         Route::post('/desafios/{idAtribuicao}/submeter', [AlunoDesafioController::class, 'submeter'])->name('desafios.submeter');
     });
 
@@ -56,19 +54,14 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     });
 
     // --- 2.2. SOCIAL ---
+
     Route::prefix('social')->name('social.')->group(function () {
         Route::get('/', [SocialController::class, 'index'])->name('hub');
         Route::post('/seguir/{usuario}', [SocialController::class, 'seguir'])->name('seguir');
         Route::delete('/seguir/{usuario}', [SocialController::class, 'deixarSeguir'])->name('deixar-seguir');
     });
 
-    // --- 2.3. NOTIFICAÇÕES (apenas Alunos e Professores — role 1 bloqueado) ---
-    Route::prefix('notificacoes')->name('notificacoes.')->middleware(function ($request, $next) {
-        if ((int) $request->user()?->id_role === 1) {
-            abort(403, 'Administradores não têm acesso ao sistema de notificações.');
-        }
-        return $next($request);
-    })->group(function () {
+    Route::prefix('notificacoes')->name('notificacoes.')->group(function () {
         Route::get('/', [NotificacaoController::class, 'index'])->name('index');
         Route::post('/ler-todas', [NotificacaoController::class, 'marcarTodasLidas'])->name('ler-todas');
         Route::post('/{notificacao}/ler', [NotificacaoController::class, 'marcarLida'])->name('ler');

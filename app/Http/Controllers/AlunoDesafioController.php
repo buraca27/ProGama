@@ -6,7 +6,6 @@ use App\Models\Desafio;
 use App\Models\DesafioAtribuicao;
 use App\Models\InscricaoDesafio;
 use App\Models\RespostaDesafioAluno;
-use App\Services\NotificacaoService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,10 +14,6 @@ use Illuminate\Validation\ValidationException;
 
 class AlunoDesafioController extends Controller
 {
-    public function __construct(private NotificacaoService $notificacaoService)
-    {
-    }
-
     public function submeter(Request $request, int $idAtribuicao)
     {
         $this->assertAluno();
@@ -224,8 +219,6 @@ class AlunoDesafioController extends Controller
         });
 
         if ($finalizar) {
-            $this->notificarProfessorSobreSubmissao($aluno, $desafio);
-
             return redirect()->route('dashboard')
                 ->with('success', 'Desafio submetido com sucesso.');
         }
@@ -270,25 +263,6 @@ class AlunoDesafioController extends Controller
         }
 
         return $desafio->testeAssociado?->perguntas ?? collect();
-    }
-
-    private function notificarProfessorSobreSubmissao($aluno, Desafio $desafio): void
-    {
-        $idProfessor = (int) ($desafio->id_formador ?? 0);
-        if (!$idProfessor) {
-            return;
-        }
-
-        $aluno->loadMissing('turma');
-        $nomeTurma = $aluno->turma?->nome ?? 'Turma desconhecida';
-
-        $this->notificacaoService->notificarProfessorSubmissao(
-            $idProfessor,
-            (string) $aluno->name,
-            $nomeTurma,
-            (string) $desafio->titulo,
-            (int) $desafio->id,
-        );
     }
 
     private function assertAluno(): void

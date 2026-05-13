@@ -13,11 +13,10 @@ export default function TarefasView({
         data_hora_abertura: "",
         data_hora_fecho: "",
     });
-    const [deletingTaskId, setDeletingTaskId] = useState(null);
     const menusRef = useRef({});
 
     const tarefaForm = useForm({
-        id_teste: "",
+        id_desafio: "",
         turma_ids: [],
         data_hora_abertura: "",
         data_hora_fecho: "",
@@ -81,7 +80,7 @@ export default function TarefasView({
             onSuccess: () => {
                 tarefaForm.reset();
                 tarefaForm.setData({
-                    id_teste: "",
+                    id_desafio: "",
                     turma_ids: [],
                     data_hora_abertura: "",
                     data_hora_fecho: "",
@@ -132,21 +131,14 @@ export default function TarefasView({
     };
 
     const eliminarTarefa = (idTarefa) => {
-        if (deletingTaskId === idTarefa) {
-            return;
-        }
-
         if (
             !window.confirm("Tens a certeza que queres eliminar este desafio?")
         ) {
             return;
         }
 
-        setDeletingTaskId(idTarefa);
-
         router.delete(route("professor.tarefas.destroy", idTarefa), {
             preserveScroll: true,
-            onFinish: () => setDeletingTaskId(null),
         });
     };
 
@@ -173,17 +165,17 @@ export default function TarefasView({
                                 Escolher desafio
                             </label>
                             <select
-                                value={tarefaForm.data.id_teste}
+                                value={tarefaForm.data.id_desafio}
                                 onChange={(e) =>
                                     tarefaForm.setData(
-                                        "id_teste",
+                                        "id_desafio",
                                         e.target.value,
                                     )
                                 }
                                 className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                 required
                             >
-                                <option value="">Seleciona um teste...</option>
+                                <option value="">Seleciona um desafio...</option>
                                 {testesDisponiveis.map((teste) => (
                                     <option key={teste.id} value={teste.id}>
                                         {teste.titulo}
@@ -434,10 +426,9 @@ export default function TarefasView({
                                                     setMenuAbertoId(null);
                                                     eliminarTarefa(tarefa.id);
                                                 }}
-                                                disabled={deletingTaskId === tarefa.id}
-                                                className="w-full text-left px-3 py-2 text-sm rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="w-full text-left px-3 py-2 text-sm rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                                             >
-                                                {deletingTaskId === tarefa.id ? "A processar..." : "Eliminar desafio"}
+                                                Eliminar desafio
                                             </button>
                                         </div>
                                     )}

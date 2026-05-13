@@ -64,7 +64,7 @@ export default function PublicoAluno({ usuario, xpTotal, nivelAtual, percentagem
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
                     <div className="mb-4 flex items-center justify-between">
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white">Badges ({contagemBadges})</h2>
-                        <Link href={route("dashboard")} className="text-sm font-semibold text-blue-600 hover:underline">
+                        <Link href={route("dashboard", { view: "leaderboard" })} className="text-sm font-semibold text-blue-600 hover:underline">
                             Ver Leaderboard
                         </Link>
                     </div>

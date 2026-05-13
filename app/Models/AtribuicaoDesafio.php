@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class AtribuicaoDesafio extends Model
 {
     protected $table = 'Atribuicoes_Desafio';
-    public $timestamps = false;
 
     protected $fillable = [
         'id_desafio',

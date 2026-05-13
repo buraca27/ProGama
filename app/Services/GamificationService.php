@@ -8,7 +8,6 @@ use App\Models\UserXp;
 use App\Models\Level;
 use App\Models\Badge;
 use App\Models\SubmissaoDesafioAluno;
-use App\Services\NotificacaoService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -84,12 +83,6 @@ class GamificationService
             'id_desafio_origem' => $idDesafioOrigem,
             'data_aquisicao' => now(),
         ]);
-
-        app(NotificacaoService::class)->notificarBadgeGanho(
-            (int) $usuario->id,
-            (string) $badge->nome,
-            (string) $badge->raridade,
-        );
 
         // Log no histórico
         $this->criarRegistoHistorico($usuario->id, 'badge_conquistada', [
@@ -195,10 +188,10 @@ class GamificationService
      */
     public function getTopBadges(int $limite = 10)
     {
-        $colunaUsuarioInventario = $this->getInventarioBadgesUserColumn();
+        $colunaUtilizadorInventario = $this->colunaUtilizadorInventarioBadges();
 
         return DB::table('users as u')
-            ->leftJoin('Inventario_Badges as ib', 'u.id', '=', 'ib.' . $colunaUsuarioInventario)
+            ->leftJoin('Inventario_Badges as ib', 'u.id', '=', 'ib.' . $colunaUtilizadorInventario)
             ->select('u.id', 'u.name', DB::raw('COUNT(DISTINCT ib.id_badge) as total_badges'))
             ->groupBy('u.id', 'u.name')
             ->orderByDesc('total_badges')
@@ -212,10 +205,10 @@ class GamificationService
      */
     public function getTopBadgesPontuacao(int $limite = 10)
     {
-        $colunaUsuarioInventario = $this->getInventarioBadgesUserColumn();
+        $colunaUtilizadorInventario = $this->colunaUtilizadorInventarioBadges();
 
         return DB::table('users as u')
-            ->leftJoin('Inventario_Badges as ib', 'u.id', '=', 'ib.' . $colunaUsuarioInventario)
+            ->leftJoin('Inventario_Badges as ib', 'u.id', '=', 'ib.' . $colunaUtilizadorInventario)
             ->leftJoin('Badges as b', 'ib.id_badge', '=', 'b.id')
             ->select(
                 'u.id',
@@ -237,13 +230,18 @@ class GamificationService
             ->get();
     }
 
-    private function getInventarioBadgesUserColumn(): string
+    private function colunaUtilizadorInventarioBadges(): string
     {
         if (Schema::hasColumn('Inventario_Badges', 'id_usuario')) {
             return 'id_usuario';
         }
 
-        return 'id_utilizador';
+        if (Schema::hasColumn('Inventario_Badges', 'id_utilizador')) {
+            return 'id_utilizador';
+        }
+
+        // Fallback conservador para ambientes antigos
+        return 'id_usuario';
     }
 
     public function getTopNivel(int $limite = 10)

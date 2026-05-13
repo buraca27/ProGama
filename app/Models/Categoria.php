@@ -19,13 +19,13 @@ class Categoria extends Model
 
     public function desafios(): HasMany
     {
-        return $this->hasMany(Teste::class, 'id_categoria')
-            ->where('tipo_avaliacao', 'Desafio');
+        return $this->hasMany(Desafio::class, 'id_categoria')
+            ->where('tipo_desafio', 'Tarefa');
     }
 
     public function testes(): HasMany
     {
-        return $this->hasMany(Teste::class, 'id_categoria')
-            ->where('tipo_avaliacao', '!=', 'Desafio');
+        return $this->hasMany(Desafio::class, 'id_categoria')
+            ->where('tipo_desafio', 'Quiz');
     }
 }
