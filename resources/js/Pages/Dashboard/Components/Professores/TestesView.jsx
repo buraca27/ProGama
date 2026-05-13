@@ -19,6 +19,7 @@ export default function TestesView({
     perguntasBancoFiltros = null,
     testesProfessor = [],
     categorias = [],
+    badgesProfessor = [],
 }) {
     const [activeSection, setActiveSection] = useState("banco");
     const [showQuestionForm, setShowQuestionForm] = useState(false);
@@ -317,6 +318,8 @@ export default function TestesView({
             ...data,
             tipo_avaliacao: "Desafio",
             peso_avaliacao: configAtual?.semPesoNota ? 0 : data.peso_avaliacao,
+            xp_base: Number(data.xp_base || 0),
+            auto_award_xp: Boolean(data.auto_award_xp),
             novas_perguntas: novasPerguntasLimpas,
             pontuacao_por_pergunta: pontuacoesNormalizadas,
             pontuacoes_perguntas: pontuacoesExplicitas,
@@ -326,6 +329,7 @@ export default function TestesView({
             testeForm.transform(transformFn);
             testeForm.put(route("professor.testes.update", editingTesteId), {
                 preserveScroll: true,
+                forceFormData: true,
                 onSuccess,
                 onFinish: () => testeForm.transform((data) => data),
             });
@@ -335,12 +339,17 @@ export default function TestesView({
         testeForm.transform(transformFn);
         testeForm.post(route("professor.testes.store"), {
             preserveScroll: true,
+            forceFormData: true,
             onSuccess,
             onFinish: () => testeForm.transform((data) => data),
         });
     };
 
     const carregarTesteNoEditor = (teste) => {
+        const primeiraBadge = Array.isArray(teste.badges_json)
+            ? teste.badges_json[0]
+            : null;
+
         testeForm.setData({
             titulo: teste.titulo || "",
             instrucoes: teste.instrucoes || "",
@@ -357,6 +366,18 @@ export default function TestesView({
                 {},
             ),
             novas_perguntas: [],
+            xp_base: teste.xp_base ?? 50,
+            auto_award_xp: teste.auto_award_xp ?? true,
+            badge_existente_id:
+                typeof primeiraBadge === "object" && primeiraBadge?.id
+                    ? String(primeiraBadge.id)
+                    : Number.isFinite(Number(primeiraBadge))
+                      ? String(primeiraBadge)
+                      : "",
+            nova_badge_nome: "",
+            nova_badge_descricao: "",
+            nova_badge_imagem: null,
+            anexo_global_ficheiro: null,
         });
 
         setEditingTesteId(teste.id);
@@ -452,6 +473,7 @@ export default function TestesView({
                         submitTeste={submitTeste}
                         testeForm={testeForm}
                         categorias={categorias}
+                        badgesProfessor={badgesProfessor}
                         categoriaFiltro={categoriaFiltro}
                         setCategoriaFiltro={setCategoriaFiltro}
                         textoPerguntaFiltro={textoPerguntaFiltro}

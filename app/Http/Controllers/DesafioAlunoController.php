@@ -81,8 +81,10 @@ class DesafioAlunoController extends Controller
         $usuario = $request->user();
 
         // Verificar se tem atribuição
-        $atribuicao = $desafio->atribuicoes()
-            ->where('id_aluno', $usuario->id)
+        /** @var AtribuicaoDesafio|null $atribuicao */
+        $atribuicao = AtribuicaoDesafio::query()
+            ->where('id_desafio', '=', (int) $desafio->id, 'and')
+            ->where('id_aluno', '=', (int) $usuario->id, 'and')
             ->first();
 
         if (!$atribuicao) {
@@ -100,7 +102,7 @@ class DesafioAlunoController extends Controller
     /**
      * Exibe quiz específico
      */
-    private function showQuiz(Desafio $desafio, $usuario, $atribuicao)
+    private function showQuiz(Desafio $desafio, $usuario, AtribuicaoDesafio $atribuicao)
     {
         $perguntas = $desafio->perguntas()
             ->with('opcoes')
@@ -115,7 +117,7 @@ class DesafioAlunoController extends Controller
             'desafio' => $desafio,
             'perguntas' => $perguntas,
             'atribuicao' => $atribuicao,
-            'tentativas_restantes' => $atribuicao->tentativasRestantes(),
+            'tentativas_restantes' => $atribuicao->tentativasRestantes((int) $usuario->id),
             'submissao_ativa' => $submissaoAtiva,
         ]);
     }
@@ -123,7 +125,7 @@ class DesafioAlunoController extends Controller
     /**
      * Exibe tarefa específica
      */
-    private function showTarefa(Desafio $desafio, $usuario, $atribuicao)
+    private function showTarefa(Desafio $desafio, $usuario, AtribuicaoDesafio $atribuicao)
     {
         $submissaoRecente = $desafio->submissoes()
             ->where('id_aluno', $usuario->id)
@@ -133,8 +135,19 @@ class DesafioAlunoController extends Controller
         return Inertia::render('Desafios/Tarefa/Show', [
             'desafio' => $desafio,
             'atribuicao' => $atribuicao,
-            'tentativas_restantes' => $atribuicao->tentativasRestantes(),
+            'tentativas_restantes' => $atribuicao->tentativasRestantes((int) $usuario->id),
             'submissao_recente' => $submissaoRecente,
+            'anexos_professor' => collect($desafio->anexos_professor_json ?? [])
+                ->filter(fn($anexo) => is_array($anexo) && !empty($anexo['caminho']))
+                ->map(fn($anexo) => [
+                    'nome' => $anexo['nome'] ?? basename((string) $anexo['caminho']),
+                    'url' => \Illuminate\Support\Facades\Storage::disk('public')->url((string) $anexo['caminho']),
+                ])
+                ->values()
+                ->all(),
+            'anexo_global_url' => $desafio->url_anexo_global
+                ? \Illuminate\Support\Facades\Storage::disk('public')->url($desafio->url_anexo_global)
+                : null,
         ]);
     }
 
@@ -150,14 +163,14 @@ class DesafioAlunoController extends Controller
             ->where('id_aluno', $usuario->id)
             ->first();
 
-        if (!$atribuicao) {
+        if (!$atribuicao instanceof AtribuicaoDesafio) {
             return $request->expectsJson()
                 ? response()->json(['erro' => 'Desafio não atribuído'], 403)
                 : back()->with('error', 'Desafio nao atribuido.');
         }
 
         // Verificar tentativas
-        if (!$atribuicao->temTentativasDisponiveis()) {
+        if (!$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {
             return $request->expectsJson()
                 ? response()->json(['erro' => 'Sem tentativas disponíveis'], 403)
                 : back()->with('error', 'Sem tentativas disponiveis.');
@@ -200,6 +213,15 @@ class DesafioAlunoController extends Controller
             'id_atribuicao' => 'required|integer',
             'respostas' => 'required|array|min:1',
         ]);
+
+        // Validar tentativas
+        $atribuicao = AtribuicaoDesafio::findOrFail($request->input('id_atribuicao'));
+
+        if (!$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {
+            return back()->withErrors([
+                'desafio' => 'Esgotaste o número máximo de tentativas para este desafio.',
+            ]);
+        }
 
         $respostas = $request->input('respostas'); // Array com id_pergunta => id_opcao ou resposta_texto
 
@@ -312,22 +334,34 @@ class DesafioAlunoController extends Controller
     {
         $usuario = $request->user();
 
-        $request->validate([
-            'ficheiro' => 'required|file|max:10240', // 10MB
+        $validated = $request->validate([
+            'ficheiro' => 'nullable|required_without:link_submissao|file|max:10240',
+            'link_submissao' => 'nullable|required_without:ficheiro|url|max:2048',
+            'mensagem_submissao' => 'nullable|string|max:5000',
         ]);
 
-        $atribuicao = $desafio->atribuicoes()
-            ->where('id_aluno', $usuario->id)
+        /** @var AtribuicaoDesafio|null $atribuicao */
+        $atribuicao = AtribuicaoDesafio::query()
+            ->where('id_desafio', '=', (int) $desafio->id, 'and')
+            ->where('id_aluno', '=', (int) $usuario->id, 'and')
             ->first();
 
-        if (!$atribuicao || !$atribuicao->temTentativasDisponiveis()) {
+        if (!$atribuicao || !$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {
             return $request->expectsJson()
                 ? response()->json(['erro' => 'Não pode submeter'], 403)
                 : back()->with('error', 'Nao pode submeter.');
         }
 
-        // Guardar ficheiro
-        $caminhoFicheiro = $request->file('ficheiro')->store('submissoes', 'public');
+        $caminhoFicheiro = null;
+        if (!empty($validated['ficheiro'])) {
+            $caminhoFicheiro = $validated['ficheiro']->store('submissoes', 'public');
+        }
+
+        $metadata = [
+            'ficheiro' => $caminhoFicheiro,
+            'link_submissao' => $validated['link_submissao'] ?? null,
+            'mensagem_submissao' => $validated['mensagem_submissao'] ?? null,
+        ];
 
         // Criar submissão
         $submissao = SubmissaoDesafioAluno::create([
@@ -337,12 +371,13 @@ class DesafioAlunoController extends Controller
             'estado' => SubmissaoDesafioAluno::SUBMETIDO,
             'numero_tentativa' => $atribuicao->submissoes()->count() + 1,
             'data_submissao' => now(),
+            'metadata' => $metadata,
         ]);
 
-        // Gravar ficheiro na resposta (compat. com modelo antigo)
+        // Gravar submissão em formato compatível na resposta.
         RespostaDesafioAluno::create([
             'id_submissao' => $submissao->id,
-            'resposta_texto' => $caminhoFicheiro,
+            'resposta_texto' => json_encode($metadata, JSON_UNESCAPED_SLASHES),
         ]);
 
         if ($desafio->id_formador) {

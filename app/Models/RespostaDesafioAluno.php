@@ -7,29 +7,31 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RespostaDesafioAluno extends Model
 {
-    protected $table = 'Respostas_Desafio_Aluno';
+    protected $table = 'Respostas_Desafios_Alunos';
 
     protected $fillable = [
-        'id_submissao',
+        'id_inscricao_desafio',
         'id_pergunta',
-        'resposta_texto',
+        'id_opcao_escolhida',
         'ids_opcoes_escolhidas',
-        'correta',
-        'pontuacao',
+        'resposta_texto',
+        'url_ficheiro_submetido',
+        'status_correcao',
+        'pontuacao_obtida',
+        'comentario_formador',
     ];
 
     protected $casts = [
         'ids_opcoes_escolhidas' => 'array',
-        'correta' => 'boolean',
-        'pontuacao' => 'float',
+        'pontuacao_obtida' => 'integer',
     ];
 
     /**
-     * A submissão a que pertence esta resposta
+     * A inscrição no desafio a que pertence esta resposta
      */
-    public function submissao(): BelongsTo
+    public function inscricaoDesafio(): BelongsTo
     {
-        return $this->belongsTo(SubmissaoDesafioAluno::class, 'id_submissao');
+        return $this->belongsTo(InscricaoDesafio::class, 'id_inscricao_desafio');
     }
 
     /**
@@ -49,7 +51,9 @@ class RespostaDesafioAluno extends Model
             return collect();
         }
 
-        return OpcaoPergunta::whereIn('id', $this->ids_opcoes_escolhidas)->get();
+        return OpcaoPergunta::query()
+            ->whereIn('id', $this->ids_opcoes_escolhidas, 'and', false)
+            ->get();
     }
 
     /**
@@ -77,6 +81,6 @@ class RespostaDesafioAluno extends Model
         if (!$ids || count($ids) === 0) {
             return null;
         }
-        return OpcaoPergunta::find($ids[0]);
+        return OpcaoPergunta::find($ids[0], ['*']);
     }
 }

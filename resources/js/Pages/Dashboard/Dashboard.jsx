@@ -49,6 +49,7 @@ export default function Dashboard(props) {
         inscricoesDesafiosAluno = [],
         correcoesProfessor = null,
         trabalhosPendentes = 0,
+        badgesProfessor = [],
         podio = [],
         ranking_xp = [],
         ranking_nivel = [],
@@ -191,6 +192,7 @@ export default function Dashboard(props) {
                         perguntasBancoFiltros={perguntasBancoFiltros}
                         testesProfessor={testesProfessor}
                         categorias={categorias}
+                        badgesProfessor={badgesProfessor}
                     />
                 )}
 
