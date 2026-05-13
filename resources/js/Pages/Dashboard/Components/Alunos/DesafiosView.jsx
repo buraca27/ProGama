@@ -23,7 +23,11 @@ function statusDesafio(atribuicao, inscricao) {
         ? new Date(atribuicao.desafio.data_fim)
         : null;
 
-    if (inscricao && ["Submetido", "Concluido"].includes(inscricao.estado)) {
+    if (inscricao && ["Submetido", "Concluido", "Avaliado"].includes(inscricao.estado)) {
+        if (inscricao.estado === "Avaliado") {
+            return { label: "Avaliado", tone: "emerald" };
+        }
+
         return inscricao.estado === "Concluido"
             ? { label: "Concluido", tone: "emerald" }
             : { label: "Submetido", tone: "blue" };
@@ -166,10 +170,15 @@ export default function DesafiosView({
         inscricaoAtual && inscricaoAtual.estado === "Em_Resolucao",
     );
 
+    const desafioFechado = Boolean(
+        inscricaoAtual && ["Avaliado", "Concluido"].includes(inscricaoAtual.estado),
+    );
+
     const podeInteragir =
         selectedAtribuicao &&
         perguntas.length > 0 &&
         !bloqueadoPorData &&
+        !desafioFechado &&
         !esgotouTentativas;
 
     const onSelectOption = (idPergunta, idOpcao) => {
@@ -439,6 +448,17 @@ export default function DesafiosView({
                                 </div>
                             )}
 
+                            {desafioFechado && (
+                                <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+                                    <p className="font-semibold">
+                                        Desafio fechado
+                                    </p>
+                                    <p className="mt-1">
+                                        Este desafio já foi corrigido e fechado pelo professor. Não é possível submeter novamente.
+                                    </p>
+                                </div>
+                            )}
+
                             {(form.errors.desafio || form.errors.respostas) && (
                                 <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
                                     {form.errors.desafio ||
@@ -579,7 +599,7 @@ export default function DesafiosView({
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <div>
                                     {inscricaoAtual?.data_ultima_tentativa &&
-                                        ["Submetido", "Concluido"].includes(
+                                        ["Submetido", "Concluido", "Avaliado"].includes(
                                             inscricaoAtual?.estado,
                                         ) && (
                                             <p className="text-sm font-medium text-blue-700 dark:text-blue-300">

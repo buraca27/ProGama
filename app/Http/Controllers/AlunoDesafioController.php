@@ -131,6 +131,15 @@ class AlunoDesafioController extends Controller
                 ->latest('id')
                 ->first();
 
+            if ($inscricao && in_array($inscricao->estado, [
+                SubmissaoDesafioAluno::AVALIADO,
+                SubmissaoDesafioAluno::CONCLUIDO,
+            ], true)) {
+                throw ValidationException::withMessages([
+                    'desafio' => 'Este desafio já foi corrigido e fechado. Não podes submeter novamente.',
+                ]);
+            }
+
             if ($inscricao && in_array($inscricao->estado, ['Submetido', 'Concluido', 'Falhado', 'Avaliado'], true)) {
                 $inscricao = null;
             }

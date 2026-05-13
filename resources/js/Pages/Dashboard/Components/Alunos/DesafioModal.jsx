@@ -124,8 +124,15 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
     const abriu = desafio?.data_inicio ? new Date(desafio.data_inicio) : null;
     const fechou = desafio?.data_fim ? new Date(desafio.data_fim) : null;
     const bloqueadoPorData = (abriu && now < abriu) || (fechou && now > fechou);
+    const desafioFechado = Boolean(
+        inscricao && ["Avaliado", "Concluido"].includes(inscricao.estado),
+    );
     const tempoEsgotado = tempoRestante !== null && tempoRestante <= 0;
-    const podeInteragir = !!atribuicao && perguntas.length > 0 && !bloqueadoPorData && !tempoEsgotado;
+    const podeInteragir = !!atribuicao
+        && perguntas.length > 0
+        && !bloqueadoPorData
+        && !tempoEsgotado
+        && !desafioFechado;
 
     const percentagemTempo = duracaoSegundos ? tempoRestante / duracaoSegundos : 1;
     const corTimer =
@@ -339,6 +346,12 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
                         {tempoEsgotado && (
                             <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-bold text-red-700 dark:text-red-300">
                                 ⏰ O tempo limite foi atingido. Já não é possível submeter.
+                            </div>
+                        )}
+
+                        {desafioFechado && (
+                            <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                                Este desafio já foi corrigido e fechado pelo professor. Não podes submeter novamente.
                             </div>
                         )}
 
