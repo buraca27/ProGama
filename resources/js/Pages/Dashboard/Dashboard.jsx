@@ -43,8 +43,6 @@ export default function Dashboard(props) {
         perguntasBancoFiltros = null,
         testesProfessor = [],
         tarefasProfessor = [],
-        tarefasAluno = [],
-        submissoesAluno = [],
         desafiosAluno = [],
         inscricoesDesafiosAluno = [],
         correcoesProfessor = null,
@@ -62,6 +60,13 @@ export default function Dashboard(props) {
     // ESTADOS DE NAVEGAÇÃO E INTERFACE
     // =============================================================================
     const [activeView, setActiveView] = useState(initialView || "dashboard");
+
+    // Sync when Inertia navigates to a different ?view= (e.g. clicking "Centro de Notificações")
+    React.useEffect(() => {
+        if (initialView && initialView !== activeView) {
+            setActiveView(initialView);
+        }
+    }, [initialView]);
     const [showNovoUserForm, setShowNovoUserForm] = useState(false);
     const [desafioModalId, setDesafioModalId] = useState(initialDesafioModalId);
 
@@ -250,6 +255,7 @@ export default function Dashboard(props) {
                     atribuicao={desafioModalAtribuicao}
                     inscricao={desafioModalInscricao}
                     onClose={handleCloseDesafioModal}
+                    returnView={activeView}
                 />
             )}
 

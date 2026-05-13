@@ -18,6 +18,7 @@ class AtribuicaoDesafio extends Model
         'data_inicio_tentativas',
         'data_fim_tentativas',
         'tentativas_maximas',
+        'sem_consulta',
         'observacoes',
     ];
 
@@ -25,6 +26,7 @@ class AtribuicaoDesafio extends Model
         'data_inicio_tentativas' => 'datetime',
         'data_fim_tentativas' => 'datetime',
         'tentativas_maximas' => 'integer',
+        'sem_consulta' => 'boolean',
     ];
 
     /**

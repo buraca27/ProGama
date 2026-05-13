@@ -132,6 +132,52 @@ class NotificacaoService
         ]);
     }
 
+    public function notificarAlteracaoDatasDesafio(int $idTurma, int $idDesafio, string $tituloDesafio, $novaAbertura, $novoFecho): void
+    {
+        $idsAlunos = User::query()
+            ->where('id_role', 3)
+            ->where('id_turma', $idTurma)
+            ->pluck('id')
+            ->map(fn($id) => (int) $id)
+            ->all();
+
+        if (empty($idsAlunos)) {
+            return;
+        }
+
+        Notificacao::whereIn('id_utilizador', $idsAlunos)
+            ->where('id_desafio_relacionado', $idDesafio)
+            ->whereIn('tipo_notificacao', ['Novo_Desafio', 'Alteracao_Datas'])
+            ->where('lida', false)
+            ->delete();
+
+        $abertura = $novaAbertura ? \Carbon\Carbon::parse($novaAbertura)->format('d/m/Y H:i') : '—';
+        $fecho    = $novoFecho    ? \Carbon\Carbon::parse($novoFecho)->format('d/m/Y H:i')    : '—';
+        $mensagem = mb_substr(
+            'As datas do desafio "' . $tituloDesafio . '" foram alteradas. Nova janela: ' . $abertura . ' até ' . $fecho . '.',
+            0, 255
+        );
+
+        $this->criarParaUtilizadores($idsAlunos, 'Alteracao_Datas', $mensagem, $idDesafio);
+    }
+
+    public function notificarAlertaIntegridade(int $idProfessor, int $idAluno, string $nomeAluno, int $idDesafio, string $tituloDesafio, int $tabSwitches): void
+    {
+        $mensagem = mb_substr(
+            'ALERTA: O aluno "' . $nomeAluno . '" realizou o desafio "' . $tituloDesafio . '" (SEM CONSULTA) com ' . $tabSwitches . ' troca(s) de aba/janela. A submissão foi automaticamente classificada com 0 valores — aguarda revisão.',
+            0,
+            255
+        );
+
+        Notificacao::create([
+            'id_utilizador'          => $idProfessor,
+            'tipo_notificacao'       => 'Alerta_Integridade',
+            'mensagem'               => $mensagem,
+            'id_desafio_relacionado' => $idDesafio,
+            'lida'                   => false,
+        ]);
+    }
+
     public function notificarDesafioCorrigido(int $idAluno, int $idDesafio, ?float $nota = null): void
     {
         $mensagem = 'O teu desafio foi avaliado.';

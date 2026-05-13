@@ -15,6 +15,8 @@ const TIPO_LABEL = {
     Novo_Nivel: "Novo Nível",
     Badge_Ganho: "Badge Ganha",
     Submissao_Aluno: "Submissão de Aluno",
+    Alerta_Integridade: "Alerta de Integridade",
+    Alteracao_Datas: "Datas Alteradas",
 };
 
 export default function AuthenticatedLayout({
@@ -168,7 +170,9 @@ export default function AuthenticatedLayout({
                 if (tipo === "Submissao_Aluno" && idSubmissao) {
                     router.visit(route("dashboard", { view: "avaliacoes", submissao_id: idSubmissao }));
                 } else if (idDesafio) {
-                    router.visit(route("dashboard", { desafio_modal_id: idDesafio }));
+                    const params = { desafio_modal_id: idDesafio };
+                    if (activeView && activeView !== "dashboard") params.view = activeView;
+                    router.visit(route("dashboard", params));
                 }
             },
         });
@@ -342,11 +346,7 @@ export default function AuthenticatedLayout({
                                         type="button"
                                         onClick={() => {
                                             setShowNotifications(false);
-                                            if (onViewChange) {
-                                                onViewChange("notificacoes");
-                                            } else {
-                                                router.visit(route("dashboard", { view: "notificacoes" }));
-                                            }
+                                            router.visit(route("dashboard", { view: "notificacoes" }));
                                         }}
                                         className="rounded-md bg-gray-900 px-2 py-1 text-xs font-semibold text-white dark:bg-gray-100 dark:text-gray-900"
                                     >
