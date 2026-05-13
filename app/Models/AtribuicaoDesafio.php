@@ -65,7 +65,7 @@ class AtribuicaoDesafio extends Model
      */
     public function inscricoes()
     {
-        return InscricaoDesafio::where('id_desafio', $this->id_desafio)
+        return InscricaoDesafio::where('id_desafio', '=', $this->id_desafio, 'and')
             ->whereIn('estado', ['Submetido', 'Concluido', 'Falhado']);
     }
 
@@ -87,8 +87,8 @@ class AtribuicaoDesafio extends Model
             return 999; // Número grande para representar ilimitado
         }
 
-        $tentativasFeitas = InscricaoDesafio::where('id_desafio', $this->id_desafio)
-            ->where('id_formando', $idAluno)
+        $tentativasFeitas = InscricaoDesafio::where('id_desafio', '=', $this->id_desafio, 'and')
+            ->where('id_formando', '=', $idAluno, 'and')
             ->whereIn('estado', ['Submetido', 'Concluido', 'Falhado'])
             ->count();
 

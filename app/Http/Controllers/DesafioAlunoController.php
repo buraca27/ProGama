@@ -81,8 +81,10 @@ class DesafioAlunoController extends Controller
         $usuario = $request->user();
 
         // Verificar se tem atribuição
-        $atribuicao = $desafio->atribuicoes()
-            ->where('id_aluno', $usuario->id)
+        /** @var AtribuicaoDesafio|null $atribuicao */
+        $atribuicao = AtribuicaoDesafio::query()
+            ->where('id_desafio', '=', (int) $desafio->id, 'and')
+            ->where('id_aluno', '=', (int) $usuario->id, 'and')
             ->first();
 
         if (!$atribuicao) {
@@ -100,7 +102,7 @@ class DesafioAlunoController extends Controller
     /**
      * Exibe quiz específico
      */
-    private function showQuiz(Desafio $desafio, $usuario, $atribuicao)
+    private function showQuiz(Desafio $desafio, $usuario, AtribuicaoDesafio $atribuicao)
     {
         $perguntas = $desafio->perguntas()
             ->with('opcoes')
@@ -123,7 +125,7 @@ class DesafioAlunoController extends Controller
     /**
      * Exibe tarefa específica
      */
-    private function showTarefa(Desafio $desafio, $usuario, $atribuicao)
+    private function showTarefa(Desafio $desafio, $usuario, AtribuicaoDesafio $atribuicao)
     {
         $submissaoRecente = $desafio->submissoes()
             ->where('id_aluno', $usuario->id)
@@ -161,14 +163,14 @@ class DesafioAlunoController extends Controller
             ->where('id_aluno', $usuario->id)
             ->first();
 
-        if (!$atribuicao) {
+        if (!$atribuicao instanceof AtribuicaoDesafio) {
             return $request->expectsJson()
                 ? response()->json(['erro' => 'Desafio não atribuído'], 403)
                 : back()->with('error', 'Desafio nao atribuido.');
         }
 
         // Verificar tentativas
-        if (!$atribuicao->temTentativasDisponiveis()) {
+        if (!$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {
             return $request->expectsJson()
                 ? response()->json(['erro' => 'Sem tentativas disponíveis'], 403)
                 : back()->with('error', 'Sem tentativas disponiveis.');
@@ -327,8 +329,10 @@ class DesafioAlunoController extends Controller
             'mensagem_submissao' => 'nullable|string|max:5000',
         ]);
 
-        $atribuicao = $desafio->atribuicoes()
-            ->where('id_aluno', $usuario->id)
+        /** @var AtribuicaoDesafio|null $atribuicao */
+        $atribuicao = AtribuicaoDesafio::query()
+            ->where('id_desafio', '=', (int) $desafio->id, 'and')
+            ->where('id_aluno', '=', (int) $usuario->id, 'and')
             ->first();
 
         if (!$atribuicao || !$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {

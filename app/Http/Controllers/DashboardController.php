@@ -46,7 +46,7 @@ class DashboardController extends Controller
             2 => Turma::where(function ($query) use ($user) {
                 $query->whereHas('professores', fn($q) => $q->where('users.id', (int) $user->id))
                     ->orWhereHas('disciplinas.professores', fn($q) => $q->where('users.id', (int) $user->id));
-            })
+            }, null, null, 'and')
                 ->with(['alunos', 'professores'])
                 ->orderBy('nome')
                 ->get(),
@@ -59,7 +59,7 @@ class DashboardController extends Controller
                 ->whereHas('professores', fn($query) => $query->where('users.id', (int) $user->id))
                 ->get(),
             3 => $user->id_turma
-                ? (Turma::find((int) $user->id_turma)?->disciplinas()
+                ? (Turma::find((int) $user->id_turma, ['*'])?->disciplinas()
                     ->with([
                         'professores',
                         'turmas' => fn($query) => $query
@@ -275,7 +275,7 @@ class DashboardController extends Controller
         });
 
         $rankingBadges = $topBadges->map(function ($row, $index) {
-            $usuario = User::find($row->id);
+            $usuario = User::find($row->id, ['*']);
             return [
                 'posicao' => $index + 1,
                 'usuario' => $usuario,

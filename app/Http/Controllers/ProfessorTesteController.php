@@ -194,7 +194,7 @@ class ProfessorTesteController extends Controller
         $turmasPermitidas = Turma::where(function ($query) use ($professorId) {
             $query->whereHas('professores', fn($q) => $q->where('users.id', $professorId))
                 ->orWhereHas('disciplinas.professores', fn($q) => $q->where('users.id', $professorId));
-        })
+        }, null, null, 'and')
             ->pluck('id')
             ->map(fn($id) => (int) $id)
             ->all();
@@ -321,8 +321,8 @@ class ProfessorTesteController extends Controller
                     (int) $pergunta->id => (int) ($pergunta->pivot->pontuacao_extra ?? 1),
                 ]);
 
-            $respostasBanco = RespostaDesafioAluno::whereIn('id', $respostasPayload->keys()->all())
-                ->where('id_inscricao_desafio', '=', $inscricao->id)
+            $respostasBanco = RespostaDesafioAluno::whereIn('id', $respostasPayload->keys()->all(), 'and', false)
+                ->where('id_inscricao_desafio', '=', $inscricao->id, 'and')
                 ->get()
                 ->keyBy('id');
 
@@ -349,7 +349,7 @@ class ProfessorTesteController extends Controller
                 ]);
             }
 
-            $respostasAtualizadas = RespostaDesafioAluno::where('id_inscricao_desafio', '=', $inscricao->id)->get();
+            $respostasAtualizadas = RespostaDesafioAluno::where('id_inscricao_desafio', '=', $inscricao->id, 'and')->get();
             $totalObtido = (int) $respostasAtualizadas->sum('pontuacao_obtida');
 
             $pontuacaoPorPergunta = $inscricao->desafio->perguntas
@@ -583,7 +583,7 @@ class ProfessorTesteController extends Controller
     private function resolverBadgeDesafio(array $validated): ?array
     {
         if (!empty($validated['badge_existente_id'])) {
-            $badge = Badge::find((int) $validated['badge_existente_id']);
+            $badge = Badge::find((int) $validated['badge_existente_id'], ['*']);
             if (!$badge) {
                 return null;
             }

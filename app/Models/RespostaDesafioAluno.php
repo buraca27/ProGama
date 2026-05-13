@@ -51,7 +51,9 @@ class RespostaDesafioAluno extends Model
             return collect();
         }
 
-        return OpcaoPergunta::whereIn('id', $this->ids_opcoes_escolhidas)->get();
+        return OpcaoPergunta::query()
+            ->whereIn('id', $this->ids_opcoes_escolhidas, 'and', false)
+            ->get();
     }
 
     /**
@@ -79,6 +81,6 @@ class RespostaDesafioAluno extends Model
         if (!$ids || count($ids) === 0) {
             return null;
         }
-        return OpcaoPergunta::find($ids[0]);
+        return OpcaoPergunta::find($ids[0], ['*']);
     }
 }

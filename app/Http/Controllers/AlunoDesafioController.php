@@ -122,8 +122,8 @@ class AlunoDesafioController extends Controller
         }
 
         DB::transaction(function () use ($aluno, $desafio, $atribuicao, $validated, $finalizar, $perguntasDesafio) {
-            $inscricao = InscricaoDesafio::where('id_desafio', (int) $desafio->id)
-                ->where('id_formando', (int) $aluno->id)
+            $inscricao = InscricaoDesafio::where('id_desafio', '=', (int) $desafio->id, 'and')
+                ->where('id_formando', '=', (int) $aluno->id, 'and')
                 ->latest('id')
                 ->first();
 
