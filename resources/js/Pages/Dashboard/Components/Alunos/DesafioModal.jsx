@@ -20,10 +20,44 @@ function getPerguntas(desafio) {
     return desafio.teste_associado?.perguntas || [];
 }
 
-export default function DesafioModal({ atribuicao, inscricao, onClose }) {
+export default function DesafioModal({ atribuicao, inscricao, onClose, returnView }) {
     const desafio = atribuicao?.desafio || null;
     const perguntas = getPerguntas(desafio);
     const semConsulta = !!(atribuicao?.sem_consulta);
+
+    // --- Timer ---
+    const duracaoSegundos = desafio?.duracao_minutos ? desafio.duracao_minutos * 60 : null;
+    const storageKey = atribuicao?.id ? `desafio_start_${atribuicao.id}` : null;
+
+    // Calculates and persists the start reference in sessionStorage so the timer
+    // survives accidental modal closes and reopens within the same browser session.
+    const [startTime] = useState(() => {
+        if (inscricao?.data_inicio_resolucao) {
+            if (storageKey) sessionStorage.removeItem(storageKey);
+            return new Date(inscricao.data_inicio_resolucao).getTime();
+        }
+        if (storageKey) {
+            const stored = sessionStorage.getItem(storageKey);
+            if (stored) return parseInt(stored, 10);
+            const now = Date.now();
+            sessionStorage.setItem(storageKey, String(now));
+            return now;
+        }
+        return Date.now();
+    });
+
+    const [tempoRestante, setTempoRestante] = useState(() => {
+        if (!duracaoSegundos) return null;
+        return Math.max(0, duracaoSegundos - Math.floor((Date.now() - startTime) / 1000));
+    });
+
+    useEffect(() => {
+        if (duracaoSegundos === null) return;
+        const intervalo = setInterval(() => {
+            setTempoRestante(Math.max(0, duracaoSegundos - Math.floor((Date.now() - startTime) / 1000)));
+        }, 1000);
+        return () => clearInterval(intervalo);
+    }, [duracaoSegundos, startTime]);
 
     // --- Deteção de troca de aba/janela ---
     const [tabSwitches, setTabSwitches] = useState(0);
@@ -90,7 +124,28 @@ export default function DesafioModal({ atribuicao, inscricao, onClose }) {
     const abriu = desafio?.data_inicio ? new Date(desafio.data_inicio) : null;
     const fechou = desafio?.data_fim ? new Date(desafio.data_fim) : null;
     const bloqueadoPorData = (abriu && now < abriu) || (fechou && now > fechou);
-    const podeInteragir = !!atribuicao && perguntas.length > 0 && !bloqueadoPorData;
+    const tempoEsgotado = tempoRestante !== null && tempoRestante <= 0;
+    const podeInteragir = !!atribuicao && perguntas.length > 0 && !bloqueadoPorData && !tempoEsgotado;
+
+    const percentagemTempo = duracaoSegundos ? tempoRestante / duracaoSegundos : 1;
+    const corTimer =
+        tempoEsgotado || percentagemTempo < 0.1
+            ? "text-red-600 dark:text-red-400"
+            : percentagemTempo < 0.25
+            ? "text-orange-500 dark:text-orange-400"
+            : "text-gray-700 dark:text-gray-200";
+    const bgTimer =
+        tempoEsgotado || percentagemTempo < 0.1
+            ? "border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20"
+            : percentagemTempo < 0.25
+            ? "border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20"
+            : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/60";
+
+    const formatarTimer = (seg) => {
+        const m = Math.floor(seg / 60);
+        const s = seg % 60;
+        return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    };
 
     const onSelectOption = (idPergunta, idOpcao) => {
         const prev = form.data.respostas || {};
@@ -148,9 +203,17 @@ export default function DesafioModal({ atribuicao, inscricao, onClose }) {
         form.clearErrors();
         router.post(
             route("aluno.desafios.submeter", atribuicao.id),
-            { respostas: buildPayload(), finalizar: true, tab_switches: tabSwitches },
+            {
+                respostas: buildPayload(),
+                finalizar: true,
+                tab_switches: tabSwitches,
+                return_view: returnView || "dashboard",
+            },
             {
                 onError: (erros) => form.setError(erros),
+                onSuccess: () => {
+                    if (storageKey) sessionStorage.removeItem(storageKey);
+                },
             },
         );
     };
@@ -187,8 +250,8 @@ export default function DesafioModal({ atribuicao, inscricao, onClose }) {
                 </div>
             )}
 
-            {/* Backdrop */}
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            {/* Backdrop — sem onClick para evitar fechar acidentalmente */}
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
 
             {/* Painel */}
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
@@ -206,12 +269,22 @@ export default function DesafioModal({ atribuicao, inscricao, onClose }) {
                                 {desafio?.titulo || "Desafio"}
                             </h2>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="flex-shrink-0 ml-4 w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-sm"
-                        >
-                            ✕
-                        </button>
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                            {tempoRestante !== null && (
+                                <div className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 tabular-nums text-sm font-bold ${bgTimer}`}>
+                                    <span>⏱</span>
+                                    <span className={corTimer}>
+                                        {formatarTimer(tempoRestante)}
+                                    </span>
+                                </div>
+                            )}
+                            <button
+                                onClick={onClose}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-sm"
+                            >
+                                ✕
+                            </button>
+                        </div>
                     </div>
 
                     {/* Aviso de trocas de aba */}
@@ -260,6 +333,12 @@ export default function DesafioModal({ atribuicao, inscricao, onClose }) {
                         {bloqueadoPorData && (
                             <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
                                 Este desafio está fora da janela de resolução.
+                            </div>
+                        )}
+
+                        {tempoEsgotado && (
+                            <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-bold text-red-700 dark:text-red-300">
+                                ⏰ O tempo limite foi atingido. Já não é possível submeter.
                             </div>
                         )}
 

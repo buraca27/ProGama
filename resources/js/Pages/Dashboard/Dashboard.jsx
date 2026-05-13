@@ -253,6 +253,7 @@ export default function Dashboard(props) {
                     atribuicao={desafioModalAtribuicao}
                     inscricao={desafioModalInscricao}
                     onClose={handleCloseDesafioModal}
+                    returnView={activeView}
                 />
             )}
 

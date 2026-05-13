@@ -250,7 +250,13 @@ class AlunoDesafioController extends Controller
                 }
             }
 
-            return redirect()->route('dashboard')
+            $allowedViews = ['dashboard', 'notificacoes', 'desafios', 'trabalhos', 'boletim', 'disciplinas', 'leaderboard'];
+            $returnView = $request->filled('return_view') && in_array($request->input('return_view'), $allowedViews, true)
+                ? $request->input('return_view')
+                : null;
+            $redirectParams = ($returnView && $returnView !== 'dashboard') ? ['view' => $returnView] : [];
+
+            return redirect()->route('dashboard', $redirectParams)
                 ->with('success', 'Desafio submetido com sucesso.');
         }
 

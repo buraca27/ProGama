@@ -170,7 +170,9 @@ export default function AuthenticatedLayout({
                 if (tipo === "Submissao_Aluno" && idSubmissao) {
                     router.visit(route("dashboard", { view: "avaliacoes", submissao_id: idSubmissao }));
                 } else if (idDesafio) {
-                    router.visit(route("dashboard", { desafio_modal_id: idDesafio }));
+                    const params = { desafio_modal_id: idDesafio };
+                    if (activeView && activeView !== "dashboard") params.view = activeView;
+                    router.visit(route("dashboard", params));
                 }
             },
         });

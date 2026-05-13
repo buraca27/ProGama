@@ -66,7 +66,7 @@ export default function NotificacoesView({ notificacoesData }) {
                 if (tipo === "Submissao_Aluno" && idSubmissao) {
                     router.visit(route("dashboard", { view: "avaliacoes", submissao_id: idSubmissao }));
                 } else if (idDesafio) {
-                    router.visit(route("dashboard", { desafio_modal_id: idDesafio }));
+                    router.visit(route("dashboard", { view: "notificacoes", desafio_modal_id: idDesafio }));
                 }
             },
         });
