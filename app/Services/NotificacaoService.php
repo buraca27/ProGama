@@ -6,9 +6,12 @@ use App\Models\Notificacao;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class NotificacaoService
 {
+    private ?bool $hasIdUsuarioRelacionado = null;
+
     public function criarParaUtilizador(
         int $idUtilizador,
         string $tipo,
@@ -16,14 +19,19 @@ class NotificacaoService
         ?int $idDesafioRelacionado = null,
         ?int $idUsuarioRelacionado = null
     ): Notificacao {
-        return Notificacao::create([
+        $payload = [
             'id_utilizador' => $idUtilizador,
             'tipo_notificacao' => $tipo,
             'mensagem' => mb_substr($mensagem, 0, 255),
             'id_desafio_relacionado' => $idDesafioRelacionado,
-            'id_usuario_relacionado' => $idUsuarioRelacionado,
             'lida' => false,
-        ]);
+        ];
+
+        if ($this->supportsIdUsuarioRelacionado()) {
+            $payload['id_usuario_relacionado'] = $idUsuarioRelacionado;
+        }
+
+        return Notificacao::create($payload);
     }
 
     public function criarParaUtilizadores(
@@ -44,13 +52,29 @@ class NotificacaoService
             'tipo_notificacao' => $tipo,
             'mensagem' => mb_substr($mensagem, 0, 255),
             'id_desafio_relacionado' => $idDesafioRelacionado,
-            'id_usuario_relacionado' => $idUsuarioRelacionado,
             'lida' => false,
             'created_at' => $agora,
             'updated_at' => $agora,
-        ])->all();
+        ])->map(function (array $row) use ($idUsuarioRelacionado) {
+            if ($this->supportsIdUsuarioRelacionado()) {
+                $row['id_usuario_relacionado'] = $idUsuarioRelacionado;
+            }
+
+            return $row;
+        })->all();
 
         DB::table('Notificacoes')->insert($rows);
+    }
+
+    private function supportsIdUsuarioRelacionado(): bool
+    {
+        if ($this->hasIdUsuarioRelacionado !== null) {
+            return $this->hasIdUsuarioRelacionado;
+        }
+
+        $this->hasIdUsuarioRelacionado = Schema::hasColumn('Notificacoes', 'id_usuario_relacionado');
+
+        return $this->hasIdUsuarioRelacionado;
     }
 
     public function notificarNovoDesafioTurma(
@@ -182,7 +206,7 @@ class NotificacaoService
             }
 
             $mensagem = 'Prazo próximo: "' . $desafio->titulo . '" termina ' . now()->diffForHumans($desafio->data_fim, true) . '.';
-            
+
             $this->criarParaUtilizador(
                 (int) $aluno->id,
                 'Prazo_Proximo',

@@ -19,6 +19,7 @@ import CategoriasView from "./Components/Categorias/CategoriasView";
 import TestesView from "./Components/Professores/TestesView";
 import TarefasView from "./Components/Professores/TarefasView";
 import AvaliacoesView from "./Components/Professores/AvaliacoesView";
+import BoletimView from "./Components/Professores/BoletimView";
 import DesafiosView from "./Components/Alunos/DesafiosView";
 import LeaderboardView from "./Components/Gamificacao/LeaderboardView";
 import NotificacoesView from "./Components/Notificacoes/NotificacoesView";
@@ -47,6 +48,7 @@ export default function Dashboard(props) {
         submissoesAluno = [],
         desafiosAluno = [],
         inscricoesDesafiosAluno = [],
+        notasAluno = [],
         correcoesProfessor = null,
         trabalhosPendentes = 0,
         badgesProfessor = [],
@@ -227,7 +229,7 @@ export default function Dashboard(props) {
                     />
                 )}
                 {activeView === "boletim" && (
-                    <PlaceholderView title="Boletim de Notas" icon="🎓" />
+                    <BoletimView notasAluno={notasAluno} />
                 )}
 
                 {activeView === "leaderboard" && (

@@ -89,7 +89,10 @@ export default function DesafioModal({ atribuicao, inscricao, onClose }) {
     const abriu = desafio?.data_inicio ? new Date(desafio.data_inicio) : null;
     const fechou = desafio?.data_fim ? new Date(desafio.data_fim) : null;
     const bloqueadoPorData = (abriu && now < abriu) || (fechou && now > fechou);
-    const podeInteragir = !!atribuicao && perguntas.length > 0 && !bloqueadoPorData;
+    const desafioFechado = Boolean(
+        inscricao && ["Avaliado", "Concluido"].includes(inscricao.estado),
+    );
+    const podeInteragir = !!atribuicao && perguntas.length > 0 && !bloqueadoPorData && !desafioFechado;
 
     const onSelectOption = (idPergunta, idOpcao) => {
         const prev = form.data.respostas || {};
@@ -251,6 +254,12 @@ export default function DesafioModal({ atribuicao, inscricao, onClose }) {
                         {bloqueadoPorData && (
                             <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
                                 Este desafio está fora da janela de resolução.
+                            </div>
+                        )}
+
+                        {desafioFechado && (
+                            <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                                Este desafio já foi corrigido e fechado pelo professor. Não podes submeter novamente.
                             </div>
                         )}
 

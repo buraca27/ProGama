@@ -28,6 +28,7 @@ class DashboardController extends Controller
         $submissoesAluno = [];
         $desafiosAluno = [];
         $inscricoesDesafiosAluno = [];
+        $notasAluno = [];
 
         // 1. Estatísticas Gerais
         $estatisticas = [
@@ -142,6 +143,31 @@ class DashboardController extends Controller
 
             $desafiosAluno = $tarefasAluno;
             $inscricoesDesafiosAluno = $submissoesAluno;
+
+            $notasAluno = SubmissaoDesafioAluno::with(['desafio.disciplina'])
+                ->where('id_aluno', (int) $user->id)
+                ->whereIn('estado', [SubmissaoDesafioAluno::AVALIADO, SubmissaoDesafioAluno::CONCLUIDO])
+                ->whereNotNull('nota')
+                ->orderByDesc('data_submissao')
+                ->orderByDesc('updated_at')
+                ->get()
+                ->map(function (SubmissaoDesafioAluno $submissao) {
+                    return [
+                        'id' => (int) $submissao->id,
+                        'valor' => (float) ($submissao->nota ?? 0),
+                        'created_at' => $submissao->data_submissao ?? $submissao->updated_at,
+                        'teste' => [
+                            'titulo' => (string) ($submissao->desafio?->titulo ?? 'Desafio'),
+                            'peso_avaliacao' => (float) ($submissao->desafio?->peso_nota ?? 0),
+                            'tipo_desafio' => (string) ($submissao->desafio?->tipo_desafio ?? 'Tarefa'),
+                            'disciplina' => [
+                                'nome' => (string) ($submissao->desafio?->disciplina?->nome ?? 'Geral'),
+                            ],
+                        ],
+                    ];
+                })
+                ->values()
+                ->all();
         }
 
         $perguntasProfessor = [];
@@ -336,6 +362,7 @@ class DashboardController extends Controller
             'submissoesAluno' => $submissoesAluno,
             'desafiosAluno' => $desafiosAluno,
             'inscricoesDesafiosAluno' => $inscricoesDesafiosAluno,
+            'notasAluno' => $notasAluno,
 
             // Variáveis específicas do Professor
             'perguntasProfessor' => $perguntasProfessor,
