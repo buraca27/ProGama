@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\UserXp;
 use App\Services\GamificationService;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class GamificationController extends Controller
@@ -21,7 +22,7 @@ class GamificationController extends Controller
      */
     public function perfilPublico(User $usuario)
     {
-        $authUser = auth()->user();
+        $authUser = Auth::user();
         $userXp = $usuario->userXp ?? UserXp::where('id_usuario', $usuario->id)->first();
         $nivel = $usuario->getNivelAtual();
         $badges = $usuario->badges()->with('historicos')->paginate(12);
@@ -40,6 +41,8 @@ class GamificationController extends Controller
                 'is_self' => $authUser && $authUser->id === $usuario->id,
                 'is_following' => $authUser ? $authUser->isSeguindo($usuario->id) : false,
                 'is_connected' => $authUser ? $authUser->isConectadoCom($usuario->id) : false,
+                'request_sent' => $authUser ? $authUser->hasSolicitacaoPendentePara($usuario->id) : false,
+                'request_received' => $authUser ? $authUser->hasSolicitacaoPendenteDe($usuario->id) : false,
             ],
         ]);
     }

@@ -42,7 +42,20 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $user,
+                'user' => $user
+                    ? array_merge($user->toArray(), [
+                        'xp_total' => $user->getXpTotal(),
+                        'nivel_atual' => $user->getNivelAtual(),
+                        'percentagem_nivel' => $user->getPercentagemNivel(),
+                        'xp_proximo_nivel' => $user->getXpProximoNivel(),
+                        'badges_count' => $user->getContagemBadges(),
+                        'seguidores_count' => $user->seguidores()->count(),
+                        'seguindo_count' => $user->seguindo()->count(),
+                        'conexoes_count' => $user->seguindo()
+                            ->whereIn('users.id', $user->seguidores()->pluck('users.id'))
+                            ->count(),
+                    ])
+                    : null,
             ],
             'userRoleReal' => $userRoleReal,
             'flash' => [
