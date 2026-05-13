@@ -29,6 +29,7 @@ class Desafio extends Model
         'peso_nota',
         'nota_minima_passagem',
         'url_anexo_global',
+        'anexos_professor_json',
         'exige_submissao',
         'cooldown_minutos',
         'tipo_recorrencia',
@@ -49,6 +50,7 @@ class Desafio extends Model
         'pontuacao_automatica' => 'boolean',
         'auto_award_xp' => 'boolean',
         'badges_json' => 'array',
+        'anexos_professor_json' => 'array',
     ];
 
     // ==========================================
@@ -157,7 +159,19 @@ class Desafio extends Model
      */
     public function getBadgeIds(): array
     {
-        return $this->badges_json ?? [];
+        return collect($this->badges_json ?? [])
+            ->map(function ($badge) {
+                if (is_array($badge)) {
+                    return $badge['id'] ?? null;
+                }
+
+                return $badge;
+            })
+            ->filter(fn($id) => is_numeric($id))
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -171,7 +185,11 @@ class Desafio extends Model
             ->where('nota_maxima', '>=', $nota)
             ->first();
 
-        return $regra ? $regra->xp_atribuido : 0;
+        if ($regra) {
+            return (int) $regra->xp_atribuido;
+        }
+
+        return (int) ($this->xp_base ?? 0);
     }
 
     /**

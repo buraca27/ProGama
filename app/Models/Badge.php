@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Models;
 
@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 class Badge extends Model
 {
     protected $table = 'Badges';
-    
+
     protected $fillable = [
         'nome',
         'descricao',

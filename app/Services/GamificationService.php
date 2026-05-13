@@ -104,12 +104,13 @@ class GamificationService
     {
         $desafio = $submissao->desafio;
 
-        if (!$desafio->badges_json || !is_array($desafio->badges_json)) {
+        $badgeIds = $desafio->getBadgeIds();
+
+        if (empty($badgeIds)) {
             return;
         }
 
         $usuario = $submissao->aluno;
-        $badgeIds = $desafio->badges_json;
 
         foreach ($badgeIds as $badgeId) {
             $badge = Badge::find($badgeId);

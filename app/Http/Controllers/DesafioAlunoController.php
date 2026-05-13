@@ -135,6 +135,17 @@ class DesafioAlunoController extends Controller
             'atribuicao' => $atribuicao,
             'tentativas_restantes' => $atribuicao->tentativasRestantes(),
             'submissao_recente' => $submissaoRecente,
+            'anexos_professor' => collect($desafio->anexos_professor_json ?? [])
+                ->filter(fn($anexo) => is_array($anexo) && !empty($anexo['caminho']))
+                ->map(fn($anexo) => [
+                    'nome' => $anexo['nome'] ?? basename((string) $anexo['caminho']),
+                    'url' => \Illuminate\Support\Facades\Storage::disk('public')->url((string) $anexo['caminho']),
+                ])
+                ->values()
+                ->all(),
+            'anexo_global_url' => $desafio->url_anexo_global
+                ? \Illuminate\Support\Facades\Storage::disk('public')->url($desafio->url_anexo_global)
+                : null,
         ]);
     }
 
@@ -301,8 +312,10 @@ class DesafioAlunoController extends Controller
     {
         $usuario = $request->user();
 
-        $request->validate([
-            'ficheiro' => 'required|file|max:10240', // 10MB
+        $validated = $request->validate([
+            'ficheiro' => 'nullable|required_without:link_submissao|file|max:10240',
+            'link_submissao' => 'nullable|required_without:ficheiro|url|max:2048',
+            'mensagem_submissao' => 'nullable|string|max:5000',
         ]);
 
         $atribuicao = $desafio->atribuicoes()
@@ -315,8 +328,16 @@ class DesafioAlunoController extends Controller
                 : back()->with('error', 'Nao pode submeter.');
         }
 
-        // Guardar ficheiro
-        $caminhoFicheiro = $request->file('ficheiro')->store('submissoes', 'public');
+        $caminhoFicheiro = null;
+        if (!empty($validated['ficheiro'])) {
+            $caminhoFicheiro = $validated['ficheiro']->store('submissoes', 'public');
+        }
+
+        $metadata = [
+            'ficheiro' => $caminhoFicheiro,
+            'link_submissao' => $validated['link_submissao'] ?? null,
+            'mensagem_submissao' => $validated['mensagem_submissao'] ?? null,
+        ];
 
         // Criar submissão
         $submissao = SubmissaoDesafioAluno::create([
@@ -326,12 +347,13 @@ class DesafioAlunoController extends Controller
             'estado' => SubmissaoDesafioAluno::SUBMETIDO,
             'numero_tentativa' => $atribuicao->submissoes()->count() + 1,
             'data_submissao' => now(),
+            'metadata' => $metadata,
         ]);
 
-        // Gravar ficheiro na resposta (compat. com modelo antigo)
+        // Gravar submissão em formato compatível na resposta.
         RespostaDesafioAluno::create([
             'id_submissao' => $submissao->id,
-            'resposta_texto' => $caminhoFicheiro,
+            'resposta_texto' => json_encode($metadata, JSON_UNESCAPED_SLASHES),
         ]);
 
         $payload = [

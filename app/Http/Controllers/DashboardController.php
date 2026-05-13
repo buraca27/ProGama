@@ -7,13 +7,13 @@ use App\Models\Disciplina;
 use App\Models\Desafio;
 use App\Models\Categoria;
 use App\Models\AtribuicaoDesafio;
+use App\Models\Badge;
 use App\Models\SubmissaoDesafioAluno;
 use App\Models\User;
 use App\Models\Pergunta;
 use App\Services\GamificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -43,19 +43,13 @@ class DashboardController extends Controller
         // 3. Definição das variáveis que estavam em falta (sublinhadas a vermelho)
         $turmas = match ($user->id_role) {
             1 => Turma::with(['professores', 'alunos'])->get(),
-            2 => User::find($user->id, ['*'])
-                ->turmasLecionadas()
-                ->with(['alunos'])
-                ->get()
-                ->map(function ($turma) {
-                    $professoresDaTurma = User::where('id_role', 2)
-                        ->whereHas('turmasLecionadas', fn($query) => $query->where('Turmas.id', (int) $turma->id))
-                        ->get();
-
-                    $turma->setRelation('professores', $professoresDaTurma);
-
-                    return $turma;
-                }),
+            2 => Turma::where(function ($query) use ($user) {
+                $query->whereHas('professores', fn($q) => $q->where('users.id', (int) $user->id))
+                    ->orWhereHas('disciplinas.professores', fn($q) => $q->where('users.id', (int) $user->id));
+            })
+                ->with(['alunos', 'professores'])
+                ->orderBy('nome')
+                ->get(),
             3 => $user->id_turma ? Turma::where('id', '=', $user->id_turma, 'and')->with(['professores', 'alunos'])->get() : [],
             default => [],
         };
@@ -128,6 +122,7 @@ class DashboardController extends Controller
         $perguntasProfessor = [];
         $perguntasBancoProfessor = null;
         $trabalhosPendentes = 0;
+        $badgesProfessor = [];
 
         if ($cargoReal === 'professor') {
             $mostrarApenasMinhasPerguntas = (string) $request->query('perguntas_minhas', '1') !== '0';
@@ -222,6 +217,18 @@ class DashboardController extends Controller
             $trabalhosPendentes = SubmissaoDesafioAluno::whereHas('desafio', fn($query) => $query->where('id_formador', $user->id))
                 ->where('estado', '=', 'Submetido', 'and')
                 ->count();
+
+            $badgesProfessor = Badge::query()
+                ->where('ativa', true)
+                ->orderBy('nome')
+                ->get()
+                ->map(fn(Badge $badge) => [
+                    'id' => (int) $badge->id,
+                    'nome' => (string) $badge->nome,
+                    'descricao' => (string) ($badge->descricao ?? ''),
+                    'imagem_url' => $badge->imagem_url ?? $badge->icone_url ?? null,
+                ])
+                ->values();
         }
 
         $initialView = (string) $request->query('view', 'dashboard');
@@ -331,6 +338,11 @@ class DashboardController extends Controller
                             'instrucoes' => (string) ($desafio->descricao ?? ''),
                             'peso_avaliacao' => (float) ($desafio->peso_nota ?? 0),
                             'duracao_minutos' => $desafio->duracao_minutos,
+                            'xp_base' => (int) ($desafio->xp_base ?? 50),
+                            'auto_award_xp' => (bool) ($desafio->auto_award_xp ?? true),
+                            'badges_json' => $desafio->badges_json,
+                            'url_anexo_global' => $desafio->url_anexo_global,
+                            'anexos_professor_json' => $desafio->anexos_professor_json,
                             'perguntas' => $perguntas,
                             'desafio_associado' => [
                                 'tipo_desafio' => $desafio->tipo_desafio ?? 'Quiz',
@@ -361,6 +373,7 @@ class DashboardController extends Controller
                     : [],
             'correcoesProfessor' => $correcoesProfessor,
             'trabalhosPendentes' => $trabalhosPendentes,
+            'badgesProfessor' => $badgesProfessor,
             'podio' => $podio,
             'ranking_xp' => $rankingXp,
             'ranking_nivel' => $rankingNivel,
