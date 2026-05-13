@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Notificacao extends Model
@@ -14,6 +15,7 @@ class Notificacao extends Model
         'tipo_notificacao',
         'mensagem',
         'id_desafio_relacionado',
+        'id_usuario_relacionado',
         'lida',
     ];
 
@@ -26,6 +28,11 @@ class Notificacao extends Model
     public function utilizador(): BelongsTo
     {
         return $this->belongsTo(User::class, 'id_utilizador');
+    }
+
+    public function usuarioRelacionado(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'id_usuario_relacionado');
     }
 
     public function scopeNaoLidas($query)

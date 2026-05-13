@@ -3,7 +3,6 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -80,7 +79,7 @@ class User extends Authenticatable
      */
     public function badges()
     {
-        return $this->belongsToMany(Badge::class, 'Inventario_Badges', 'id_usuario', 'id_badge')
+        return $this->belongsToMany(Badge::class, 'Inventario_Badges', 'id_utilizador', 'id_badge')
             ->withPivot('id_desafio_origem', 'data_aquisicao')
             ->withTimestamps();
     }
@@ -189,6 +188,16 @@ class User extends Authenticatable
         )->withTimestamps();
     }
 
+    public function solicitacoesEnviadas()
+    {
+        return $this->hasMany(SolicitacaoConexao::class, 'id_solicitante');
+    }
+
+    public function solicitacoesRecebidas()
+    {
+        return $this->hasMany(SolicitacaoConexao::class, 'id_destinatario');
+    }
+
     public function isSeguindo(int $idOutroUsuario): bool
     {
         return $this->seguindo()->where('users.id', $idOutroUsuario)->exists();
@@ -198,5 +207,21 @@ class User extends Authenticatable
     {
         return $this->isSeguindo($idOutroUsuario)
             && $this->seguidores()->where('users.id', $idOutroUsuario)->exists();
+    }
+
+    public function hasSolicitacaoPendentePara(int $idOutroUsuario): bool
+    {
+        return $this->solicitacoesEnviadas()
+            ->where('id_destinatario', $idOutroUsuario)
+            ->where('estado', 'pendente')
+            ->exists();
+    }
+
+    public function hasSolicitacaoPendenteDe(int $idOutroUsuario): bool
+    {
+        return $this->solicitacoesRecebidas()
+            ->where('id_solicitante', $idOutroUsuario)
+            ->where('estado', 'pendente')
+            ->exists();
     }
 }

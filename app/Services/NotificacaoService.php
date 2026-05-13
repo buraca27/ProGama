@@ -13,13 +13,15 @@ class NotificacaoService
         int $idUtilizador,
         string $tipo,
         string $mensagem,
-        ?int $idDesafioRelacionado = null
+        ?int $idDesafioRelacionado = null,
+        ?int $idUsuarioRelacionado = null
     ): Notificacao {
         return Notificacao::create([
             'id_utilizador' => $idUtilizador,
             'tipo_notificacao' => $tipo,
             'mensagem' => mb_substr($mensagem, 0, 255),
             'id_desafio_relacionado' => $idDesafioRelacionado,
+            'id_usuario_relacionado' => $idUsuarioRelacionado,
             'lida' => false,
         ]);
     }
@@ -28,7 +30,8 @@ class NotificacaoService
         array $idsUtilizadores,
         string $tipo,
         string $mensagem,
-        ?int $idDesafioRelacionado = null
+        ?int $idDesafioRelacionado = null,
+        ?int $idUsuarioRelacionado = null
     ): void {
         $ids = collect($idsUtilizadores)->map(fn($id) => (int) $id)->unique()->values();
         if ($ids->isEmpty()) {
@@ -41,6 +44,7 @@ class NotificacaoService
             'tipo_notificacao' => $tipo,
             'mensagem' => mb_substr($mensagem, 0, 255),
             'id_desafio_relacionado' => $idDesafioRelacionado,
+            'id_usuario_relacionado' => $idUsuarioRelacionado,
             'lida' => false,
             'created_at' => $agora,
             'updated_at' => $agora,
