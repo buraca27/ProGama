@@ -65,8 +65,8 @@ class AtribuicaoDesafio extends Model
      */
     public function inscricoes()
     {
-        return InscricaoDesafio::where('id_desafio', '=', $this->id_desafio, 'and')
-            ->whereIn('estado', ['Submetido', 'Concluido', 'Falhado']);
+        return SubmissaoDesafioAluno::where('id_desafio', '=', $this->id_desafio, 'and')
+            ->whereIn('estado', ['Submetido', 'Concluido', 'Falhado', 'Avaliado']);
     }
 
     /**
@@ -87,9 +87,9 @@ class AtribuicaoDesafio extends Model
             return 999; // Número grande para representar ilimitado
         }
 
-        $tentativasFeitas = InscricaoDesafio::where('id_desafio', '=', $this->id_desafio, 'and')
-            ->where('id_formando', '=', $idAluno, 'and')
-            ->whereIn('estado', ['Submetido', 'Concluido', 'Falhado'])
+        $tentativasFeitas = SubmissaoDesafioAluno::where('id_desafio', '=', $this->id_desafio, 'and')
+            ->where('id_aluno', '=', $idAluno, 'and')
+            ->whereIn('estado', ['Submetido', 'Concluido', 'Falhado', 'Avaliado'])
             ->count();
 
         return max(0, $this->tentativas_maximas - $tentativasFeitas);

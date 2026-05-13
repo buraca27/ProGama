@@ -8,7 +8,7 @@ use App\Models\Desafio;
 use App\Models\Categoria;
 use App\Models\AtribuicaoDesafio;
 use App\Models\Badge;
-use App\Models\InscricaoDesafio;
+use App\Models\SubmissaoDesafioAluno;
 use App\Models\User;
 use App\Models\Notificacao;
 use App\Models\Pergunta;
@@ -107,13 +107,37 @@ class DashboardController extends Controller
                 ->values();
 
             if ($idsDesafiosAtribuidos->isNotEmpty()) {
-                $submissoesAluno = InscricaoDesafio::with([
-                    'respostas:id,id_inscricao_desafio,id_pergunta,ids_opcoes_escolhidas,resposta_texto,status_correcao,pontuacao_obtida',
-                ])
-                    ->where('id_formando', (int) $user->id)
+                $submissoesAluno = SubmissaoDesafioAluno::with(['respostas'])
+                    ->where('id_aluno', (int) $user->id)
                     ->whereIn('id_desafio', $idsDesafiosAtribuidos->all())
                     ->orderByDesc('created_at')
-                    ->get();
+                    ->get()
+                    ->map(function (SubmissaoDesafioAluno $submissao) {
+                        return [
+                            'id' => (int) $submissao->id,
+                            'id_desafio' => (int) $submissao->id_desafio,
+                            'estado' => (string) $submissao->estado,
+                            'data_ultima_tentativa' => $submissao->data_submissao ?? $submissao->updated_at,
+                            'respostas' => collect($submissao->respostas ?? [])->map(function ($resposta) {
+                                $idsOpcoes = is_array($resposta->ids_opcoes_escolhidas ?? null)
+                                    ? $resposta->ids_opcoes_escolhidas
+                                    : [];
+
+                                return [
+                                    'id' => (int) $resposta->id,
+                                    'id_pergunta' => (int) ($resposta->id_pergunta ?? 0),
+                                    'id_opcao_escolhida' => $resposta->id_opcao_escolhida
+                                        ?? ($idsOpcoes[0] ?? null),
+                                    'ids_opcoes_escolhidas' => $idsOpcoes,
+                                    'resposta_texto' => $resposta->resposta_texto,
+                                    'status_correcao' => $resposta->status_correcao ?? 'Por_Avaliar',
+                                    'pontuacao_obtida' => (int) ($resposta->pontuacao_obtida ?? 0),
+                                ];
+                            })->values()->all(),
+                        ];
+                    })
+                    ->values()
+                    ->all();
             }
 
             $desafiosAluno = $tarefasAluno;
@@ -155,7 +179,7 @@ class DashboardController extends Controller
                 ->paginate(8, ['*'], 'perguntas_page')
                 ->withQueryString();
 
-            $correcoesProfessor = InscricaoDesafio::with([
+            $correcoesProfessor = SubmissaoDesafioAluno::with([
                 'aluno:id,name,email',
                 'desafio:id,titulo,id_formador',
                 'desafio.perguntas:id',
@@ -167,7 +191,7 @@ class DashboardController extends Controller
                 ->orderByDesc('created_at')
                 ->paginate(10, ['*'], 'correcoes_page')
                 ->withQueryString()
-                ->through(function (InscricaoDesafio $inscricao) use ($user) {
+                ->through(function (SubmissaoDesafioAluno $inscricao) use ($user) {
                     $perguntas = \collect($inscricao->desafio?->perguntas ?? [])->map(function ($pergunta) {
                         return [
                             'id' => (int) $pergunta->id,
@@ -213,7 +237,7 @@ class DashboardController extends Controller
                     ];
                 });
 
-            $trabalhosPendentes = InscricaoDesafio::whereHas('desafio', fn($query) => $query->where('id_formador', $user->id))
+            $trabalhosPendentes = SubmissaoDesafioAluno::whereHas('desafio', fn($query) => $query->where('id_formador', $user->id))
                 ->where('estado', '=', 'Submetido')
                 ->count();
 

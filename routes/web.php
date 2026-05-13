@@ -40,6 +40,11 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     });
 
     Route::prefix('dashboard/aluno')->name('aluno.')->group(function () {
+        Route::get('/desafios/{idAtribuicao}/submeter', function () {
+            return redirect()->route('dashboard', [
+                'view' => 'desafios',
+            ]);
+        });
         Route::post('/desafios/{idAtribuicao}/submeter', [AlunoDesafioController::class, 'submeter'])->name('desafios.submeter');
     });
 

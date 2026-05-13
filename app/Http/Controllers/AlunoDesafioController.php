@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Desafio;
 use App\Models\AtribuicaoDesafio;
-use App\Models\InscricaoDesafio;
+use App\Models\SubmissaoDesafioAluno;
 use App\Models\RespostaDesafioAluno;
 use App\Services\NotificacaoService;
 use Illuminate\Database\Eloquent\Collection;
@@ -125,21 +125,23 @@ class AlunoDesafioController extends Controller
             }
         }
 
-        DB::transaction(function () use ($aluno, $desafio, $validated, $finalizar, $perguntasDesafio, $tabSwitches) {
-            $inscricao = InscricaoDesafio::where('id_desafio', (int) $desafio->id)
-                ->where('id_formando', (int) $aluno->id)
+        DB::transaction(function () use ($aluno, $desafio, $atribuicao, $validated, $finalizar, $perguntasDesafio, $tabSwitches) {
+            $inscricao = SubmissaoDesafioAluno::where('id_desafio', (int) $desafio->id)
+                ->where('id_aluno', (int) $aluno->id)
                 ->latest('id')
                 ->first();
 
-            if ($inscricao && in_array($inscricao->estado, ['Submetido', 'Concluido', 'Falhado'], true)) {
+            if ($inscricao && in_array($inscricao->estado, ['Submetido', 'Concluido', 'Falhado', 'Avaliado'], true)) {
                 $inscricao = null;
             }
 
             if (!$inscricao) {
-                $inscricao = InscricaoDesafio::create([
+                $inscricao = SubmissaoDesafioAluno::create([
                     'id_desafio' => (int) $desafio->id,
-                    'id_formando' => (int) $aluno->id,
+                    'id_aluno' => (int) $aluno->id,
+                    'id_atribuicao' => (int) $atribuicao->id,
                     'estado' => 'Em_Resolucao',
+                    'numero_tentativa' => max(1, ((int) ($atribuicao->tentativas_maximas ?? 1)) - max(0, $atribuicao->tentativasRestantes((int) $aluno->id)) + 1),
                     'data_inicio_resolucao' => now(),
                 ]);
             }
@@ -150,7 +152,7 @@ class AlunoDesafioController extends Controller
                 if (now()->gt($limiteDuracao)) {
                     $inscricao->update([
                         'estado' => 'Falhado',
-                        'data_ultima_tentativa' => now(),
+                        'data_submissao' => now(),
                     ]);
 
                     throw ValidationException::withMessages([
@@ -221,8 +223,10 @@ class AlunoDesafioController extends Controller
             if ($finalizar) {
                 $inscricao->update([
                     'estado' => 'Submetido',
-                    'data_ultima_tentativa' => now(),
-                    'tab_switches' => $tabSwitches,
+                    'data_submissao' => now(),
+                    'metadata' => [
+                        'tab_switches' => $tabSwitches,
+                    ],
                 ]);
             } else {
                 $inscricao->update([
