@@ -418,6 +418,7 @@ class DashboardController extends Controller
                         'data_hora_abertura' => $atribuicao->data_inicio_tentativas,
                         'data_hora_fecho' => $atribuicao->data_fim_tentativas,
                         'tentativas_maximas' => $atribuicao->tentativas_maximas,
+                        'sem_consulta' => (bool) ($atribuicao->sem_consulta ?? false),
                         'created_at' => $atribuicao->created_at,
                         'turma' => $atribuicao->turma,
                         'teste' => [

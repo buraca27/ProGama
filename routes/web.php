@@ -111,7 +111,6 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::delete('/{id}', [CategoriaController::class, 'destroy'])->name('destroy');
         });
     });
-
     // --- 4. PERFIL DO UTILIZADOR ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
