@@ -218,6 +218,7 @@ export default function Dashboard(props) {
                     <DesafiosView
                         desafiosAluno={desafiosAluno}
                         inscricoesDesafiosAluno={inscricoesDesafiosAluno}
+                        onOpenDesafioModal={(idDesafio) => setDesafioModalId(idDesafio)}
                     />
                 )}
 
@@ -225,6 +226,7 @@ export default function Dashboard(props) {
                     <DesafiosView
                         desafiosAluno={desafiosAluno}
                         inscricoesDesafiosAluno={inscricoesDesafiosAluno}
+                        onOpenDesafioModal={(idDesafio) => setDesafioModalId(idDesafio)}
                     />
                 )}
 

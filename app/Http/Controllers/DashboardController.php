@@ -135,6 +135,9 @@ class DashboardController extends Controller
                                     'pontuacao_obtida' => (int) ($resposta->pontuacao_obtida ?? 0),
                                 ];
                             })->values()->all(),
+                            'metadata' => is_array($submissao->metadata ?? null) ? $submissao->metadata : [],
+                            'data_inicio_resolucao' => $submissao->data_inicio_resolucao,
+                            'nota' => $submissao->nota,
                         ];
                     })
                     ->values()
@@ -207,7 +210,7 @@ class DashboardController extends Controller
 
             $correcoesProfessor = SubmissaoDesafioAluno::with([
                 'aluno:id,name,email',
-                'desafio:id,titulo,id_formador',
+                'desafio:id,titulo,id_formador,tipo_desafio',
                 'desafio.perguntas:id',
                 'respostas.pergunta:id,texto,tipo_pergunta',
                 'respostas.pergunta.opcoes:id,id_pergunta,texto_opcao,is_correct',
@@ -246,7 +249,8 @@ class DashboardController extends Controller
                         'estado' => $inscricao->estado === 'Concluido'
                             ? 'Corrigido'
                             : ($inscricao->estado === 'Submetido' ? 'Aguardando_Correcao' : $inscricao->estado),
-                        'nota_final' => null,
+                        'nota_final' => $inscricao->nota,
+                        'feedback_professor' => $inscricao->feedback_professor,
                         'corrigido_em' => $inscricao->updated_at,
                         'publicado_em' => $inscricao->estado === 'Concluido' ? $inscricao->updated_at : null,
                         'corrigido_por' => [
@@ -257,8 +261,10 @@ class DashboardController extends Controller
                         'teste' => [
                             'id' => (int) ($inscricao->desafio?->id ?? 0),
                             'titulo' => (string) ($inscricao->desafio?->titulo ?? 'Desafio'),
+                            'tipo_desafio' => (string) ($inscricao->desafio?->tipo_desafio ?? 'Quiz'),
                             'perguntas' => $perguntas,
                         ],
+                        'metadata' => is_array($inscricao->metadata ?? null) ? $inscricao->metadata : [],
                         'respostas' => $respostas,
                     ];
                 });
@@ -399,10 +405,23 @@ class DashboardController extends Controller
                             'auto_award_xp' => (bool) ($desafio->auto_award_xp ?? true),
                             'badges_json' => $desafio->badges_json,
                             'url_anexo_global' => $desafio->url_anexo_global,
+                            'descricao_ficheiro' => $desafio->descricao_ficheiro,
                             'anexos_professor_json' => $desafio->anexos_professor_json,
                             'perguntas' => $perguntas,
                             'desafio_associado' => [
-                                'tipo_desafio' => $desafio->tipo_desafio ?? 'Quiz',
+                                'tipo_desafio' => (function () use ($desafio) {
+                                    $tipo = (string) ($desafio->tipo_desafio ?? 'Quiz');
+
+                                    if (in_array($tipo, ['Quiz', 'Tarefa'], true)) {
+                                        return $tipo;
+                                    }
+
+                                    if ($tipo === 'Opcional') {
+                                        return 'Tarefa';
+                                    }
+
+                                    return 'Quiz';
+                                })(),
                             ],
                         ];
                     })->values();

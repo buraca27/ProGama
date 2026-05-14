@@ -8,9 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('Desafio', function (Blueprint $table) {
-            if (!Schema::hasColumn('Desafio', 'anexos_professor_json')) {
-                $table->json('anexos_professor_json')->nullable()->after('url_anexo_global');
+        if (Schema::hasColumn('Desafio', 'anexos_professor_json')) {
+            return;
+        }
+
+        $afterColumn = Schema::hasColumn('Desafio', 'url_anexo_global')
+            ? 'url_anexo_global'
+            : (Schema::hasColumn('Desafio', 'descricao_ficheiro') ? 'descricao_ficheiro' : null);
+
+        Schema::table('Desafio', function (Blueprint $table) use ($afterColumn) {
+            $column = $table->json('anexos_professor_json')->nullable();
+
+            if ($afterColumn) {
+                $column->after($afterColumn);
             }
         });
     }

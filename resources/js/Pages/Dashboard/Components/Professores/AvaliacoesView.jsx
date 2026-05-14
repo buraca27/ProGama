@@ -3,6 +3,22 @@ import { router, useForm } from "@inertiajs/react";
 import { formatDateTime, formatTipoPergunta, getStatusCorrecao } from "@/utils";
 import TestStatusBadge from "../UI/TestStatusBadge";
 
+function getFileNameFromPath(path, fallback = "ficheiro") {
+    if (!path) return fallback;
+
+    const cleanPath = String(path).split("?")[0].split("#")[0];
+    const normalized = cleanPath.replace(/\\/g, "/");
+    const name = normalized.split("/").filter(Boolean).pop();
+
+    if (!name) return fallback;
+
+    try {
+        return decodeURIComponent(name);
+    } catch {
+        return name;
+    }
+}
+
 function calcularTotais(submissao) {
     const mapaPontuacoes = new Map(
         (submissao?.teste?.perguntas || []).map((pergunta) => [
@@ -64,6 +80,26 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
         () => correcoesPaginadas.find((item) => item.id === selectedId) || null,
         [correcoesPaginadas, selectedId],
     );
+    const submissaoMetadata = selectedSubmissao?.metadata || {};
+    const submissaoFicheiros = useMemo(() => {
+        const lista = Array.isArray(submissaoMetadata?.ficheiros)
+            ? submissaoMetadata.ficheiros
+            : [];
+
+        if (submissaoMetadata?.ficheiro) {
+            lista.unshift(submissaoMetadata.ficheiro);
+        }
+
+        return Array.from(
+            new Set(
+                lista
+                    .map((item) => String(item || "").trim())
+                    .filter(Boolean),
+            ),
+        );
+    }, [submissaoMetadata]);
+    const submissaoTemRespostas = (selectedSubmissao?.respostas || []).length > 0;
+    const isTarefa = (selectedSubmissao?.teste?.tipo_desafio || "Quiz") === "Tarefa";
 
     useEffect(() => {
         if (initialSubmissaoId && correcoesPaginadas.some((item) => item.id === initialSubmissaoId)) {
@@ -80,6 +116,19 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
         }
     }, [correcoesPaginadas, selectedId]);
 
+    useEffect(() => {
+        if (!selectedSubmissao) return undefined;
+
+        const onKeyDown = (event) => {
+            if (event.key === "Escape") {
+                setSelectedId(null);
+            }
+        };
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [selectedSubmissao]);
+
     const { totalMaximo, totalObtido, mapaPontuacoes } = useMemo(
         () => calcularTotais(selectedSubmissao),
         [selectedSubmissao],
@@ -87,12 +136,16 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
 
     const correcaoForm = useForm({
         respostas: [],
+        nota_final: "",
+        comentario_final: "",
         publicar: false,
     });
 
     useEffect(() => {
         if (!selectedSubmissao) {
             correcaoForm.setData("respostas", []);
+            correcaoForm.setData("nota_final", "");
+            correcaoForm.setData("comentario_final", "");
             return;
         }
 
@@ -106,12 +159,53 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
                 comentario_formador: resposta.comentario_formador || "",
             })),
         );
+        correcaoForm.setData(
+            "nota_final",
+            selectedSubmissao.nota_final !== null && selectedSubmissao.nota_final !== undefined
+                ? String(selectedSubmissao.nota_final)
+                : "",
+        );
+        correcaoForm.setData(
+            "comentario_final",
+            selectedSubmissao.feedback_professor || "",
+        );
     }, [selectedSubmissao]);
 
     const pendentesPorSubmissao = (submissao) =>
         (submissao?.respostas || []).filter(
             (resposta) => resposta.status_correcao === "Por_Avaliar",
         ).length;
+
+    const resumoCorrecaoSubmissao = (submissao) => {
+        const estado = submissao?.estado;
+        const pendentes = pendentesPorSubmissao(submissao);
+        const totalRespostas = (submissao?.respostas || []).length;
+
+        if (estado === "Corrigido" || estado === "Concluido" || estado === "Avaliado") {
+            return { texto: "Corrigido", className: "text-emerald-600" };
+        }
+
+        if (estado === "Aguardando_Correcao" || estado === "Submetido") {
+            if (totalRespostas === 0) {
+                return { texto: "Aguardando avaliação", className: "text-amber-600" };
+            }
+
+            if (pendentes > 0) {
+                return {
+                    texto: `${pendentes} pendente(s)`,
+                    className: "text-amber-600",
+                };
+            }
+
+            return { texto: "Aguardando avaliação", className: "text-amber-600" };
+        }
+
+        if (estado === "Em_Resolucao") {
+            return { texto: "Em resolução", className: "text-slate-600" };
+        }
+
+        return { texto: "Pendente", className: "text-amber-600" };
+    };
 
     const updateRespostaField = (index, field, value) => {
         const next = [...(correcaoForm.data.respostas || [])];
@@ -131,6 +225,9 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
             route("professor.correcoes.update", selectedSubmissao.id),
             {
                 preserveScroll: true,
+                onSuccess: () => {
+                    setSelectedId(null);
+                },
                 onFinish: () => correcaoForm.transform((data) => data),
             },
         );
@@ -154,8 +251,8 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
     };
 
     return (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-            <aside className="xl:col-span-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 space-y-3 max-h-[78vh] overflow-y-auto">
+        <div className="space-y-6">
+            <aside className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 space-y-3 max-h-[78vh] overflow-y-auto">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                     Submissões para Corrigir
                 </h3>
@@ -166,7 +263,7 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
                 )}
 
                 {correcoesPaginadas.map((submissao) => {
-                    const pendentes = pendentesPorSubmissao(submissao);
+                    const resumoCorrecao = resumoCorrecaoSubmissao(submissao);
                     const isActive = submissao.id === selectedId;
 
                     return (
@@ -192,11 +289,9 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
                                     tone={getStatusCorrecao(submissao).tone}
                                 />
                                 <span
-                                    className={`font-bold ${pendentes > 0 ? "text-amber-600" : "text-emerald-600"}`}
+                                    className={`font-bold ${resumoCorrecao.className}`}
                                 >
-                                    {pendentes > 0
-                                        ? `${pendentes} pendente(s)`
-                                        : "Corrigido"}
+                                    {resumoCorrecao.texto}
                                 </span>
                             </div>
                         </button>
@@ -236,16 +331,17 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
                 )}
             </aside>
 
-            <section className="xl:col-span-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-5">
-                {!selectedSubmissao && (
-                    <div className="min-h-[300px] flex items-center justify-center text-gray-500 dark:text-gray-400">
-                        Seleciona uma submissão para começar a correção.
-                    </div>
-                )}
-
-                {selectedSubmissao && (
-                    <>
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
+            {selectedSubmissao && (
+                <section className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="relative w-full max-w-5xl max-h-[92vh] overflow-hidden bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-6 space-y-5">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedId(null)}
+                            className="absolute top-6 right-6 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100"
+                        >
+                            Fechar
+                        </button>
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
                             <div>
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                                     {selectedSubmissao.teste?.titulo}
@@ -255,10 +351,9 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
                                     {selectedSubmissao.aluno?.email})
                                 </p>
                             </div>
-                            <div className="flex flex-col items-start md:items-end gap-3">
-                                <div className="text-sm space-y-1">
+                            <div className="pr-24 text-sm space-y-1">
                                     <p className="font-semibold text-gray-700 dark:text-gray-200">
-                                        Pontuação: {totalObtido} / {totalMaximo}
+                                        Pontuação: {submissaoTemRespostas ? `${totalObtido} / ${totalMaximo}` : "—"}
                                     </p>
                                     <p className="text-gray-600 dark:text-gray-300">
                                         Nota atual:{" "}
@@ -281,19 +376,106 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
                                             selectedSubmissao.publicado_em,
                                         )}
                                     </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedId(null)}
-                                    className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100"
-                                >
-                                    Fechar
-                                </button>
                             </div>
                         </div>
 
                         <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
-                            {(selectedSubmissao.respostas || []).map(
+                            {(submissaoMetadata?.mensagem_submissao || submissaoMetadata?.link_submissao || submissaoFicheiros.length > 0) && (
+                                <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4 space-y-2">
+                                    <p className="font-semibold text-blue-800 dark:text-blue-200">
+                                        Entrega do aluno
+                                    </p>
+
+                                    {submissaoMetadata?.mensagem_submissao && (
+                                        <div className="text-sm text-blue-900 dark:text-blue-100 whitespace-pre-line">
+                                            <span className="font-semibold">Descrição:</span>{" "}
+                                            {submissaoMetadata.mensagem_submissao}
+                                        </div>
+                                    )}
+
+                                    {submissaoMetadata?.link_submissao && (
+                                        <div className="text-sm">
+                                            <span className="font-semibold text-blue-900 dark:text-blue-100">Link:</span>{" "}
+                                            <a
+                                                href={submissaoMetadata.link_submissao}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-blue-700 underline hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+                                            >
+                                                {submissaoMetadata.link_submissao}
+                                            </a>
+                                        </div>
+                                    )}
+
+                                    {submissaoFicheiros.length > 0 && (
+                                        <div className="text-sm space-y-1">
+                                            <span className="font-semibold text-blue-900 dark:text-blue-100">Anexos:</span>
+                                            {submissaoFicheiros.map((ficheiro, index) => (
+                                                <a
+                                                    key={`${ficheiro}-${index}`}
+                                                    href={`${route("professor.correcoes.anexo.download", selectedSubmissao.id)}?indice=${index}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="block text-blue-700 underline hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+                                                >
+                                                    Download: {getFileNameFromPath(ficheiro)}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {isTarefa && (
+                                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4 space-y-4">
+                                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                                        Esta submissão é uma tarefa. Define a nota final e o comentário geral abaixo.
+                                    </p>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
+                                                Nota final (0-20)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                max={20}
+                                                step="0.01"
+                                                value={correcaoForm.data.nota_final}
+                                                onChange={(e) =>
+                                                    correcaoForm.setData(
+                                                        "nota_final",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                                placeholder="Ex.: 16.5"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
+                                                Comentário final
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={correcaoForm.data.comentario_final}
+                                                onChange={(e) =>
+                                                    correcaoForm.setData(
+                                                        "comentario_final",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                                placeholder="Feedback geral da tarefa"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isTarefa && (selectedSubmissao.respostas || []).map(
                                 (resposta, index) => {
                                     const maxPergunta = Number(
                                         mapaPontuacoes.get(
@@ -429,33 +611,35 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
                             )}
                         </div>
 
-                        {correcaoForm.errors?.respostas && (
+                        {(correcaoForm.errors?.respostas || correcaoForm.errors?.nota_final || correcaoForm.errors?.comentario_final) && (
                             <p className="text-sm text-red-600">
-                                {correcaoForm.errors.respostas}
+                                {correcaoForm.errors.respostas || correcaoForm.errors.nota_final || correcaoForm.errors.comentario_final}
                             </p>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                            <button
-                                type="button"
-                                disabled={correcaoForm.processing}
-                                onClick={() => submitCorrecao(false)}
-                                className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold"
-                            >
-                                Guardar Correção
-                            </button>
-                            <button
-                                type="button"
-                                disabled={correcaoForm.processing}
-                                onClick={() => submitCorrecao(true)}
-                                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                            >
-                                Publicar Nota
-                            </button>
-                        </div>
-                    </>
-                )}
-            </section>
+                        {(submissaoTemRespostas || isTarefa) && (
+                            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                <button
+                                    type="button"
+                                    disabled={correcaoForm.processing}
+                                    onClick={() => submitCorrecao(false)}
+                                    className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold"
+                                >
+                                    Guardar Correção
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={correcaoForm.processing}
+                                    onClick={() => submitCorrecao(true)}
+                                    className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                >
+                                    Publicar Nota
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
         </div>
     );
 }

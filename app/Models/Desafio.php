@@ -32,6 +32,8 @@ class Desafio extends Model
         'exige_submissao',
         'cooldown_minutos',
         'tipo_recorrencia',
+        'tipo_ficheiro_aceito',
+        'descricao_ficheiro',
         'duracao_minutos',
         'tipo_desafio',
         'xp_base',

@@ -11,11 +11,67 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AlunoDesafioController extends Controller
 {
     public function __construct(private NotificacaoService $notificacaoService) {}
+
+    public function downloadAnexoProfessor(Request $request, int $idAtribuicao)
+    {
+        $this->assertAluno();
+
+        $aluno = $request->user();
+        $atribuicao = $this->obterAtribuicaoDoAluno($idAtribuicao, (int) $aluno->id);
+        $desafio = $atribuicao->desafio;
+
+        $anexos = [];
+
+        $anexoGlobal = (string) ($desafio->url_anexo_global ?? $desafio->descricao_ficheiro ?? '');
+        if ($anexoGlobal !== '') {
+            $anexos[] = $anexoGlobal;
+        }
+
+        if (is_array($desafio->anexos_professor_json ?? null)) {
+            foreach ($desafio->anexos_professor_json as $anexo) {
+                $caminho = $anexo['caminho'] ?? $anexo['url'] ?? null;
+                if (filled($caminho)) {
+                    $anexos[] = (string) $caminho;
+                }
+            }
+        }
+
+        $anexos = array_values(array_unique(array_filter($anexos)));
+
+        if (empty($anexos)) {
+            abort(404, 'Anexo do professor nao encontrado.');
+        }
+
+        $indice = max(0, (int) $request->integer('indice', 0));
+        $ficheiro = (string) ($anexos[$indice] ?? $anexos[0]);
+
+        if (Str::startsWith($ficheiro, ['http://', 'https://'])) {
+            $pathUrl = parse_url($ficheiro, PHP_URL_PATH) ?: '';
+            $ficheiro = Str::startsWith($pathUrl, '/storage/')
+                ? Str::after($pathUrl, '/storage/')
+                : ltrim($pathUrl, '/');
+        }
+
+        if (Str::startsWith($ficheiro, '/storage/')) {
+            $ficheiro = Str::after($ficheiro, '/storage/');
+        }
+        if (Str::startsWith($ficheiro, 'storage/')) {
+            $ficheiro = Str::after($ficheiro, 'storage/');
+        }
+
+        if (!Storage::disk('public')->exists($ficheiro)) {
+            abort(404, 'Anexo do professor nao encontrado no armazenamento.');
+        }
+
+        return Storage::disk('public')->download($ficheiro, basename($ficheiro));
+    }
 
     public function submeter(Request $request, int $idAtribuicao)
     {
@@ -54,6 +110,10 @@ class AlunoDesafioController extends Controller
             throw ValidationException::withMessages([
                 'desafio' => 'Esgotaste o número máximo de tentativas para este desafio.',
             ]);
+        }
+
+        if (($desafio->tipo_desafio ?? 'Quiz') === 'Tarefa') {
+            return $this->submeterTarefa($request, $aluno, $atribuicao, $desafio, $finalizar, $tabSwitches);
         }
 
         $perguntasDesafio = $this->obterPerguntasDesafio($desafio)->keyBy('id');
@@ -282,6 +342,119 @@ class AlunoDesafioController extends Controller
         }
 
         return back()->with('success', 'Rascunho do desafio guardado com sucesso.');
+    }
+
+    private function submeterTarefa(
+        Request $request,
+        $aluno,
+        AtribuicaoDesafio $atribuicao,
+        Desafio $desafio,
+        bool $finalizar,
+        int $tabSwitches,
+    ) {
+        $linkSubmissao = trim((string) $request->input('link_submissao', ''));
+        if ($linkSubmissao !== '' && !preg_match('/^https?:\/\//i', $linkSubmissao)) {
+            $linkSubmissao = 'https://' . ltrim($linkSubmissao, '/');
+        }
+        $request->merge([
+            'link_submissao' => $linkSubmissao,
+        ]);
+
+        $validated = $request->validate([
+            'ficheiro' => 'nullable|file|max:10240',
+            'ficheiros' => 'nullable|array',
+            'ficheiros.*' => 'file|max:10240',
+            'link_submissao' => 'nullable|url|max:2048',
+            'mensagem_submissao' => 'nullable|string|max:5000',
+        ]);
+
+        $inscricao = SubmissaoDesafioAluno::where('id_desafio', (int) $desafio->id)
+            ->where('id_aluno', (int) $aluno->id)
+            ->latest('id')
+            ->first();
+
+        if ($inscricao && in_array($inscricao->estado, [
+            SubmissaoDesafioAluno::AVALIADO,
+            SubmissaoDesafioAluno::CONCLUIDO,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'desafio' => 'Este desafio já foi corrigido e fechado. Não podes submeter novamente.',
+            ]);
+        }
+
+        if ($inscricao && in_array($inscricao->estado, [
+            SubmissaoDesafioAluno::SUBMETIDO,
+            SubmissaoDesafioAluno::FALHADO,
+        ], true)) {
+            $inscricao = null;
+        }
+
+        if (!$inscricao) {
+            $inscricao = SubmissaoDesafioAluno::create([
+                'id_desafio' => (int) $desafio->id,
+                'id_aluno' => (int) $aluno->id,
+                'id_atribuicao' => (int) $atribuicao->id,
+                'estado' => SubmissaoDesafioAluno::EM_RESOLUCAO,
+                'numero_tentativa' => max(1, ((int) ($atribuicao->tentativas_maximas ?? 1)) - max(0, $atribuicao->tentativasRestantes((int) $aluno->id)) + 1),
+                'data_inicio_resolucao' => now(),
+            ]);
+        }
+
+        $metadataAnterior = is_array($inscricao->metadata ?? null) ? $inscricao->metadata : [];
+        $ficheiros = collect($metadataAnterior['ficheiros'] ?? [])
+            ->filter(fn ($path) => filled($path))
+            ->values()
+            ->all();
+
+        if (!empty($validated['ficheiro'])) {
+            $ficheiros[] = $validated['ficheiro']->store('submissoes/desafios', 'public');
+        }
+
+        foreach (($validated['ficheiros'] ?? []) as $ficheiroUpload) {
+            $ficheiros[] = $ficheiroUpload->store('submissoes/desafios', 'public');
+        }
+
+        $ficheiros = array_values(array_unique(array_filter($ficheiros)));
+        $caminhoFicheiro = $ficheiros[0] ?? ($metadataAnterior['ficheiro'] ?? null);
+
+        $metadata = array_merge($metadataAnterior, [
+            'ficheiro' => $caminhoFicheiro,
+            'ficheiros' => $ficheiros,
+            'link_submissao' => $validated['link_submissao'] ?? ($metadataAnterior['link_submissao'] ?? null),
+            'mensagem_submissao' => $validated['mensagem_submissao'] ?? ($metadataAnterior['mensagem_submissao'] ?? null),
+            'tab_switches' => $tabSwitches,
+        ]);
+
+        $inscricao->update([
+            'estado' => $finalizar ? SubmissaoDesafioAluno::SUBMETIDO : SubmissaoDesafioAluno::EM_RESOLUCAO,
+            'data_submissao' => $finalizar ? now() : $inscricao->data_submissao,
+            'metadata' => $metadata,
+        ]);
+
+        if ($finalizar) {
+            $professorId = $desafio->id_formador ?? null;
+            if ($professorId) {
+                $this->notificacaoService->notificarSubmissaoAluno(
+                    (int) $professorId,
+                    (int) $aluno->id,
+                    (string) $aluno->name,
+                    (int) $desafio->id,
+                    (string) $desafio->titulo,
+                    (int) $inscricao->id,
+                );
+            }
+
+            $allowedViews = ['dashboard', 'notificacoes', 'desafios', 'trabalhos', 'boletim', 'disciplinas', 'leaderboard'];
+            $returnView = $request->filled('return_view') && in_array($request->input('return_view'), $allowedViews, true)
+                ? $request->input('return_view')
+                : null;
+            $redirectParams = ($returnView && $returnView !== 'dashboard') ? ['view' => $returnView] : [];
+
+            return redirect()->route('dashboard', $redirectParams)
+                ->with('success', 'Tarefa submetida com sucesso.');
+        }
+
+        return back()->with('success', 'Rascunho da tarefa guardado com sucesso.');
     }
 
     private function obterAtribuicaoDoAluno(int $idAtribuicao, int $idAluno): AtribuicaoDesafio

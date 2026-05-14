@@ -314,16 +314,30 @@ export default function TestesView({
             setEditingTesteId(null);
         };
 
-        const transformFn = (data) => ({
-            ...data,
-            tipo_avaliacao: "Desafio",
-            peso_avaliacao: configAtual?.semPesoNota ? 0 : data.peso_avaliacao,
-            xp_base: Number(data.xp_base || 0),
-            auto_award_xp: Boolean(data.auto_award_xp),
-            novas_perguntas: novasPerguntasLimpas,
-            pontuacao_por_pergunta: pontuacoesNormalizadas,
-            pontuacoes_perguntas: pontuacoesExplicitas,
-        });
+        const transformFn = (data) => {
+            const isTarefa = data.tipo_desafio === "Tarefa";
+            const badgeExistenteId =
+                data.badge_existente_id === "" ||
+                data.badge_existente_id === null ||
+                data.badge_existente_id === undefined
+                    ? null
+                    : Number(data.badge_existente_id);
+
+            return {
+                ...data,
+                tipo_avaliacao: "Desafio",
+                peso_avaliacao: configAtual?.semPesoNota ? 0 : data.peso_avaliacao,
+                xp_base: Number(data.xp_base || 0),
+                auto_award_xp: Boolean(data.auto_award_xp),
+                badge_existente_id: Number.isNaN(badgeExistenteId)
+                    ? null
+                    : badgeExistenteId,
+                pergunta_ids: isTarefa ? [] : (data.pergunta_ids || []),
+                novas_perguntas: isTarefa ? [] : novasPerguntasLimpas,
+                pontuacao_por_pergunta: isTarefa ? {} : pontuacoesNormalizadas,
+                pontuacoes_perguntas: isTarefa ? [] : pontuacoesExplicitas,
+            };
+        };
 
         if (editingTesteId) {
             testeForm.transform(transformFn);
@@ -378,6 +392,12 @@ export default function TestesView({
             nova_badge_descricao: "",
             nova_badge_imagem: null,
             anexo_global_ficheiro: null,
+            anexos_professor_ficheiros: [],
+            anexos_professor_atuais: Array.isArray(teste.anexos_professor_json)
+                ? teste.anexos_professor_json
+                : [],
+            anexo_global_url_atual:
+                teste.url_anexo_global || teste.descricao_ficheiro || "",
         });
 
         setEditingTesteId(teste.id);
