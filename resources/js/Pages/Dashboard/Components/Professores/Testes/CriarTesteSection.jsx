@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import NovaPerguntaInline from "./NovaPerguntaInline";
 import { TIPO_DESAFIO_OPTIONS } from "./constants";
 import { CONTEXTO_AVALIACAO } from "./constants";
@@ -32,6 +32,101 @@ export default function CriarTesteSection({
     totalPontuacaoTeste,
     excedePontuacaoMaxima,
 }) {
+    const [ficheirosLocaisProf, setFicheirosLocaisProf] = useState([]);
+    const fileInputRefProf = useRef(null);
+
+    const extrairNomeFicheiro = (valor) => {
+        const bruto = String(valor || "").split("?")[0];
+        return bruto.split("/").pop() || "Anexo";
+    };
+
+    const anexosAtuais = useMemo(() => {
+        if (!editingTesteId) return [];
+
+        const lista = [];
+        if (testeForm.data.anexo_global_url_atual) {
+            lista.push({
+                id: `principal-${testeForm.data.anexo_global_url_atual}`,
+                nome: extrairNomeFicheiro(testeForm.data.anexo_global_url_atual),
+                atual: true,
+                tipo: "principal",
+            });
+        }
+
+        const adicionais = Array.isArray(testeForm.data.anexos_professor_atuais)
+            ? testeForm.data.anexos_professor_atuais
+            : [];
+
+        adicionais.forEach((anexo, idx) => {
+            const origem =
+                anexo?.nome || anexo?.caminho || anexo?.url || `Anexo ${idx + 1}`;
+            lista.push({
+                id: `adicional-${anexo?.caminho || anexo?.url || idx}`,
+                nome: extrairNomeFicheiro(origem),
+                atual: true,
+                tipo: "adicional",
+                idxAtual: idx,
+            });
+        });
+
+        return lista;
+    }, [
+        editingTesteId,
+        testeForm.data.anexo_global_url_atual,
+        testeForm.data.anexos_professor_atuais,
+    ]);
+
+    useEffect(() => {
+        setFicheirosLocaisProf([]);
+    }, [editingTesteId]);
+
+    const sincronizarCamposAnexo = (novaLista) => {
+        const ficheiros = novaLista.map((item) => item.file);
+        const temAnexosAtuais = anexosAtuais.length > 0;
+
+        if (editingTesteId && temAnexosAtuais) {
+            testeForm.setData("anexo_global_ficheiro", null);
+            testeForm.setData("anexos_professor_ficheiros", ficheiros);
+            return;
+        }
+
+        testeForm.setData("anexo_global_ficheiro", ficheiros[0] || null);
+        testeForm.setData("anexos_professor_ficheiros", ficheiros.slice(1));
+    };
+
+    const adicionarFicheiroProf = (file) => {
+        if (!file) return;
+        const novoFicheiro = {
+            id: Date.now(),
+            file: file,
+            nome: file.name,
+        };
+        const novaLista = [...ficheirosLocaisProf, novoFicheiro];
+        setFicheirosLocaisProf(novaLista);
+        sincronizarCamposAnexo(novaLista);
+        if (fileInputRefProf.current) fileInputRefProf.current.value = "";
+    };
+
+    const removerFicheiroProf = (id) => {
+        const novaLista = ficheirosLocaisProf.filter((f) => f.id !== id);
+        setFicheirosLocaisProf(novaLista);
+        sincronizarCamposAnexo(novaLista);
+    };
+
+    const removerAnexoAtual = (anexo) => {
+        if (anexo?.tipo === "principal") {
+            testeForm.setData("anexo_global_url_atual", "");
+            return;
+        }
+
+        if (anexo?.tipo === "adicional") {
+            const atuais = Array.isArray(testeForm.data.anexos_professor_atuais)
+                ? testeForm.data.anexos_professor_atuais
+                : [];
+            const novaLista = atuais.filter((_, idx) => idx !== anexo.idxAtual);
+            testeForm.setData("anexos_professor_atuais", novaLista);
+        }
+    };
     const config =
         CONTEXTO_AVALIACAO[testeForm.data.tipo_avaliacao] ||
         CONTEXTO_AVALIACAO.Desafio;
@@ -256,21 +351,77 @@ export default function CriarTesteSection({
             {testeForm.data.tipo_desafio === "Tarefa" && (
                 <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-2">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Anexo da tarefa
-                        </label>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Anexo(s) da tarefa
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => fileInputRefProf.current?.click()}
+                                className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed transition"
+                            >
+                                + Adicionar
+                            </button>
+                        </div>
+
                         <input
+                            ref={fileInputRefProf}
                             type="file"
                             onChange={(e) =>
-                                testeForm.setData(
-                                    "anexo_global_ficheiro",
-                                    e.target.files?.[0] || null,
-                                )
+                                adicionarFicheiroProf(e.target.files?.[0])
                             }
-                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                            className="hidden"
                         />
+
+                        {(anexosAtuais.length > 0 || ficheirosLocaisProf.length > 0) && (
+                            <div className="mt-2 space-y-2">
+                                {[...anexosAtuais, ...ficheirosLocaisProf.map((f) => ({
+                                    id: f.id,
+                                    nome: f.nome,
+                                    novo: true,
+                                    tipo: "novo",
+                                }))].map((f) => (
+                                    <div
+                                        key={f.id}
+                                        className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                    >
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <span className="text-gray-500">📄</span>
+                                            <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                                                {f.nome}
+                                            </span>
+                                            {f.novo && (
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                                    novo
+                                                </span>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                f.novo
+                                                    ? removerFicheiroProf(f.id)
+                                                    : removerAnexoAtual(f)
+                                            }
+                                            className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
+                                            title="Remover anexo"
+                                            aria-label="Remover anexo"
+                                        >
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                viewBox="0 0 24 24"
+                                                fill="currentColor"
+                                                className="h-4 w-4"
+                                            >
+                                                <path d="M9 3.75A2.25 2.25 0 0 0 6.75 6v.75H4.5a.75.75 0 0 0 0 1.5h.63l.72 10.118A2.25 2.25 0 0 0 8.094 20.5h7.812a2.25 2.25 0 0 0 2.244-2.132l.72-10.118h.63a.75.75 0 0 0 0-1.5h-2.25V6A2.25 2.25 0 0 0 15 3.75H9Zm6.75 3V6A.75.75 0 0 0 15 5.25H9A.75.75 0 0 0 8.25 6v.75h7.5ZM9.75 10.5a.75.75 0 0 1 .75.75v5.25a.75.75 0 0 1-1.5 0v-5.25a.75.75 0 0 1 .75-.75Zm4.5 0a.75.75 0 0 1 .75.75v5.25a.75.75 0 0 1-1.5 0v-5.25a.75.75 0 0 1 .75-.75Z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Adiciona um único ficheiro de apoio. Os alunos podem submeter um ficheiro ou um link.
+                            O primeiro ficheiro fica como anexo principal e os seguintes aparecem como anexos adicionais para o aluno.
                         </p>
                     </div>
                 </div>

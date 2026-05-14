@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, router } from "@inertiajs/react";
 
 function formatDateTime(value) {
@@ -12,6 +12,72 @@ function formatDateTime(value) {
         hour: "2-digit",
         minute: "2-digit",
     });
+}
+
+function resolveStorageUrl(path) {
+    if (!path) return null;
+
+    if (
+        String(path).startsWith("http://") ||
+        String(path).startsWith("https://") ||
+        String(path).startsWith("/storage/")
+    ) {
+        return path;
+    }
+
+    return `/storage/${String(path).replace(/^\/+/, "")}`;
+}
+
+function getFileNameFromPath(path, fallback = "ficheiro") {
+    if (!path) return fallback;
+
+    const cleanPath = String(path).split("?")[0].split("#")[0];
+    const normalized = cleanPath.replace(/\\/g, "/");
+    const name = normalized.split("/").filter(Boolean).pop();
+
+    if (!name) return fallback;
+
+    try {
+        return decodeURIComponent(name);
+    } catch {
+        return name;
+    }
+}
+
+function isHttpUrl(path) {
+    if (!path) return false;
+    return /^https?:\/\//i.test(String(path));
+}
+
+function isStorageBackedPath(path) {
+    if (!path) return false;
+    const value = String(path);
+
+    if (!isHttpUrl(value)) {
+        return true;
+    }
+
+    return value.includes("/storage/");
+}
+
+function getProfessorAttachments(desafio) {
+    if (!Array.isArray(desafio?.anexos_professor_json)) return [];
+
+    return desafio.anexos_professor_json
+        .filter((anexo) => anexo && (anexo.url || anexo.caminho))
+        .map((anexo, index) => ({
+            nome: anexo.nome || `Anexo ${index + 1}`,
+            url: anexo.url || resolveStorageUrl(anexo.caminho),
+        }))
+        .filter((anexo) => Boolean(anexo.url));
+}
+
+function getSubmissionMetadata(inscricao) {
+    if (!inscricao || typeof inscricao.metadata !== "object" || inscricao.metadata === null) {
+        return {};
+    }
+
+    return inscricao.metadata;
 }
 
 function statusDesafio(atribuicao, inscricao) {
@@ -37,7 +103,7 @@ function statusDesafio(atribuicao, inscricao) {
         return { label: "Falhado", tone: "red" };
     }
 
-    if (inscricao && inscricao.estado === "Em_Resolucao") {
+    if (inscricao?.estado === "Em_Resolucao") {
         return { label: "Rascunho guardado", tone: "violet" };
     }
 
@@ -71,6 +137,7 @@ function getPerguntas(desafio) {
 export default function DesafiosView({
     desafiosAluno = [],
     inscricoesDesafiosAluno = [],
+    onOpenDesafioModal = null,
 }) {
     const [selectedAtribuicaoId, setSelectedAtribuicaoId] = useState(null);
     const [toastMsg, setToastMsg] = useState(null);
@@ -97,7 +164,7 @@ export default function DesafiosView({
         if (!selectedAtribuicaoId && desafiosOrdenados.length > 0) {
             setSelectedAtribuicaoId(desafiosOrdenados[0].id);
         }
-    }, [desafiosOrdenados]);
+    }, [desafiosOrdenados, selectedAtribuicaoId]);
 
     const selectedAtribuicao = useMemo(
         () =>
@@ -113,12 +180,64 @@ export default function DesafiosView({
 
     const desafio = selectedAtribuicao?.desafio || null;
     const perguntas = getPerguntas(desafio);
+    const isTarefa = (desafio?.tipo_desafio || "Quiz") === "Tarefa";
+    const metadataSubmissao = getSubmissionMetadata(inscricaoAtual);
+    const anexoGlobalRaw = desafio?.url_anexo_global || desafio?.descricao_ficheiro;
+    const anexoGlobalUrl = resolveStorageUrl(anexoGlobalRaw);
+    const nomeAnexoGlobal = getFileNameFromPath(anexoGlobalRaw, "anexo-principal");
+    const anexoGlobalHref = anexoGlobalRaw
+        ? (isStorageBackedPath(anexoGlobalRaw)
+            ? route("aluno.desafios.anexo-professor.download", selectedAtribuicao.id)
+            : anexoGlobalRaw)
+        : null;
+    const anexosProfessor = getProfessorAttachments(desafio);
 
-    const form = useForm({ respostas: {} });
+    const [ficheirosLocais, setFicheirosLocais] = useState([]);
+    const fileInputRef = useRef(null);
+
+    const form = useForm({
+        respostas: {},
+        ficheiros: [],
+        link_submissao: "",
+        mensagem_submissao: "",
+    });
+
+    const initKeyRef = useRef(null);
+
+    const adicionarFicheiro = (file) => {
+        if (!file) return;
+        const novoFicheiro = {
+            id: Date.now(),
+            file: file,
+            nome: file.name,
+        };
+        setFicheirosLocais([...ficheirosLocais, novoFicheiro]);
+        form.setData("ficheiros", [...form.data.ficheiros, file]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    const removerFicheiro = (id) => {
+        const novaLista = ficheirosLocais.filter((f) => f.id !== id);
+        setFicheirosLocais(novaLista);
+        form.setData("ficheiros", novaLista.map((f) => f.file));
+    };
 
     useEffect(() => {
+        const initKey = selectedAtribuicao
+            ? `${selectedAtribuicao.id}:${inscricaoAtual?.id || "none"}:${inscricaoAtual?.estado || "none"}:${inscricaoAtual?.data_ultima_tentativa || "none"}`
+            : "none";
+
+        if (initKeyRef.current === initKey) {
+            return;
+        }
+        initKeyRef.current = initKey;
+
         if (!selectedAtribuicao) {
             form.setData("respostas", {});
+            setFicheirosLocais([]);
+            form.setData("ficheiros", []);
+            form.setData("link_submissao", "");
+            form.setData("mensagem_submissao", "");
             return;
         }
 
@@ -147,12 +266,18 @@ export default function DesafiosView({
         });
 
         form.setData("respostas", iniciais);
-    }, [selectedAtribuicao, inscricaoAtual]);
+        setFicheirosLocais([]);
+        form.setData("ficheiros", []);
+        form.setData("link_submissao", metadataSubmissao.link_submissao || "");
+        form.setData(
+            "mensagem_submissao",
+            metadataSubmissao.mensagem_submissao || "",
+        );
+    }, [form, inscricaoAtual, metadataSubmissao.link_submissao, metadataSubmissao.mensagem_submissao, selectedAtribuicao]);
 
     const now = new Date();
     const abriu = desafio?.data_inicio ? new Date(desafio.data_inicio) : null;
     const fechou = desafio?.data_fim ? new Date(desafio.data_fim) : null;
-
     const bloqueadoPorData = (abriu && now < abriu) || (fechou && now > fechou);
 
     const totalTentativasFeitas = (inscricoesDesafiosAluno || []).filter(
@@ -176,10 +301,18 @@ export default function DesafiosView({
 
     const podeInteragir =
         selectedAtribuicao &&
-        perguntas.length > 0 &&
+        (isTarefa || perguntas.length > 0) &&
         !bloqueadoPorData &&
         !desafioFechado &&
         !esgotouTentativas;
+
+    const erroSubmissao =
+        form.errors.desafio ||
+        form.errors.respostas ||
+        form.errors.ficheiro ||
+        form.errors.ficheiros ||
+        form.errors.link_submissao ||
+        form.errors.mensagem_submissao;
 
     const onSelectOption = (idPergunta, idOpcao) => {
         const prev = form.data.respostas || {};
@@ -206,8 +339,6 @@ export default function DesafiosView({
 
         const opcoesSelecionadas = respostaAtual.ids_opcoes_escolhidas || [];
         const idOpcaoNum = Number(idOpcao);
-
-        // Toggle: se já está selecionada, remove; senão, adiciona
         const novasOpcoes = opcoesSelecionadas.includes(idOpcaoNum)
             ? opcoesSelecionadas.filter((id) => id !== idOpcaoNum)
             : [...opcoesSelecionadas, idOpcaoNum];
@@ -252,6 +383,31 @@ export default function DesafiosView({
 
         form.clearErrors();
 
+        if (isTarefa) {
+            router.post(
+                route("aluno.desafios.submeter", selectedAtribuicao.id),
+                {
+                    ficheiro: form.data.ficheiros?.[0] || null,
+                    ficheiros: form.data.ficheiros || [],
+                    link_submissao: form.data.link_submissao,
+                    mensagem_submissao: form.data.mensagem_submissao,
+                    finalizar: false,
+                },
+                {
+                    preserveScroll: true,
+                    forceFormData: true,
+                    onSuccess: () => mostrarToast("Rascunho guardado com sucesso."),
+                    onError: (erros) => {
+                        form.setError(erros);
+                        mostrarToast(
+                            "Erro ao guardar! Verifica os avisos a vermelho.",
+                        );
+                    },
+                },
+            );
+            return;
+        }
+
         router.post(
             route("aluno.desafios.submeter", selectedAtribuicao.id),
             {
@@ -275,6 +431,27 @@ export default function DesafiosView({
         if (!selectedAtribuicao) return;
 
         form.clearErrors();
+
+        if (isTarefa) {
+            router.post(
+                route("aluno.desafios.submeter", selectedAtribuicao.id),
+                {
+                    ficheiro: form.data.ficheiros?.[0] || null,
+                    ficheiros: form.data.ficheiros || [],
+                    link_submissao: form.data.link_submissao,
+                    mensagem_submissao: form.data.mensagem_submissao,
+                    finalizar: true,
+                },
+                {
+                    preserveScroll: true,
+                    forceFormData: true,
+                    onError: (erros) => {
+                        form.setError(erros);
+                    },
+                },
+            );
+            return;
+        }
 
         router.post(
             route("aluno.desafios.submeter", selectedAtribuicao.id),
@@ -324,8 +501,58 @@ export default function DesafiosView({
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <aside className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+            {onOpenDesafioModal ? (
+                <div className="w-full">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                        Desafios atribuidos
+                    </h3>
+                    <div className="space-y-3">
+                        {desafiosOrdenados.map((atribuicao) => {
+                            const inscricao = inscricoesPorDesafio.get(
+                                atribuicao.id_desafio,
+                            );
+                            const status = statusDesafio(atribuicao, inscricao);
+
+                            return (
+                                <button
+                                    key={atribuicao.id}
+                                    type="button"
+                                    onClick={() => {
+                                        onOpenDesafioModal(atribuicao.id_desafio);
+                                    }}
+                                    className={`w-full text-left rounded-xl border p-4 transition bg-white dark:bg-gray-900/40 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md`}
+                                >
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm line-clamp-2">
+                                            {atribuicao.desafio?.titulo ||
+                                                "Desafio sem titulo"}
+                                        </p>
+                                        <span
+                                            className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${badgeClass(status.tone)}`}
+                                        >
+                                            {status.label}
+                                        </span>
+                                    </div>
+                                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                                        Abre:{" "}
+                                        {formatDateTime(
+                                            atribuicao.desafio?.data_inicio,
+                                        )}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        Fecha:{" "}
+                                        {formatDateTime(
+                                            atribuicao.desafio?.data_fim,
+                                        )}
+                                    </p>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : (
+                <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6`}>
+                <aside className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                         Desafios atribuidos
                     </h3>
@@ -343,16 +570,16 @@ export default function DesafiosView({
                                 <button
                                     key={atribuicao.id}
                                     type="button"
-                                    onClick={() =>
-                                        setSelectedAtribuicaoId(atribuicao.id)
-                                    }
+                                    onClick={() => {
+                                        setSelectedAtribuicaoId(atribuicao.id);
+                                    }}
                                     className={`w-full text-left rounded-xl border p-3 transition ${
                                         active
                                             ? "border-blue-300 bg-blue-50/70 dark:border-blue-700 dark:bg-blue-900/20"
                                             : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/40 hover:border-blue-300 dark:hover:border-blue-600"
                                     }`}
                                 >
-                                    <div className="flex items-start justify-between gap-2">
+                                    <div className="flex items-start justify-between gap-2 min-h-[3.75rem]">
                                         <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm line-clamp-2">
                                             {atribuicao.desafio?.titulo ||
                                                 "Desafio sem titulo"}
@@ -363,7 +590,7 @@ export default function DesafiosView({
                                             {status.label}
                                         </span>
                                     </div>
-                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
                                         Abre:{" "}
                                         {formatDateTime(
                                             atribuicao.desafio?.data_inicio,
@@ -421,6 +648,38 @@ export default function DesafiosView({
                                         {desafio.descricao}
                                     </p>
                                 )}
+                                {(anexoGlobalUrl || anexosProfessor.length > 0) && (
+                                    <div className="mt-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/60 p-4">
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                            Materiais do professor
+                                        </p>
+                                        <div className="mt-2 space-y-2 text-sm">
+                                            {anexoGlobalUrl && (
+                                                <a
+                                                    href={anexoGlobalHref}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="block text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                                >
+                                                    {isStorageBackedPath(anexoGlobalRaw)
+                                                        ? `Download: ${nomeAnexoGlobal}`
+                                                        : `Abrir link: ${nomeAnexoGlobal}`}
+                                                </a>
+                                            )}
+                                            {anexosProfessor.map((anexo, index) => (
+                                                <a
+                                                    key={`${anexo.nome}-${index}`}
+                                                    href={route("aluno.desafios.anexo-professor.download", selectedAtribuicao.id) + `?indice=${anexoGlobalRaw ? index + 1 : index}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="block text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                                >
+                                                    {anexo.nome}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {temRascunho && (
@@ -429,8 +688,9 @@ export default function DesafiosView({
                                         Rascunho guardado.
                                     </span>
                                     <span>
-                                        As tuas respostas foram carregadas
-                                        automaticamente.
+                                        {isTarefa
+                                            ? "A tua entrega parcial ficou guardada."
+                                            : "As tuas respostas foram carregadas automaticamente."}
                                     </span>
                                 </div>
                             )}
@@ -459,142 +719,263 @@ export default function DesafiosView({
                                 </div>
                             )}
 
-                            {(form.errors.desafio || form.errors.respostas) && (
+                            {erroSubmissao && (
                                 <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
-                                    {form.errors.desafio ||
-                                        form.errors.respostas}
+                                    {erroSubmissao}
                                 </div>
                             )}
 
-                            <div className="space-y-5">
-                                {perguntas.map((pergunta, index) => {
-                                    const resposta =
-                                        form.data.respostas?.[pergunta.id] ||
-                                        {};
+                            {isTarefa ? (
+                                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4 space-y-4">
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                            Submissão da tarefa
+                                        </p>
+                                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                            Esta tarefa não tem perguntas. Podes submeter um ficheiro, um link, ou ambos, com uma mensagem complementar.
+                                        </p>
+                                    </div>
 
-                                    return (
-                                        <div
-                                            key={pergunta.id}
-                                            className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4"
-                                        >
-                                            <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">
-                                                Pergunta {index + 1}
-                                            </p>
-                                            <h4 className="mt-1 font-semibold text-gray-900 dark:text-gray-100">
-                                                {pergunta.texto}
-                                            </h4>
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Ficheiros da tua entrega
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={!podeInteragir || form.processing}
+                                                className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed transition"
+                                            >
+                                                + Adicionar
+                                            </button>
+                                        </div>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            onChange={(e) =>
+                                                adicionarFicheiro(e.target.files?.[0])
+                                            }
+                                            disabled={!podeInteragir || form.processing}
+                                            className="hidden"
+                                        />
 
-                                            {pergunta.url_anexo_pergunta && (
-                                                <img
-                                                    src={
-                                                        pergunta.url_anexo_pergunta
-                                                    }
-                                                    alt="Anexo"
-                                                    className="mt-3 max-h-48 rounded-lg object-contain border border-gray-200 dark:border-gray-700"
-                                                />
+                                        {ficheirosLocais.length > 0 && (
+                                            <div className="mt-2 space-y-2">
+                                                {ficheirosLocais.map((f) => (
+                                                    <div
+                                                        key={f.id}
+                                                        className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                                    >
+                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                            <span className="text-gray-500">📄</span>
+                                                            <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                                                                {f.nome}
+                                                            </span>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removerFicheiro(f.id)}
+                                                            disabled={form.processing}
+                                                            className="ml-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm font-semibold disabled:opacity-60"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Link da submissão
+                                        </label>
+                                        <input
+                                            type="url"
+                                            value={form.data.link_submissao || ""}
+                                            onChange={(e) =>
+                                                form.setData("link_submissao", e.target.value)
+                                            }
+                                            disabled={!podeInteragir || form.processing}
+                                            placeholder="https://drive.google.com/..."
+                                            className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white disabled:opacity-60"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Mensagem para o professor
+                                        </label>
+                                        <textarea
+                                            rows={4}
+                                            value={form.data.mensagem_submissao || ""}
+                                            onChange={(e) =>
+                                                form.setData("mensagem_submissao", e.target.value)
+                                            }
+                                            disabled={!podeInteragir || form.processing}
+                                            placeholder="Notas adicionais sobre a tua entrega..."
+                                            className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white disabled:opacity-60"
+                                        />
+                                    </div>
+
+                                    {(metadataSubmissao.ficheiro || metadataSubmissao.link_submissao) && (
+                                        <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 text-sm text-blue-700 dark:text-blue-300">
+                                            <p className="font-semibold">Última entrega registada</p>
+                                            {metadataSubmissao.ficheiro && (
+                                                <a
+                                                    href={resolveStorageUrl(metadataSubmissao.ficheiro)}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="mt-1 block underline"
+                                                >
+                                                    Abrir ficheiro submetido: {getFileNameFromPath(metadataSubmissao.ficheiro)}
+                                                </a>
                                             )}
-
-                                            {pergunta.tipo_pergunta ===
-                                            "Dissertativa" ? (
-                                                <textarea
-                                                    value={
-                                                        resposta.resposta_texto ||
-                                                        ""
-                                                    }
-                                                    onChange={(e) =>
-                                                        onChangeTexto(
-                                                            pergunta.id,
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    rows={4}
-                                                    disabled={
-                                                        !podeInteragir ||
-                                                        form.processing
-                                                    }
-                                                    placeholder="Escreve a tua resposta..."
-                                                    className="mt-3 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-blue-500 disabled:opacity-60"
-                                                />
-                                            ) : (
-                                                <div className="mt-3 space-y-2">
-                                                    {(
-                                                        pergunta.opcoes || []
-                                                    ).map((opcao) => {
-                                                        const isMultipleChoice =
-                                                            pergunta.tipo_pergunta ===
-                                                            "Escolha_Multipla";
-                                                        const opcoesSelecionadas =
-                                                            resposta.ids_opcoes_escolhidas ||
-                                                            [];
-
-                                                        const checked =
-                                                            isMultipleChoice
-                                                                ? opcoesSelecionadas.includes(
-                                                                      Number(
-                                                                          opcao.id,
-                                                                      ),
-                                                                  )
-                                                                : Number(
-                                                                      resposta.id_opcao_escolhida,
-                                                                  ) ===
-                                                                  Number(
-                                                                      opcao.id,
-                                                                  );
-
-                                                        return (
-                                                            <label
-                                                                key={opcao.id}
-                                                                className={`flex items-start gap-3 rounded-lg border px-3 py-2 transition ${
-                                                                    checked
-                                                                        ? "border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20"
-                                                                        : "border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800/60"
-                                                                } ${!podeInteragir ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-                                                            >
-                                                                <input
-                                                                    type={
-                                                                        isMultipleChoice
-                                                                            ? "checkbox"
-                                                                            : "radio"
-                                                                    }
-                                                                    name={
-                                                                        isMultipleChoice
-                                                                            ? undefined
-                                                                            : `pergunta_${pergunta.id}`
-                                                                    }
-                                                                    checked={
-                                                                        checked
-                                                                    }
-                                                                    onChange={() =>
-                                                                        isMultipleChoice
-                                                                            ? onToggleMultipleOption(
-                                                                                  pergunta.id,
-                                                                                  opcao.id,
-                                                                              )
-                                                                            : onSelectOption(
-                                                                                  pergunta.id,
-                                                                                  opcao.id,
-                                                                              )
-                                                                    }
-                                                                    disabled={
-                                                                        !podeInteragir ||
-                                                                        form.processing
-                                                                    }
-                                                                    className="mt-0.5 text-blue-600 focus:ring-blue-500"
-                                                                />
-                                                                <span className="text-sm text-gray-700 dark:text-gray-200">
-                                                                    {
-                                                                        opcao.texto_opcao
-                                                                    }
-                                                                </span>
-                                                            </label>
-                                                        );
-                                                    })}
-                                                </div>
+                                            {metadataSubmissao.link_submissao && (
+                                                <a
+                                                    href={metadataSubmissao.link_submissao}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="mt-1 block underline"
+                                                >
+                                                    Abrir link submetido
+                                                </a>
                                             )}
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-5">
+                                    {perguntas.map((pergunta, index) => {
+                                        const resposta =
+                                            form.data.respostas?.[pergunta.id] ||
+                                            {};
+
+                                        return (
+                                            <div
+                                                key={pergunta.id}
+                                                className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4"
+                                            >
+                                                <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+                                                    Pergunta {index + 1}
+                                                </p>
+                                                <h4 className="mt-1 font-semibold text-gray-900 dark:text-gray-100">
+                                                    {pergunta.texto}
+                                                </h4>
+
+                                                {pergunta.url_anexo_pergunta && (
+                                                    <img
+                                                        src={
+                                                            pergunta.url_anexo_pergunta
+                                                        }
+                                                        alt="Anexo"
+                                                        className="mt-3 max-h-48 rounded-lg object-contain border border-gray-200 dark:border-gray-700"
+                                                    />
+                                                )}
+
+                                                {pergunta.tipo_pergunta ===
+                                                "Dissertativa" ? (
+                                                    <textarea
+                                                        value={
+                                                            resposta.resposta_texto ||
+                                                            ""
+                                                        }
+                                                        onChange={(e) =>
+                                                            onChangeTexto(
+                                                                pergunta.id,
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        rows={4}
+                                                        disabled={
+                                                            !podeInteragir ||
+                                                            form.processing
+                                                        }
+                                                        placeholder="Escreve a tua resposta..."
+                                                        className="mt-3 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-blue-500 disabled:opacity-60"
+                                                    />
+                                                ) : (
+                                                    <div className="mt-3 space-y-2">
+                                                        {(
+                                                            pergunta.opcoes || []
+                                                        ).map((opcao) => {
+                                                            const isMultipleChoice =
+                                                                pergunta.tipo_pergunta ===
+                                                                "Escolha_Multipla";
+                                                            const opcoesSelecionadas =
+                                                                resposta.ids_opcoes_escolhidas ||
+                                                                [];
+
+                                                            const checked =
+                                                                isMultipleChoice
+                                                                    ? opcoesSelecionadas.includes(
+                                                                          Number(
+                                                                              opcao.id,
+                                                                          ),
+                                                                      )
+                                                                    : Number(
+                                                                          resposta.id_opcao_escolhida,
+                                                                      ) ===
+                                                                      Number(
+                                                                          opcao.id,
+                                                                      );
+
+                                                            return (
+                                                                <label
+                                                                    key={opcao.id}
+                                                                    className={`flex items-start gap-3 rounded-lg border px-3 py-2 transition ${
+                                                                        checked
+                                                                            ? "border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20"
+                                                                            : "border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800/60"
+                                                                    } ${!podeInteragir ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                                                                >
+                                                                    <input
+                                                                        type={
+                                                                            isMultipleChoice
+                                                                                ? "checkbox"
+                                                                                : "radio"
+                                                                        }
+                                                                        name={
+                                                                            isMultipleChoice
+                                                                                ? undefined
+                                                                                : `pergunta_${pergunta.id}`
+                                                                        }
+                                                                        checked={
+                                                                            checked
+                                                                        }
+                                                                        onChange={() =>
+                                                                            isMultipleChoice
+                                                                                ? onToggleMultipleOption(
+                                                                                      pergunta.id,
+                                                                                      opcao.id,
+                                                                                  )
+                                                                                : onSelectOption(
+                                                                                      pergunta.id,
+                                                                                      opcao.id,
+                                                                                  )
+                                                                        }
+                                                                        disabled={
+                                                                            !podeInteragir ||
+                                                                            form.processing
+                                                                        }
+                                                                        className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                                                                    />
+                                                                    <span className="text-sm text-gray-700 dark:text-gray-200">
+                                                                        {
+                                                                            opcao.texto_opcao
+                                                                        }
+                                                                    </span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <div>
@@ -616,7 +997,8 @@ export default function DesafiosView({
                                             resolucao.
                                         </p>
                                     )}
-                                    {!bloqueadoPorData &&
+                                    {!isTarefa &&
+                                        !bloqueadoPorData &&
                                         perguntas.length === 0 && (
                                             <p className="text-sm text-gray-500 dark:text-gray-400">
                                                 Este desafio nao tem perguntas
@@ -654,7 +1036,9 @@ export default function DesafiosView({
                         </div>
                     )}
                 </section>
-            </div>
+                </div>
+            )}
         </>
     );
 }
+

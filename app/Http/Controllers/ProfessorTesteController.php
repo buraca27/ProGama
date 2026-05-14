@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ProfessorTesteController extends Controller
@@ -137,6 +138,18 @@ class ProfessorTesteController extends Controller
 
     private function validarTeste(Request $request): array
     {
+        $badgeExistenteId = $request->input('badge_existente_id');
+
+        if ($badgeExistenteId === '' || $badgeExistenteId === 'null') {
+            $request->merge([
+                'badge_existente_id' => null,
+            ]);
+        } elseif (is_string($badgeExistenteId) && is_numeric($badgeExistenteId)) {
+            $request->merge([
+                'badge_existente_id' => (int) $badgeExistenteId,
+            ]);
+        }
+
         return $request->validate([
             'titulo' => 'required|string|max:150',
             'tipo_desafio' => 'required|string|in:Quiz,Tarefa',
@@ -169,6 +182,15 @@ class ProfessorTesteController extends Controller
             'nova_badge_descricao' => 'nullable|string|max:500',
             'nova_badge_imagem' => 'nullable|image|max:4096',
             'anexo_global_ficheiro' => 'nullable|file|max:10240',
+            'anexo_global_url_atual' => 'nullable|string',
+            'anexos_professor_ficheiros' => 'nullable|array',
+            'anexos_professor_ficheiros.*' => 'file|max:10240',
+            'anexos_professor_atuais' => 'nullable|array',
+            'anexos_professor_atuais.*.nome' => 'nullable|string',
+            'anexos_professor_atuais.*.caminho' => 'nullable|string',
+            'anexos_professor_atuais.*.url' => 'nullable|string',
+        ], [
+            'badge_existente_id.integer' => 'A badge selecionada é inválida.',
         ]);
     }
 
@@ -318,6 +340,44 @@ class ProfessorTesteController extends Controller
     {
         $this->assertProfessor();
 
+        $submissao = SubmissaoDesafioAluno::with(['desafio' => fn($q) => $q->with('perguntas'), 'respostas'])
+            ->where('id', '=', $idTesteRealizado)
+            ->whereHas('desafio', fn($q) => $q->where('id_formador', (int) Auth::id()))
+            ->firstOrFail();
+
+        $isTarefa = ($submissao->desafio->tipo_desafio ?? 'Quiz') === 'Tarefa'
+            || $submissao->respostas->isEmpty();
+
+        if ($isTarefa) {
+            $validated = $request->validate([
+                'publicar' => 'nullable|boolean',
+                'nota_final' => 'required|numeric|min:0|max:20',
+                'comentario_final' => 'nullable|string|max:5000',
+            ]);
+
+            $publicar = (bool) ($validated['publicar'] ?? false);
+            $agora = now();
+            $notaFinal = round((float) $validated['nota_final'], 2);
+
+            $submissao->update([
+                'estado' => $publicar ? 'Concluido' : 'Submetido',
+                'data_submissao' => $agora,
+                'nota' => $notaFinal,
+                'feedback_professor' => $validated['comentario_final'] ?? null,
+                'updated_at' => $agora,
+            ]);
+
+            if ($publicar) {
+                $this->notificacaoService->notificarDesafioCorrigido(
+                    (int) $submissao->id_aluno,
+                    (int) $submissao->id_desafio,
+                    (float) $notaFinal,
+                );
+            }
+
+            return redirect()->route('dashboard')->with('success', 'Correcao atualizada com sucesso.');
+        }
+
         $validated = $request->validate([
             'publicar' => 'nullable|boolean',
             'respostas' => 'required|array|min:1',
@@ -326,11 +386,6 @@ class ProfessorTesteController extends Controller
             'respostas.*.pontuacao_obtida' => 'required|integer|min:0|max:20',
             'respostas.*.comentario_formador' => 'nullable|string',
         ]);
-
-        $submissao = SubmissaoDesafioAluno::with(['desafio' => fn($q) => $q->with('perguntas'), 'respostas'])
-            ->where('id', '=', $idTesteRealizado)
-            ->whereHas('desafio', fn($q) => $q->where('id_formador', (int) Auth::id()))
-            ->firstOrFail();
 
         DB::transaction(function () use ($validated, $submissao) {
             $respostasPayload = collect($validated['respostas'])
@@ -398,6 +453,7 @@ class ProfessorTesteController extends Controller
                 'estado' => $novoEstado,
                 'data_submissao' => $agora,
                 'nota' => $notaFinal,
+                'feedback_professor' => $feedback !== '' ? $feedback : null,
                 'updated_at' => $agora,
             ]);
 
@@ -411,6 +467,60 @@ class ProfessorTesteController extends Controller
         });
 
         return redirect()->route('dashboard')->with('success', 'Correcao atualizada com sucesso.');
+    }
+
+    public function downloadAnexoSubmissao(Request $request, int $idTesteRealizado)
+    {
+        $this->assertProfessor();
+
+        $submissao = SubmissaoDesafioAluno::with(['desafio', 'respostas'])
+            ->where('id', '=', $idTesteRealizado)
+            ->whereHas('desafio', fn($q) => $q->where('id_formador', '=', (int) Auth::id(), 'and'))
+            ->firstOrFail();
+
+        $metadata = is_array($submissao->metadata ?? null) ? $submissao->metadata : [];
+        $ficheiros = collect($metadata['ficheiros'] ?? [])
+            ->filter(fn ($path) => filled($path))
+            ->values()
+            ->all();
+
+        if (filled($metadata['ficheiro'])) {
+            array_unshift($ficheiros, (string) $metadata['ficheiro']);
+        }
+
+        $ficheiros = array_values(array_unique(array_filter($ficheiros)));
+
+        $indice = max(0, (int) $request->integer('indice', 0));
+        $ficheiro = $ficheiros[$indice]
+            ?? $ficheiros[0]
+            ?? $metadata['caminho_ficheiro']
+            ?? $metadata['url_ficheiro_submetido']
+            ?? $submissao->respostas->firstWhere('url_ficheiro_submetido', '!=', null)?->url_ficheiro_submetido;
+
+        if (!filled($ficheiro)) {
+            abort(404, 'Anexo da submissao nao encontrado.');
+        }
+
+        $ficheiro = (string) $ficheiro;
+        if (Str::startsWith($ficheiro, ['http://', 'https://'])) {
+            $pathUrl = parse_url($ficheiro, PHP_URL_PATH) ?: '';
+            $ficheiro = Str::startsWith($pathUrl, '/storage/')
+                ? Str::after($pathUrl, '/storage/')
+                : ltrim($pathUrl, '/');
+        }
+
+        if (Str::startsWith($ficheiro, '/storage/')) {
+            $ficheiro = Str::after($ficheiro, '/storage/');
+        }
+        if (Str::startsWith($ficheiro, 'storage/')) {
+            $ficheiro = Str::after($ficheiro, 'storage/');
+        }
+
+        if (!Storage::disk('public')->exists($ficheiro)) {
+            abort(404, 'Anexo da submissao nao encontrado no armazenamento.');
+        }
+
+        return Storage::disk('public')->download($ficheiro, basename($ficheiro));
     }
 
     private function criarPerguntaComOpcoes(array $dados, int $professorId): Pergunta
@@ -556,6 +666,7 @@ class ProfessorTesteController extends Controller
 
         $badgeSelecionada = $this->resolverBadgeDesafio($validated);
         $anexoGlobal = $this->armazenarAnexoGlobal($validated, null);
+        $anexosProfessor = $this->armazenarAnexosProfessor($validated, []);
         $payload = [
             'titulo' => $validated['titulo'],
             'descricao' => $validated['instrucoes'] ?? null,
@@ -570,7 +681,8 @@ class ProfessorTesteController extends Controller
             'auto_award_xp' => (bool) ($validated['auto_award_xp'] ?? true),
             'badges_json' => $badgeSelecionada ? [$badgeSelecionada] : null,
             'url_anexo_global' => $anexoGlobal,
-            'anexos_professor_json' => null,
+            'descricao_ficheiro' => $anexoGlobal,
+            'anexos_professor_json' => !empty($anexosProfessor) ? $anexosProfessor : null,
             'ativa' => true,
         ];
 
@@ -580,7 +692,17 @@ class ProfessorTesteController extends Controller
     private function montarPayloadDesafioAtualizacao(array $validated, Desafio $desafio): array
     {
         $badgeSelecionada = $this->resolverBadgeDesafio($validated);
-        $anexoGlobal = $this->armazenarAnexoGlobal($validated, $desafio->url_anexo_global);
+        $anexoGlobalExistente = array_key_exists('anexo_global_url_atual', $validated)
+            ? ($validated['anexo_global_url_atual'] ?: null)
+            : ($desafio->url_anexo_global ?? $desafio->descricao_ficheiro);
+        $anexoGlobal = $this->armazenarAnexoGlobal($validated, $anexoGlobalExistente);
+        $anexosExistentes = is_array($validated['anexos_professor_atuais'] ?? null)
+            ? array_values(array_filter(
+                $validated['anexos_professor_atuais'],
+                fn ($anexo) => is_array($anexo) && (!empty($anexo['caminho']) || !empty($anexo['url'])),
+            ))
+            : (is_array($desafio->anexos_professor_json ?? null) ? $desafio->anexos_professor_json : []);
+        $anexosProfessor = $this->armazenarAnexosProfessor($validated, $anexosExistentes);
         $payload = [
             'titulo' => $validated['titulo'],
             'descricao' => $validated['instrucoes'] ?? null,
@@ -591,7 +713,8 @@ class ProfessorTesteController extends Controller
                 ? (bool) $validated['auto_award_xp']
                 : (bool) ($desafio->auto_award_xp ?? true),
             'url_anexo_global' => $anexoGlobal,
-            'anexos_professor_json' => null,
+            'descricao_ficheiro' => $anexoGlobal,
+            'anexos_professor_json' => !empty($anexosProfessor) ? $anexosProfessor : null,
         ];
 
         if ($badgeSelecionada) {

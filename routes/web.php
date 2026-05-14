@@ -36,6 +36,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
         Route::post('/tarefas/{idTarefa}/terminar', [ProfessorTesteController::class, 'terminarTarefa'])->name('tarefas.terminar');
         Route::delete('/tarefas/{idTarefa}', [ProfessorTesteController::class, 'destroyTarefa'])->name('tarefas.destroy');
         Route::put('/correcoes/{idTesteRealizado}', [ProfessorTesteController::class, 'updateCorrecao'])->name('correcoes.update');
+        Route::get('/correcoes/{idTesteRealizado}/anexo', [ProfessorTesteController::class, 'downloadAnexoSubmissao'])->name('correcoes.anexo.download');
     });
 
     Route::prefix('dashboard/aluno')->name('aluno.')->group(function () {
@@ -44,6 +45,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
                 'view' => 'desafios',
             ]);
         });
+        Route::get('/desafios/{idAtribuicao}/anexo-professor', [AlunoDesafioController::class, 'downloadAnexoProfessor'])->name('desafios.anexo-professor.download');
         Route::post('/desafios/{idAtribuicao}/submeter', [AlunoDesafioController::class, 'submeter'])->name('desafios.submeter');
     });
 

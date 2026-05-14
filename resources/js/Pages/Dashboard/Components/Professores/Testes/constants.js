@@ -37,6 +37,9 @@ export const createTesteFormDefaults = () => ({
     nova_badge_descricao: "",
     nova_badge_imagem: null,
     anexo_global_ficheiro: null,
+    anexo_global_url_atual: "",
+    anexos_professor_ficheiros: [],
+    anexos_professor_atuais: [],
 });
 
 export const createNovaPerguntaTesteDefaults = () => ({
