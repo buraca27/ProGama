@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Models;
 
@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 class Badge extends Model
 {
     protected $table = 'Badges';
-    
+
     protected $fillable = [
         'nome',
         'descricao',
@@ -31,7 +31,7 @@ class Badge extends Model
      */
     public function utilizadores(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'Inventario_Badges', 'id_badge', 'id_usuario')
+        return $this->belongsToMany(User::class, 'Inventario_Badges', 'id_badge', 'id_utilizador')
             ->withPivot('id_desafio_origem', 'data_aquisicao')
             ->withTimestamps();
     }
@@ -57,7 +57,7 @@ class Badge extends Model
      */
     public function getClasseRaridade(): string
     {
-        return match($this->raridade) {
+        return match ($this->raridade) {
             'comum' => 'bg-gray-400',
             'rara' => 'bg-blue-400',
             'epica' => 'bg-purple-600',

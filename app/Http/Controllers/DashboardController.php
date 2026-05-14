@@ -7,13 +7,14 @@ use App\Models\Disciplina;
 use App\Models\Desafio;
 use App\Models\Categoria;
 use App\Models\AtribuicaoDesafio;
+use App\Models\Badge;
 use App\Models\SubmissaoDesafioAluno;
 use App\Models\User;
+use App\Models\Notificacao;
 use App\Models\Pergunta;
 use App\Services\GamificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -27,6 +28,7 @@ class DashboardController extends Controller
         $submissoesAluno = [];
         $desafiosAluno = [];
         $inscricoesDesafiosAluno = [];
+        $notasAluno = [];
 
         // 1. Estatísticas Gerais
         $estatisticas = [
@@ -43,19 +45,13 @@ class DashboardController extends Controller
         // 3. Definição das variáveis que estavam em falta (sublinhadas a vermelho)
         $turmas = match ($user->id_role) {
             1 => Turma::with(['professores', 'alunos'])->get(),
-            2 => User::find($user->id, ['*'])
-                ->turmasLecionadas()
-                ->with(['alunos'])
-                ->get()
-                ->map(function ($turma) {
-                    $professoresDaTurma = User::where('id_role', 2)
-                        ->whereHas('turmasLecionadas', fn($query) => $query->where('Turmas.id', (int) $turma->id))
-                        ->get();
-
-                    $turma->setRelation('professores', $professoresDaTurma);
-
-                    return $turma;
-                }),
+            2 => Turma::where(function ($query) use ($user) {
+                $query->whereHas('professores', fn($q) => $q->where('users.id', (int) $user->id))
+                    ->orWhereHas('disciplinas.professores', fn($q) => $q->where('users.id', (int) $user->id));
+            }, null, null, 'and')
+                ->with(['alunos', 'professores'])
+                ->orderBy('nome')
+                ->get(),
             3 => $user->id_turma ? Turma::where('id', '=', $user->id_turma, 'and')->with(['professores', 'alunos'])->get() : [],
             default => [],
         };
@@ -65,7 +61,7 @@ class DashboardController extends Controller
                 ->whereHas('professores', fn($query) => $query->where('users.id', (int) $user->id))
                 ->get(),
             3 => $user->id_turma
-                ? (Turma::find((int) $user->id_turma)?->disciplinas()
+                ? (Turma::find((int) $user->id_turma, ['*'])?->disciplinas()
                     ->with([
                         'professores',
                         'turmas' => fn($query) => $query
@@ -112,22 +108,72 @@ class DashboardController extends Controller
                 ->values();
 
             if ($idsDesafiosAtribuidos->isNotEmpty()) {
-                $submissoesAluno = SubmissaoDesafioAluno::with([
-                    'respostas:id,id_submissao,id_pergunta,ids_opcoes_escolhidas,resposta_texto,correta,pontuacao',
-                ])
+                $submissoesAluno = SubmissaoDesafioAluno::with(['respostas'])
                     ->where('id_aluno', (int) $user->id)
                     ->whereIn('id_desafio', $idsDesafiosAtribuidos->all())
                     ->orderByDesc('created_at')
-                    ->get();
+                    ->get()
+                    ->map(function (SubmissaoDesafioAluno $submissao) {
+                        return [
+                            'id' => (int) $submissao->id,
+                            'id_desafio' => (int) $submissao->id_desafio,
+                            'estado' => (string) $submissao->estado,
+                            'data_ultima_tentativa' => $submissao->data_submissao ?? $submissao->updated_at,
+                            'respostas' => collect($submissao->respostas ?? [])->map(function ($resposta) {
+                                $idsOpcoes = is_array($resposta->ids_opcoes_escolhidas ?? null)
+                                    ? $resposta->ids_opcoes_escolhidas
+                                    : [];
+
+                                return [
+                                    'id' => (int) $resposta->id,
+                                    'id_pergunta' => (int) ($resposta->id_pergunta ?? 0),
+                                    'id_opcao_escolhida' => $resposta->id_opcao_escolhida
+                                        ?? ($idsOpcoes[0] ?? null),
+                                    'ids_opcoes_escolhidas' => $idsOpcoes,
+                                    'resposta_texto' => $resposta->resposta_texto,
+                                    'status_correcao' => $resposta->status_correcao ?? 'Por_Avaliar',
+                                    'pontuacao_obtida' => (int) ($resposta->pontuacao_obtida ?? 0),
+                                ];
+                            })->values()->all(),
+                        ];
+                    })
+                    ->values()
+                    ->all();
             }
 
             $desafiosAluno = $tarefasAluno;
             $inscricoesDesafiosAluno = $submissoesAluno;
+
+            $notasAluno = SubmissaoDesafioAluno::with(['desafio.disciplina'])
+                ->where('id_aluno', (int) $user->id)
+                ->whereIn('estado', [SubmissaoDesafioAluno::AVALIADO, SubmissaoDesafioAluno::CONCLUIDO])
+                ->whereNotNull('nota')
+                ->orderByDesc('data_submissao')
+                ->orderByDesc('updated_at')
+                ->get()
+                ->map(function (SubmissaoDesafioAluno $submissao) {
+                    return [
+                        'id' => (int) $submissao->id,
+                        'valor' => (float) ($submissao->nota ?? 0),
+                        'created_at' => $submissao->data_submissao ?? $submissao->updated_at,
+                        'teste' => [
+                            'titulo' => (string) ($submissao->desafio?->titulo ?? 'Desafio'),
+                            'peso_avaliacao' => (float) ($submissao->desafio?->peso_nota ?? 0),
+                            'tipo_desafio' => (string) ($submissao->desafio?->tipo_desafio ?? 'Tarefa'),
+                            'disciplina' => [
+                                'nome' => (string) ($submissao->desafio?->disciplina?->nome ?? 'Geral'),
+                            ],
+                        ],
+                    ];
+                })
+                ->values()
+                ->all();
         }
 
         $perguntasProfessor = [];
         $perguntasBancoProfessor = null;
         $trabalhosPendentes = 0;
+        $badgesProfessor = [];
 
         if ($cargoReal === 'professor') {
             $mostrarApenasMinhasPerguntas = (string) $request->query('perguntas_minhas', '1') !== '0';
@@ -171,8 +217,8 @@ class DashboardController extends Controller
                 ->orderByDesc('created_at')
                 ->paginate(10, ['*'], 'correcoes_page')
                 ->withQueryString()
-                ->through(function (SubmissaoDesafioAluno $submissao) use ($user) {
-                    $perguntas = \collect($submissao->desafio?->perguntas ?? [])->map(function ($pergunta) {
+                ->through(function (SubmissaoDesafioAluno $inscricao) use ($user) {
+                    $perguntas = \collect($inscricao->desafio?->perguntas ?? [])->map(function ($pergunta) {
                         return [
                             'id' => (int) $pergunta->id,
                             'pivot' => [
@@ -181,38 +227,36 @@ class DashboardController extends Controller
                         ];
                     })->values()->all();
 
-                    $respostas = \collect($submissao->respostas ?? [])->map(function ($resposta) {
+                    $respostas = \collect($inscricao->respostas ?? [])->map(function ($resposta) {
                         return [
                             'id' => (int) $resposta->id,
                             'id_pergunta' => (int) $resposta->id_pergunta,
                             'ids_opcoes_escolhidas' => $resposta->ids_opcoes_escolhidas,
                             'resposta_texto' => $resposta->resposta_texto,
-                            'status_correcao' => $resposta->correta === null
-                                ? 'Por_Avaliar'
-                                : ($resposta->correta ? 'Correto' : 'Errado'),
-                            'pontuacao_obtida' => (int) ($resposta->pontuacao ?? 0),
-                            'comentario_formador' => null,
+                            'status_correcao' => $resposta->status_correcao ?? 'Por_Avaliar',
+                            'pontuacao_obtida' => (int) ($resposta->pontuacao_obtida ?? 0),
+                            'comentario_formador' => $resposta->comentario_formador,
                             'pergunta' => $resposta->pergunta,
                             'opcao_escolhida' => null,
                         ];
                     })->values()->all();
 
                     return [
-                        'id' => (int) $submissao->id,
-                        'estado' => $submissao->estado === 'Avaliado'
+                        'id' => (int) $inscricao->id,
+                        'estado' => $inscricao->estado === 'Concluido'
                             ? 'Corrigido'
-                            : ($submissao->estado === 'Submetido' ? 'Aguardando_Correcao' : $submissao->estado),
-                        'nota_final' => $submissao->nota,
-                        'corrigido_em' => $submissao->updated_at,
-                        'publicado_em' => $submissao->estado === 'Avaliado' ? $submissao->updated_at : null,
+                            : ($inscricao->estado === 'Submetido' ? 'Aguardando_Correcao' : $inscricao->estado),
+                        'nota_final' => null,
+                        'corrigido_em' => $inscricao->updated_at,
+                        'publicado_em' => $inscricao->estado === 'Concluido' ? $inscricao->updated_at : null,
                         'corrigido_por' => [
                             'id' => (int) $user->id,
                             'name' => (string) $user->name,
                         ],
-                        'aluno' => $submissao->aluno,
+                        'aluno' => $inscricao->aluno,
                         'teste' => [
-                            'id' => (int) ($submissao->desafio?->id ?? 0),
-                            'titulo' => (string) ($submissao->desafio?->titulo ?? 'Desafio'),
+                            'id' => (int) ($inscricao->desafio?->id ?? 0),
+                            'titulo' => (string) ($inscricao->desafio?->titulo ?? 'Desafio'),
                             'perguntas' => $perguntas,
                         ],
                         'respostas' => $respostas,
@@ -220,10 +264,24 @@ class DashboardController extends Controller
                 });
 
             $trabalhosPendentes = SubmissaoDesafioAluno::whereHas('desafio', fn($query) => $query->where('id_formador', $user->id))
-                ->where('estado', '=', 'Submetido', 'and')
+                ->where('estado', '=', 'Submetido')
                 ->count();
+
+            $badgesProfessor = Badge::query()
+                ->where('ativa', true)
+                ->orderBy('nome')
+                ->get()
+                ->map(fn(Badge $badge) => [
+                    'id' => (int) $badge->id,
+                    'nome' => (string) $badge->nome,
+                    'descricao' => (string) ($badge->descricao ?? ''),
+                    'imagem_url' => $badge->imagem_url ?? $badge->icone_url ?? null,
+                ])
+                ->values();
         }
 
+        $initialSubmissaoId = $request->filled('submissao_id') ? (int) $request->query('submissao_id') : null;
+        $initialDesafioModalId = $request->filled('desafio_modal_id') ? (int) $request->query('desafio_modal_id') : null;
         $initialView = (string) $request->query('view', 'dashboard');
         $allowedViews = [
             'dashboard',
@@ -241,6 +299,7 @@ class DashboardController extends Controller
             'avaliacoes',
             'boletim',
             'leaderboard',
+            'notificacoes',
         ];
 
         if (!in_array($initialView, $allowedViews, true)) {
@@ -270,7 +329,7 @@ class DashboardController extends Controller
         });
 
         $rankingBadges = $topBadges->map(function ($row, $index) {
-            $usuario = User::find($row->id);
+            $usuario = User::find($row->id, ['*']);
             return [
                 'posicao' => $index + 1,
                 'usuario' => $usuario,
@@ -291,6 +350,8 @@ class DashboardController extends Controller
         // 5. Renderização Final
         return Inertia::render('Dashboard/Dashboard', [
             'initialView' => $initialView,
+            'initialSubmissaoId' => $initialSubmissaoId,
+            'initialDesafioModalId' => $initialDesafioModalId,
             'userRoleReal' => $cargoReal,
             'estatisticas' => $estatisticas,
             'utilizadores' => User::with(['turma', 'turmasLecionadas'])->orderBy('created_at', 'desc')->get(),
@@ -301,6 +362,7 @@ class DashboardController extends Controller
             'submissoesAluno' => $submissoesAluno,
             'desafiosAluno' => $desafiosAluno,
             'inscricoesDesafiosAluno' => $inscricoesDesafiosAluno,
+            'notasAluno' => $notasAluno,
 
             // Variáveis específicas do Professor
             'perguntasProfessor' => $perguntasProfessor,
@@ -331,6 +393,11 @@ class DashboardController extends Controller
                             'instrucoes' => (string) ($desafio->descricao ?? ''),
                             'peso_avaliacao' => (float) ($desafio->peso_nota ?? 0),
                             'duracao_minutos' => $desafio->duracao_minutos,
+                            'xp_base' => (int) ($desafio->xp_base ?? 50),
+                            'auto_award_xp' => (bool) ($desafio->auto_award_xp ?? true),
+                            'badges_json' => $desafio->badges_json,
+                            'url_anexo_global' => $desafio->url_anexo_global,
+                            'anexos_professor_json' => $desafio->anexos_professor_json,
                             'perguntas' => $perguntas,
                             'desafio_associado' => [
                                 'tipo_desafio' => $desafio->tipo_desafio ?? 'Quiz',
@@ -351,6 +418,7 @@ class DashboardController extends Controller
                         'data_hora_abertura' => $atribuicao->data_inicio_tentativas,
                         'data_hora_fecho' => $atribuicao->data_fim_tentativas,
                         'tentativas_maximas' => $atribuicao->tentativas_maximas,
+                        'sem_consulta' => (bool) ($atribuicao->sem_consulta ?? false),
                         'created_at' => $atribuicao->created_at,
                         'turma' => $atribuicao->turma,
                         'teste' => [
@@ -361,10 +429,17 @@ class DashboardController extends Controller
                     : [],
             'correcoesProfessor' => $correcoesProfessor,
             'trabalhosPendentes' => $trabalhosPendentes,
+            'badgesProfessor' => $badgesProfessor,
             'podio' => $podio,
             'ranking_xp' => $rankingXp,
             'ranking_nivel' => $rankingNivel,
             'ranking_badges' => $rankingBadges,
+            'notificacoesData' => in_array($cargoReal, ['aluno', 'professor'])
+                ? Notificacao::where('id_utilizador', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->paginate(10, ['*'], 'notif_page')
+                    ->withQueryString()
+                : null,
         ]);
 
 

@@ -30,6 +30,13 @@ export const createTesteFormDefaults = () => ({
     pontuacao_por_pergunta: {},
     novas_perguntas: [],
     instrucoes: "",
+    xp_base: 50,
+    auto_award_xp: true,
+    badge_existente_id: "",
+    nova_badge_nome: "",
+    nova_badge_descricao: "",
+    nova_badge_imagem: null,
+    anexo_global_ficheiro: null,
 });
 
 export const createNovaPerguntaTesteDefaults = () => ({

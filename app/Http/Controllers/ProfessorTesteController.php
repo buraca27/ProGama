@@ -4,16 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\OpcaoPergunta;
 use App\Models\AtribuicaoDesafio;
+use App\Models\Badge;
 use App\Models\Desafio;
 use App\Models\Pergunta;
 use App\Models\RespostaDesafioAluno;
 use App\Models\SubmissaoDesafioAluno;
-use App\Models\User;
+use App\Models\Turma;
 use App\Services\NotificacaoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ProfessorTesteController extends Controller
@@ -88,7 +90,7 @@ class ProfessorTesteController extends Controller
             ->firstOrFail();
 
         DB::transaction(function () use ($desafio, $validated) {
-            $desafio->update($this->montarPayloadDesafioAtualizacao($validated));
+            $desafio->update($this->montarPayloadDesafioAtualizacao($validated, $desafio));
 
             $this->sincronizarPerguntasDesafio($desafio, $validated);
         });
@@ -160,6 +162,13 @@ class ProfessorTesteController extends Controller
             'novas_perguntas.*.resposta_correta_indices' => 'nullable|array',
             'novas_perguntas.*.resposta_correta_indices.*' => 'integer|min:0',
             'novas_perguntas.*.resposta_verdadeiro_falso' => 'nullable|boolean',
+            'xp_base' => 'nullable|integer|min:0|max:100000',
+            'auto_award_xp' => 'nullable|boolean',
+            'badge_existente_id' => 'nullable|integer|exists:Badges,id',
+            'nova_badge_nome' => 'nullable|string|max:100|required_with:nova_badge_imagem',
+            'nova_badge_descricao' => 'nullable|string|max:500',
+            'nova_badge_imagem' => 'nullable|image|max:4096',
+            'anexo_global_ficheiro' => 'nullable|file|max:10240',
         ]);
     }
 
@@ -174,17 +183,21 @@ class ProfessorTesteController extends Controller
             'data_hora_abertura' => 'required|date',
             'data_hora_fecho' => 'required|date|after:data_hora_abertura',
             'tentativas_maximas' => 'nullable|integer|min:1|max:10',
+            'sem_consulta' => 'nullable|boolean',
         ]);
 
         $professorId = (int) Auth::id();
 
-        $desafio = Desafio::where('id', '=', $validated['id_desafio'], 'and')
+        $desafio = Desafio::with('categoria')
+            ->where('id', '=', $validated['id_desafio'], 'and')
             ->where('id_formador', '=', $professorId, 'and')
             ->firstOrFail();
 
-        $turmasPermitidas = User::findOrFail($professorId)
-            ->turmasLecionadas()
-            ->pluck('Turmas.id')
+        $turmasPermitidas = Turma::where(function ($query) use ($professorId) {
+            $query->whereHas('professores', fn($q) => $q->where('users.id', $professorId))
+                ->orWhereHas('disciplinas.professores', fn($q) => $q->where('users.id', $professorId));
+        }, null, null, 'and')
+            ->pluck('id')
             ->map(fn($id) => (int) $id)
             ->all();
 
@@ -216,12 +229,18 @@ class ProfessorTesteController extends Controller
                     'data_inicio_tentativas' => $validated['data_hora_abertura'],
                     'data_fim_tentativas' => $validated['data_hora_fecho'],
                     'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
+                    'sem_consulta' => (bool) ($validated['sem_consulta'] ?? false),
                 ]);
 
+                // NOVA CHAMADA ATUALIZADA
                 $this->notificacaoService->notificarNovoDesafioTurma(
                     (int) $turmaId,
                     (int) $desafio->id,
                     (string) $desafio->titulo,
+                    $validated['data_hora_abertura'],
+                    $validated['data_hora_fecho'],
+                    $desafio->categoria?->nome,
+                    $desafio->duracao_minutos ? (int) $desafio->duracao_minutos : null
                 );
             }
         });
@@ -237,6 +256,7 @@ class ProfessorTesteController extends Controller
             'data_hora_abertura' => 'required|date',
             'data_hora_fecho' => 'required|date|after:data_hora_abertura',
             'tentativas_maximas' => 'nullable|integer|min:1|max:10',
+            'sem_consulta' => 'nullable|boolean',
         ]);
 
         $tarefa = $this->obterTarefaDoProfessor($idTarefa);
@@ -245,10 +265,21 @@ class ProfessorTesteController extends Controller
             'data_inicio_tentativas' => $validated['data_hora_abertura'],
             'data_fim_tentativas' => $validated['data_hora_fecho'],
             'tentativas_maximas' => $validated['tentativas_maximas'] ?? null,
+            'sem_consulta' => (bool) ($validated['sem_consulta'] ?? $tarefa->sem_consulta),
         ]);
 
         if ($tarefa->desafio) {
             $this->atualizarJanelaDesafio($tarefa->desafio, $validated['data_hora_abertura'], $validated['data_hora_fecho']);
+        }
+
+        if ($tarefa->id_turma && $tarefa->desafio) {
+            $this->notificacaoService->notificarAlteracaoDatasDesafio(
+                (int) $tarefa->id_turma,
+                (int) $tarefa->id_desafio,
+                (string) $tarefa->desafio->titulo,
+                $validated['data_hora_abertura'],
+                $validated['data_hora_fecho']
+            );
         }
 
         return redirect()->route('dashboard')->with('success', 'Datas do desafio atualizadas com sucesso.');
@@ -290,14 +321,14 @@ class ProfessorTesteController extends Controller
         $validated = $request->validate([
             'publicar' => 'nullable|boolean',
             'respostas' => 'required|array|min:1',
-            'respostas.*.id' => 'required|integer|exists:Respostas_Desafio_Aluno,id',
+            'respostas.*.id' => 'required|integer|exists:Respostas_Desafios_Alunos,id',
             'respostas.*.status_correcao' => 'required|string|in:Correto,Errado,Por_Avaliar',
             'respostas.*.pontuacao_obtida' => 'required|integer|min:0|max:20',
             'respostas.*.comentario_formador' => 'nullable|string',
         ]);
 
-        $submissao = SubmissaoDesafioAluno::with(['desafio.perguntas', 'respostas'])
-            ->where('id', '=', $idTesteRealizado, 'and')
+        $submissao = SubmissaoDesafioAluno::with(['desafio' => fn($q) => $q->with('perguntas'), 'respostas'])
+            ->where('id', '=', $idTesteRealizado)
             ->whereHas('desafio', fn($q) => $q->where('id_formador', (int) Auth::id()))
             ->firstOrFail();
 
@@ -332,15 +363,14 @@ class ProfessorTesteController extends Controller
                 }
 
                 $resposta->update([
-                    'correta' => $dadosResposta['status_correcao'] === 'Por_Avaliar'
-                        ? null
-                        : $dadosResposta['status_correcao'] === 'Correto',
-                    'pontuacao' => $pontuacaoObtida,
+                    'status_correcao' => $dadosResposta['status_correcao'],
+                    'pontuacao_obtida' => $pontuacaoObtida,
+                    'comentario_formador' => $dadosResposta['comentario_formador'] ?? null,
                 ]);
             }
 
             $respostasAtualizadas = RespostaDesafioAluno::where('id_submissao', '=', $submissao->id, 'and')->get();
-            $totalObtido = (int) $respostasAtualizadas->sum('pontuacao');
+            $totalObtido = (int) $respostasAtualizadas->sum('pontuacao_obtida');
 
             $pontuacaoPorPergunta = $submissao->desafio->perguntas
                 ->map(fn($pergunta) => (int) ($pergunta->pivot->pontuacao_extra ?? 1));
@@ -351,12 +381,12 @@ class ProfessorTesteController extends Controller
                 : 0;
 
             $temPendentes = $respostasAtualizadas
-                ->contains(fn($resposta) => $resposta->correta === null);
+                ->contains(fn($resposta) => $resposta->status_correcao === 'Por_Avaliar');
 
             $publicar = (bool) ($validated['publicar'] ?? false);
             $novoEstado = $temPendentes
-                ? SubmissaoDesafioAluno::SUBMETIDO
-                : ($publicar ? SubmissaoDesafioAluno::AVALIADO : SubmissaoDesafioAluno::SUBMETIDO);
+                ? 'Submetido'
+                : ($publicar ? 'Concluido' : 'Submetido');
             $agora = now();
 
             $feedback = collect($validated['respostas'])
@@ -365,9 +395,9 @@ class ProfessorTesteController extends Controller
                 ->implode("\n");
 
             $submissao->update([
-                'nota' => $notaFinal,
                 'estado' => $novoEstado,
-                'feedback_professor' => $feedback ?: null,
+                'data_submissao' => $agora,
+                'nota' => $notaFinal,
                 'updated_at' => $agora,
             ]);
 
@@ -524,6 +554,8 @@ class ProfessorTesteController extends Controller
     {
         $tabelaDesafios = $this->obterTabelaDesafio();
 
+        $badgeSelecionada = $this->resolverBadgeDesafio($validated);
+        $anexoGlobal = $this->armazenarAnexoGlobal($validated, null);
         $payload = [
             'titulo' => $validated['titulo'],
             'descricao' => $validated['instrucoes'] ?? null,
@@ -534,27 +566,115 @@ class ProfessorTesteController extends Controller
             'exige_submissao' => true,
             'data_inicio' => now(),
             'data_fim' => now()->addDays(30),
+            'xp_base' => (int) ($validated['xp_base'] ?? 50),
+            'auto_award_xp' => (bool) ($validated['auto_award_xp'] ?? true),
+            'badges_json' => $badgeSelecionada ? [$badgeSelecionada] : null,
+            'url_anexo_global' => $anexoGlobal,
+            'anexos_professor_json' => null,
+            'ativa' => true,
         ];
 
-        if (Schema::hasColumn($tabelaDesafios, 'ativa')) {
-            $payload['ativa'] = true;
-        }
+        return $this->filtrarPayloadPorColunasDesafio($payload);
+    }
 
-        if (Schema::hasColumn($tabelaDesafios, 'ativo')) {
-            $payload['ativo'] = true;
+    private function montarPayloadDesafioAtualizacao(array $validated, Desafio $desafio): array
+    {
+        $badgeSelecionada = $this->resolverBadgeDesafio($validated);
+        $anexoGlobal = $this->armazenarAnexoGlobal($validated, $desafio->url_anexo_global);
+        $payload = [
+            'titulo' => $validated['titulo'],
+            'descricao' => $validated['instrucoes'] ?? null,
+            'tipo_desafio' => $this->normalizarTipoDesafioParaTabela((string) $validated['tipo_desafio']),
+            'duracao_minutos' => $validated['duracao_minutos'] ?? null,
+            'xp_base' => isset($validated['xp_base']) ? (int) $validated['xp_base'] : (int) ($desafio->xp_base ?? 50),
+            'auto_award_xp' => isset($validated['auto_award_xp'])
+                ? (bool) $validated['auto_award_xp']
+                : (bool) ($desafio->auto_award_xp ?? true),
+            'url_anexo_global' => $anexoGlobal,
+            'anexos_professor_json' => null,
+        ];
+
+        if ($badgeSelecionada) {
+            $payload['badges_json'] = [$badgeSelecionada];
         }
 
         return $this->filtrarPayloadPorColunasDesafio($payload);
     }
 
-    private function montarPayloadDesafioAtualizacao(array $validated): array
+    private function resolverBadgeDesafio(array $validated): ?array
     {
-        return $this->filtrarPayloadPorColunasDesafio([
-            'titulo' => $validated['titulo'],
-            'descricao' => $validated['instrucoes'] ?? null,
-            'tipo_desafio' => $this->normalizarTipoDesafioParaTabela((string) $validated['tipo_desafio']),
-            'duracao_minutos' => $validated['duracao_minutos'] ?? null,
-        ]);
+        if (!empty($validated['badge_existente_id'])) {
+            $badge = Badge::find((int) $validated['badge_existente_id'], ['*']);
+            if (!$badge) {
+                return null;
+            }
+
+            return [
+                'id' => (int) $badge->id,
+                'nome' => (string) $badge->nome,
+                'imagem_url' => $badge->imagem_url ?? $badge->icone_url ?? null,
+                'origem' => 'existente',
+            ];
+        }
+
+        if (empty($validated['nova_badge_nome']) && empty($validated['nova_badge_imagem'])) {
+            return null;
+        }
+
+        $payloadBadge = [
+            'nome' => trim((string) ($validated['nova_badge_nome'] ?? 'Nova Badge')),
+            'descricao' => $validated['nova_badge_descricao'] ?? null,
+            'ativa' => true,
+            'raridade' => 1,
+            'tipo_criterio' => 'Pontuacao',
+            'valor_criterio' => isset($validated['xp_base']) ? (int) $validated['xp_base'] : 50,
+        ];
+
+        if (!empty($validated['nova_badge_imagem'])) {
+            $caminhoImagem = $validated['nova_badge_imagem']->store('badges/professor', 'public');
+
+            if (Schema::hasColumn('Badges', 'imagem_url')) {
+                $payloadBadge['imagem_url'] = $caminhoImagem;
+            }
+
+            if (Schema::hasColumn('Badges', 'icone_url')) {
+                $payloadBadge['icone_url'] = $caminhoImagem;
+            }
+        }
+
+        $badge = Badge::create($payloadBadge);
+
+        return [
+            'id' => (int) $badge->id,
+            'nome' => (string) $badge->nome,
+            'imagem_url' => $badge->imagem_url ?? $badge->icone_url ?? null,
+            'origem' => 'professor',
+        ];
+    }
+
+    private function armazenarAnexoGlobal(array $validated, ?string $existente): ?string
+    {
+        if (empty($validated['anexo_global_ficheiro'])) {
+            return $existente;
+        }
+
+        return $validated['anexo_global_ficheiro']->store('desafios/anexo-global', 'public');
+    }
+
+    private function armazenarAnexosProfessor(array $validated, array $existentes): array
+    {
+        $anexos = $existentes;
+
+        foreach (($validated['anexos_professor_ficheiros'] ?? []) as $ficheiro) {
+            $caminho = $ficheiro->store('desafios/anexos-professor', 'public');
+            $anexos[] = [
+                'nome' => $ficheiro->getClientOriginalName(),
+                'caminho' => $caminho,
+                'url' => Storage::disk('public')->url($caminho),
+            ];
+        }
+
+        return array_values($anexos);
     }
 
     private function atualizarJanelaDesafio(Desafio $desafio, mixed $dataInicio = null, mixed $dataFim = null): void

@@ -53,7 +53,7 @@ function formatarRespostaAluno(resposta) {
     return "(Sem resposta)";
 }
 
-export default function AvaliacoesView({ correcoesProfessor = null }) {
+export default function AvaliacoesView({ correcoesProfessor = null, initialSubmissaoId = null }) {
     const [selectedId, setSelectedId] = useState(null);
 
     const correcoesPaginadas = correcoesProfessor?.data || [];
@@ -64,6 +64,12 @@ export default function AvaliacoesView({ correcoesProfessor = null }) {
         () => correcoesPaginadas.find((item) => item.id === selectedId) || null,
         [correcoesPaginadas, selectedId],
     );
+
+    useEffect(() => {
+        if (initialSubmissaoId && correcoesPaginadas.some((item) => item.id === initialSubmissaoId)) {
+            setSelectedId(initialSubmissaoId);
+        }
+    }, []);
 
     useEffect(() => {
         if (

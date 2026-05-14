@@ -6,8 +6,20 @@ import UpdatePasswordForm from "@/Pages/Dashboard/Components/Profile/UpdatePassw
 import Toast from "@/Components/Toast";
 import { useEffect, useMemo, useState } from "react";
 
+const TIPO_LABEL = {
+    Novo_Desafio: "Novo Desafio",
+    Desafio_Corrigido: "Desafio Corrigido",
+    Teste_Corrigido: "Avaliação Corrigida",
+    Prazo_Proximo: "Prazo Próximo",
+    XP_Recebido: "XP Recebido",
+    Novo_Nivel: "Novo Nível",
+    Badge_Ganho: "Badge Ganha",
+    Submissao_Aluno: "Submissão de Aluno",
+    Alerta_Integridade: "Alerta de Integridade",
+    Alteracao_Datas: "Datas Alteradas",
+};
+
 export default function AuthenticatedLayout({
-    user,
     header,
     children,
     activeView,
@@ -82,6 +94,13 @@ export default function AuthenticatedLayout({
         };
     }, []);
 
+    useEffect(() => {
+        const interval = setInterval(() => {
+            router.reload({ only: ["notifications"] });
+        }, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
     const handleViewChange = (nextView) => {
         if (!onViewChange || nextView === activeView) {
             return;
@@ -108,18 +127,30 @@ export default function AuthenticatedLayout({
     };
 
     // Componente reutilizável para os botões do Menu
-    const MenuButton = ({ id, label }) => (
-        <button
-            onClick={() => handleViewChange(id)}
-            className={`flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 text-left font-medium text-sm ${
-                activeView === id
-                    ? "bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400 shadow-sm"
-                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
-        >
-            {label}
-        </button>
-    );
+    const MenuButton = ({ id, label }) => {
+        if (!onViewChange) {
+            return (
+                <Link
+                    href={route("dashboard", { view: id })}
+                    className="flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 text-left font-medium text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                    {label}
+                </Link>
+            );
+        }
+        return (
+            <button
+                onClick={() => handleViewChange(id)}
+                className={`flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 text-left font-medium text-sm ${
+                    activeView === id
+                        ? "bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400 shadow-sm"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+            >
+                {label}
+            </button>
+        );
+    };
 
     const MenuLink = ({ href, label }) => (
         <Link
@@ -130,8 +161,21 @@ export default function AuthenticatedLayout({
         </Link>
     );
 
-    const markNotificationRead = (id) => {
-        router.post(route("notificacoes.ler", id), {}, { preserveScroll: true, preserveState: true });
+    const markNotificationRead = (id, tipo = null, idDesafio = null, idSubmissao = null) => {
+        router.post(route("notificacoes.ler", id), {}, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setShowNotifications(false);
+                if (tipo === "Submissao_Aluno" && idSubmissao) {
+                    router.visit(route("dashboard", { view: "avaliacoes", submissao_id: idSubmissao }));
+                } else if (idDesafio) {
+                    const params = { desafio_modal_id: idDesafio };
+                    if (activeView && activeView !== "dashboard") params.view = activeView;
+                    router.visit(route("dashboard", params));
+                }
+            },
+        });
     };
 
     const markAllNotificationsRead = () => {
@@ -278,11 +322,14 @@ export default function AuthenticatedLayout({
                                         <button
                                             type="button"
                                             key={item.id}
-                                            onClick={() => markNotificationRead(item.id)}
-                                            className={`w-full rounded-lg px-2 py-2 text-left text-xs ${item.lida ? "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" : "bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200"}`}
+                                            onClick={() => markNotificationRead(item.id, item.tipo_notificacao, item.id_desafio_relacionado ?? null, item.id_submissao_relacionada ?? null)}
+                                            className={`w-full rounded-lg px-2 py-2 text-left text-xs ${item.lida ? "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" : "bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200"} ${item.id_desafio_relacionado ? "cursor-pointer" : ""}`}
                                         >
-                                            <p className="font-semibold">{item.tipo_notificacao}</p>
+                                            <p className="font-semibold">{TIPO_LABEL[item.tipo_notificacao] ?? item.tipo_notificacao}</p>
                                             <p className="mt-0.5 line-clamp-2">{item.mensagem}</p>
+                                            {item.id_desafio_relacionado && (
+                                                <p className="mt-1 text-[10px] opacity-60">Clica para iniciar o desafio →</p>
+                                            )}
                                         </button>
                                     ))}
                                 </div>
@@ -291,16 +338,20 @@ export default function AuthenticatedLayout({
                                     <button
                                         type="button"
                                         onClick={markAllNotificationsRead}
-                                        className="rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold dark:border-gray-700"
+                                        className="rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700 transition"
                                     >
                                         Ler todas
                                     </button>
-                                    <Link
-                                        href={route("notificacoes.index")}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowNotifications(false);
+                                            router.visit(route("dashboard", { view: "notificacoes" }));
+                                        }}
                                         className="rounded-md bg-gray-900 px-2 py-1 text-xs font-semibold text-white dark:bg-gray-100 dark:text-gray-900"
                                     >
                                         Centro
-                                    </Link>
+                                    </button>
                                 </div>
                             </div>
                         )}

@@ -40,6 +40,11 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     });
 
     Route::prefix('dashboard/aluno')->name('aluno.')->group(function () {
+        Route::get('/desafios/{idAtribuicao}/submeter', function () {
+            return redirect()->route('dashboard', [
+                'view' => 'desafios',
+            ]);
+        });
         Route::post('/desafios/{idAtribuicao}/submeter', [AlunoDesafioController::class, 'submeter'])->name('desafios.submeter');
     });
 
@@ -58,6 +63,8 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     Route::prefix('social')->name('social.')->group(function () {
         Route::get('/', [SocialController::class, 'index'])->name('hub');
         Route::post('/seguir/{usuario}', [SocialController::class, 'seguir'])->name('seguir');
+        Route::post('/aceitar/{usuario}', [SocialController::class, 'aceitarPedido'])->name('aceitar');
+        Route::post('/recusar/{usuario}', [SocialController::class, 'recusarPedido'])->name('recusar');
         Route::delete('/seguir/{usuario}', [SocialController::class, 'deixarSeguir'])->name('deixar-seguir');
     });
 

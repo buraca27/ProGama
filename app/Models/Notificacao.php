@@ -14,6 +14,8 @@ class Notificacao extends Model
         'tipo_notificacao',
         'mensagem',
         'id_desafio_relacionado',
+        'id_usuario_relacionado',
+        'id_submissao_relacionada',
         'lida',
     ];
 

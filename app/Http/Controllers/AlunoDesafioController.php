@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Desafio;
-use App\Models\DesafioAtribuicao;
-use App\Models\InscricaoDesafio;
+use App\Models\AtribuicaoDesafio;
+use App\Models\SubmissaoDesafioAluno;
 use App\Models\RespostaDesafioAluno;
+use App\Services\NotificacaoService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class AlunoDesafioController extends Controller
 {
+    public function __construct(private NotificacaoService $notificacaoService) {}
+
     public function submeter(Request $request, int $idAtribuicao)
     {
         $this->assertAluno();
@@ -22,13 +25,14 @@ class AlunoDesafioController extends Controller
         $atribuicao = $this->obterAtribuicaoDoAluno($idAtribuicao, (int) $aluno->id);
         $desafio = $atribuicao->desafio;
 
-        if (!$desafio || !(bool) $desafio->ativo) {
+        if (!$desafio || !(bool) $desafio->ativa) {
             throw ValidationException::withMessages([
                 'desafio' => 'Este desafio não está disponível.',
             ]);
         }
 
         $finalizar = filter_var($request->input('finalizar', true), FILTER_VALIDATE_BOOLEAN);
+        $tabSwitches = max(0, (int) $request->integer('tab_switches', 0));
         $agora = now();
 
         if ($desafio->data_inicio && $agora->lt($desafio->data_inicio)) {
@@ -40,6 +44,15 @@ class AlunoDesafioController extends Controller
         if ($desafio->data_fim && $agora->gt($desafio->data_fim)) {
             throw ValidationException::withMessages([
                 'desafio' => 'O prazo para este desafio já terminou.',
+            ]);
+        }
+
+        // Validar se ainda tem tentativas disponíveis
+        $tentativasRestantes = $atribuicao->tentativasRestantes((int) $aluno->id);
+
+        if (!$atribuicao->temTentativasDisponiveis((int) $aluno->id)) {
+            throw ValidationException::withMessages([
+                'desafio' => 'Esgotaste o número máximo de tentativas para este desafio.',
             ]);
         }
 
@@ -112,21 +125,32 @@ class AlunoDesafioController extends Controller
             }
         }
 
-        DB::transaction(function () use ($aluno, $desafio, $validated, $finalizar, $perguntasDesafio) {
-            $inscricao = InscricaoDesafio::where('id_desafio', (int) $desafio->id)
-                ->where('id_formando', (int) $aluno->id)
+        DB::transaction(function () use ($aluno, $desafio, $atribuicao, $validated, $finalizar, $perguntasDesafio, $tabSwitches) {
+            $inscricao = SubmissaoDesafioAluno::where('id_desafio', (int) $desafio->id)
+                ->where('id_aluno', (int) $aluno->id)
                 ->latest('id')
                 ->first();
 
-            if ($inscricao && in_array($inscricao->estado, ['Submetido', 'Concluido', 'Falhado'], true)) {
+            if ($inscricao && in_array($inscricao->estado, [
+                SubmissaoDesafioAluno::AVALIADO,
+                SubmissaoDesafioAluno::CONCLUIDO,
+            ], true)) {
+                throw ValidationException::withMessages([
+                    'desafio' => 'Este desafio já foi corrigido e fechado. Não podes submeter novamente.',
+                ]);
+            }
+
+            if ($inscricao && in_array($inscricao->estado, ['Submetido', 'Concluido', 'Falhado', 'Avaliado'], true)) {
                 $inscricao = null;
             }
 
             if (!$inscricao) {
-                $inscricao = InscricaoDesafio::create([
+                $inscricao = SubmissaoDesafioAluno::create([
                     'id_desafio' => (int) $desafio->id,
-                    'id_formando' => (int) $aluno->id,
+                    'id_aluno' => (int) $aluno->id,
+                    'id_atribuicao' => (int) $atribuicao->id,
                     'estado' => 'Em_Resolucao',
+                    'numero_tentativa' => max(1, ((int) ($atribuicao->tentativas_maximas ?? 1)) - max(0, $atribuicao->tentativasRestantes((int) $aluno->id)) + 1),
                     'data_inicio_resolucao' => now(),
                 ]);
             }
@@ -137,7 +161,7 @@ class AlunoDesafioController extends Controller
                 if (now()->gt($limiteDuracao)) {
                     $inscricao->update([
                         'estado' => 'Falhado',
-                        'data_ultima_tentativa' => now(),
+                        'data_submissao' => now(),
                     ]);
 
                     throw ValidationException::withMessages([
@@ -190,7 +214,7 @@ class AlunoDesafioController extends Controller
 
                 RespostaDesafioAluno::updateOrCreate(
                     [
-                        'id_inscricao_desafio' => (int) $inscricao->id,
+                        'id_submissao' => (int) $inscricao->id,
                         'id_pergunta' => $idPergunta,
                     ],
                     [
@@ -201,7 +225,6 @@ class AlunoDesafioController extends Controller
                             : null,
                         'status_correcao' => $statusCorrecao,
                         'pontuacao_obtida' => $pontuacaoObtida,
-                        'comentario_formador' => null,
                     ]
                 );
             }
@@ -209,7 +232,10 @@ class AlunoDesafioController extends Controller
             if ($finalizar) {
                 $inscricao->update([
                     'estado' => 'Submetido',
-                    'data_ultima_tentativa' => now(),
+                    'data_submissao' => now(),
+                    'metadata' => [
+                        'tab_switches' => $tabSwitches,
+                    ],
                 ]);
             } else {
                 $inscricao->update([
@@ -219,21 +245,52 @@ class AlunoDesafioController extends Controller
         });
 
         if ($finalizar) {
-            return redirect()->route('dashboard')
+            $professorId = $desafio->id_formador ?? null;
+            $semConsulta = (bool) ($atribuicao->sem_consulta ?? false);
+
+            if ($professorId) {
+                $tituloNotif = $desafio->titulo . ($tabSwitches > 0 ? " ({$tabSwitches} troca(s) de aba)" : '');
+                $this->notificacaoService->notificarSubmissaoAluno(
+                    (int) $professorId,
+                    (int) $aluno->id,
+                    (string) $aluno->name,
+                    (int) $desafio->id,
+                    $tituloNotif,
+                    null
+                );
+
+                if ($semConsulta && $tabSwitches > 3) {
+                    $this->notificacaoService->notificarAlertaIntegridade(
+                        (int) $professorId,
+                        (int) $aluno->id,
+                        (string) $aluno->name,
+                        (int) $desafio->id,
+                        (string) $desafio->titulo,
+                        $tabSwitches
+                    );
+                }
+            }
+
+            $allowedViews = ['dashboard', 'notificacoes', 'desafios', 'trabalhos', 'boletim', 'disciplinas', 'leaderboard'];
+            $returnView = $request->filled('return_view') && in_array($request->input('return_view'), $allowedViews, true)
+                ? $request->input('return_view')
+                : null;
+            $redirectParams = ($returnView && $returnView !== 'dashboard') ? ['view' => $returnView] : [];
+
+            return redirect()->route('dashboard', $redirectParams)
                 ->with('success', 'Desafio submetido com sucesso.');
         }
 
         return back()->with('success', 'Rascunho do desafio guardado com sucesso.');
     }
 
-    private function obterAtribuicaoDoAluno(int $idAtribuicao, int $idAluno): DesafioAtribuicao
+    private function obterAtribuicaoDoAluno(int $idAtribuicao, int $idAluno): AtribuicaoDesafio
     {
         $aluno = Auth::user();
         $idTurmaAluno = (int) ($aluno?->id_turma ?? 0);
 
-        return DesafioAtribuicao::with([
+        return AtribuicaoDesafio::with([
             'desafio.perguntas' => fn($query) => $query->with('opcoes'),
-            'desafio.testeAssociado.perguntas' => fn($query) => $query->with('opcoes'),
         ])
             ->where('id', $idAtribuicao)
             ->where(function ($query) use ($idAluno, $idTurmaAluno) {
@@ -252,17 +309,9 @@ class AlunoDesafioController extends Controller
             return $desafio->perguntas;
         }
 
-        if ($desafio->relationLoaded('testeAssociado') && $desafio->testeAssociado) {
-            return $desafio->testeAssociado->perguntas ?? collect();
-        }
+        $desafio->loadMissing('perguntas.opcoes');
 
-        $desafio->loadMissing('perguntas.opcoes', 'testeAssociado.perguntas.opcoes');
-
-        if ($desafio->perguntas->isNotEmpty()) {
-            return $desafio->perguntas;
-        }
-
-        return $desafio->testeAssociado?->perguntas ?? collect();
+        return $desafio->perguntas;
     }
 
     private function assertAluno(): void

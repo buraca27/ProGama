@@ -18,11 +18,13 @@ class InscricaoDesafio extends Model
         'caminho_ficheiro',
         'data_inicio_resolucao',
         'data_ultima_tentativa',
+        'tab_switches',
     ];
 
     protected $casts = [
         'data_inicio_resolucao' => 'datetime',
         'data_ultima_tentativa' => 'datetime',
+        'tab_switches' => 'integer',
     ];
 
     public function desafio()
@@ -37,6 +39,6 @@ class InscricaoDesafio extends Model
 
     public function respostas()
     {
-        return $this->hasMany(RespostaDesafioAluno::class, 'id_inscricao_desafio');
+        return $this->hasMany(RespostaDesafioAluno::class, 'id_submissao');
     }
 }

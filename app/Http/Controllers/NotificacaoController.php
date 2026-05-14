@@ -15,18 +15,21 @@ class NotificacaoController extends Controller
 
     public function index(Request $request)
     {
-        $utilizador = $request->user();
+        $user = $request->user();
 
-        $notificacoes = Notificacao::query()
-            ->where('id_utilizador', (int) $utilizador->id)
-            ->orderByDesc('created_at')
-            ->paginate(20);
+        if ((int) $user->id_role === 1) {
+            return redirect()->route('dashboard');
+        }
 
-        return Inertia::render('Notificacoes/Index', [
+        $notificacoes = Notificacao::where('id_utilizador', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
+        return Inertia::render('Notificacoes/NotificacoesIndex', [
             'notificacoes' => $notificacoes,
         ]);
     }
-
     public function marcarLida(Notificacao $notificacao, Request $request)
     {
         if ((int) $notificacao->id_utilizador !== (int) $request->user()->id) {
