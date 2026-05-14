@@ -12,13 +12,12 @@ use App\Http\Controllers\ProfessorTesteController;
 use App\Http\Controllers\GamificationController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\NotificacaoController;
+use App\Http\Controllers\LandingPageController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // --- 1. LANDING PAGE ---
-Route::get('/', function () {
-    return Inertia::render('LandingPage/LandingPage');
-});
+Route::get('/', [LandingPageController::class, 'index']);
 
 // --- 2. ÁREA AUTENTICADA ---
 Route::middleware(['auth', 'verified', 'force_password_change'])->group(function () {
@@ -93,6 +92,12 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
                 'view' => 'updateLandingPage',
             ]);
         })->name('dashboard.update-landing-page');
+
+        Route::get('/admin/landing', [LandingPageController::class, 'edit'])
+            ->name('admin.landing.edit');
+
+        Route::put('/admin/landing', [LandingPageController::class, 'update'])
+            ->name('admin.landing.update');
 
         // Turmas (Criar, Editar, Apagar, Atribuir)
         Route::prefix('dashboard/turmas')->name('turmas.')->group(function () {
