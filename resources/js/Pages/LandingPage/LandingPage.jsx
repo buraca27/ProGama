@@ -2,18 +2,24 @@ import React, { useState, useEffect } from "react";
 import "./landingPage.css";
 import { Link } from '@inertiajs/react';
 
-// Imagens
-import logo from "./Imagens/logo.png";
-import carrousel1 from "./Imagens/carrousel1.png";
-import carrousel2 from "./Imagens/carrousel2.png";
-import mascote from "./Imagens/Mascote.png";
-import mascoteteste from "./Imagens/teste-mascote.png";
-import mascotedesafio from "./Imagens/desafio-mascote.png";
-import mascoteOk from "./Imagens/ok-mascote.png";
-import mascoteTriste from "./Imagens/mascote-triste.png";
-import mascoteTriste2 from "./Imagens/mascote-triste2.png";
+// ── Imagens (mantidas exatamente iguais ao original) ─────────────────────────
+import logo            from "./Imagens/logo.png";
+import carrousel1      from "./Imagens/carrousel1.png";
+import carrousel2      from "./Imagens/carrousel2.png";
+import mascote         from "./Imagens/Mascote.png";
+import mascoteteste    from "./Imagens/teste-mascote.png";
+import mascotedesafio  from "./Imagens/desafio-mascote.png";
+import mascoteOk       from "./Imagens/ok-mascote.png";
+import mascoteTriste   from "./Imagens/mascote-triste.png";
+import mascoteTriste2  from "./Imagens/mascote-triste2.png";
 
-// Componente para os Cards de Professor/Aluno (Evita repetir)
+// Imagens locais de fallback (usadas quando o slide não tem imagem definida na BD)
+const slideImagensFallback = [carrousel1, carrousel2, mascoteOk];
+
+// =============================================================================
+// COMPONENTES INTERNOS (iguais ao original)
+// =============================================================================
+
 const PerfilCardHorizontal = ({ classeExtra, icone, sub, titulo, lista }) => (
     <div className={`card-perfil-horizontal ${classeExtra}`}>
         <div className="card-perfil-header">
@@ -33,7 +39,6 @@ const PerfilCardHorizontal = ({ classeExtra, icone, sub, titulo, lista }) => (
     </div>
 );
 
-// Componente para os Feedbacks do Tico
 const FeedbackTico = ({ tipo, img, status, lista }) => (
     <div className={`feedback-mini-card ${tipo}`}>
         <div className="feedback-icon-box">
@@ -48,24 +53,28 @@ const FeedbackTico = ({ tipo, img, status, lista }) => (
     </div>
 );
 
-export default function LandingPage() {
+// =============================================================================
+// PÁGINA PRINCIPAL
+//
+// DIFERENÇA em relação ao original:
+//   ANTES → export default function LandingPage() { ...dados hardcoded... }
+//   AGORA → export default function LandingPage({ conteudo }) { ...dados do Laravel... }
+//
+// O Laravel envia os dados assim no controller:
+//   return Inertia::render('LandingPage', ['conteudo' => $conteudo]);
+// =============================================================================
+
+export default function LandingPage({ conteudo }) {
+
+    // Desembalar as secções vindas do Laravel
+    const { slides, informacoes, desafios, testes, footer } = conteudo;
+
     const [nivelSelecionado, setNivelSelecionado] = useState(0);
-    const [currentSlide, setCurrentSlide] = useState(0);
-    const [direction, setDirection] = useState("next");
+    const [currentSlide, setCurrentSlide]         = useState(0);
+    const [direction, setDirection]               = useState("next");
+    const [menuAberto, setMenuAberto]             = useState(false);
 
-    const niveis = [
-        { nome: "Iniciante", emoji: "🌱", req: "Foca-se em conceitos fundamentais, vocabulário básico e identificação de elementos principais através de exercícios de escolha múltipla." },
-        { nome: "Estudante", emoji: "📚", req: "Requer a resolução de problemas intermédios e exercícios de interpretação que ligam diferentes temas da mesma disciplina." },
-        { nome: "Mestre", emoji: "🏆", req: "Desafios que exigem a capacidade de síntese, resolução de casos complexos e aplicação de fórmulas ou regras gramaticais avançadas." },
-        { nome: "Grande Mestre", emoji: "👑", req: "Reservado para alunos que dominam a matéria ao ponto de conseguirem resolver desafios interdisciplinares sob pressão de tempo." },
-    ];
-
-    const slides = [
-        { titulo: "Realizar Testes e Desafios Online", subtitulo: "A plataforma ideal para consolidar conhecimentos em qualquer disciplina.", imagem: carrousel1 },
-        { titulo: "Criar Testes e Desafios", subtitulo: "Usar o ProGama para avaliar e testar os conhecimentos dos alunos", imagem: carrousel2 },
-        { titulo: "A Nossa Mascote: Tico", subtitulo: "A mascote do ProGama chama-se Tico, e ele vai-se tornar o teu melhor amigo", imagem: mascoteOk },
-    ];
-
+    // Avanço automático do carrossel
     useEffect(() => {
         const timer = setInterval(() => {
             setDirection("next");
@@ -77,128 +86,259 @@ export default function LandingPage() {
     const moveSlide = (dir) => {
         setDirection(dir);
         if (dir === "next") setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
-        else setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+        else                setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
     };
 
     return (
         <div className="pagina-total">
+
+            {/* ================================================================
+                HEADER
+            ================================================================ */}
             <header className="header-centered">
                 <div className="header-left">
                     <img src={logo} alt="ProGama Logo" className="logo-img" />
                 </div>
+
+                {/* Menu normal — visível em desktop */}
                 <nav className="nav-bar-center">
-                    <a href="#" className="nav-link">Início</a>
-                    <a href="#testes" className="nav-link">Testes</a>
-                    <a href="#desafios" className="nav-link">Desafios</a>
-                    <a href="#informacoes" className="nav-link">Informações</a>
+                    <a href="#"             className="nav-link">Início</a>
+                    <a href="#informacoes"  className="nav-link">Informações</a>
+                    <a href="#desafios"     className="nav-link">Desafios</a>
+                    <a href="#testes"       className="nav-link">Testes</a>
+
+
                 </nav>
+
                 <div className="header-right">
                     <img src={mascote} alt="Mascote" className="mascote-img" />
                     <button className="login-btn">
                         <Link href={route('login')}>Fazer Login</Link>
                     </button>
+
+                    {/* Botão hambúrguer — visível apenas em mobile */}
+                    <button
+                        className="menu-hamburguer"
+                        onClick={() => setMenuAberto(!menuAberto)}
+                        aria-label="Abrir menu"
+                    >
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
                 </div>
+
+                {/* Menu mobile — aparece ao clicar no hambúrguer */}
+                <nav className={`nav-mobile ${menuAberto ? "aberto" : ""}`}>
+                    <a href="#"            className="nav-link" onClick={() => setMenuAberto(false)}>Início</a>
+                    <a href="#testes"      className="nav-link" onClick={() => setMenuAberto(false)}>Testes</a>
+                    <a href="#desafios"    className="nav-link" onClick={() => setMenuAberto(false)}>Desafios</a>
+                    <a href="#informacoes" className="nav-link" onClick={() => setMenuAberto(false)}>Informações</a>
+                </nav>
             </header>
 
             <main className="main-content">
+
+                {/* ================================================================
+                    CARROSSEL
+                ================================================================ */}
                 <section id="inicio" className="carrousel-section">
                     <button className="carousel-control prev" onClick={() => moveSlide("prev")}>&#10094;</button>
+
                     <div className={`carrousel-animation-wrapper animated-${direction}`} key={currentSlide}>
                         <div className="carrousel-container">
                             <div className="carrousel-content">
+                                {/* ANTES: <h1>Realizar Testes e Desafios Online</h1> */}
+                                {/* AGORA: vem do Laravel */}
                                 <h1>{slides[currentSlide].titulo}</h1>
                                 <p>{slides[currentSlide].subtitulo}</p>
+                                <a href={route('login')} className="carrousel-cta">Começar agora</a>
                             </div>
                             <div className="carrousel-visual">
                                 <div className="carrousel-image-card">
-                                    <img src={slides[currentSlide].imagem} alt="ProGama" className="carrousel-img" />
+                                    <img
+                                        src={slides[currentSlide].imagem || slideImagensFallback[currentSlide] || carrousel1}
+                                        alt="ProGama"
+                                        className="carrousel-img"
+                                    />
                                 </div>
                             </div>
                         </div>
                     </div>
+
                     <button className="carousel-control next" onClick={() => moveSlide("next")}>&#10095;</button>
+
+                    {/* Dots indicadores de slide */}
+                    <div className="carrousel-dots">
+                        {slides.map((_, i) => (
+                            <button
+                                key={i}
+                                className={`carrousel-dot ${currentSlide === i ? "ativo" : ""}`}
+                                onClick={() => { setDirection(i > currentSlide ? "next" : "prev"); setCurrentSlide(i); }}
+                                aria-label={`Slide ${i + 1}`}
+                            />
+                        ))}
+                    </div>
                 </section>
 
+                {/* ================================================================
+                    INFORMAÇÕES
+                ================================================================ */}
                 <section id="informacoes" className="informacoes-section">
-                    <h1 className="titulo-seccao">Características do ProGama?</h1>
+                    {/* ANTES: <h1 className="titulo-seccao">Características do ProGama?</h1> */}
+                    {/* AGORA: */}
+                    <h1 className="titulo-seccao">{informacoes.titulo}</h1>
                     <div className="sublinhado-seccao"></div>
-                    <p className="informacoes-subtitle">A plataforma <strong>ProGama</strong> foi preparada para fins escolares para ser utilizada por professores e alunos.</p>
+
+                    <p className="informacoes-subtitle">
+                        A plataforma <strong>ProGama</strong> {informacoes.subtitulo.replace(/^A plataforma ProGama\s*/i, "")}
+                    </p>
+
                     <div className="informacoes-container">
                         <div className="info-perfil-card professor-card">
                             <div className="info-perfil-icon-wrapper"><span>👨‍🏫</span></div>
-                            <h2>Professor</h2>
-                            <p>Pode criar e gerir testes e desafios para atribui-los aos alunos.</p>
+                            <h2>{informacoes.professor.titulo}</h2>
+                            <p>{informacoes.professor.descricao}</p>
                         </div>
                         <div className="info-perfil-card aluno-card">
                             <div className="info-perfil-icon-wrapper"><span>🧑‍🎓</span></div>
-                            <h2>Aluno</h2>
-                            <p>Tem de resolver os testes e desafios que lhe são propostos, e pode ganhar pontos e subir de nível.</p>
+                            <h2>{informacoes.aluno.titulo}</h2>
+                            <p>{informacoes.aluno.descricao}</p>
                         </div>
                     </div>
+
+                    {/* Parágrafos extra — adicionados pelo editor */}
+                    {Array.isArray(informacoes.paragrafos_extra) && informacoes.paragrafos_extra.length > 0 && (
+                        <div style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 32, maxWidth: 700, marginLeft: "auto", marginRight: "auto", width: "100%" }}>
+                            {informacoes.paragrafos_extra.map((p, i) => (
+                                <div key={i} style={{ textAlign: "center" }}>
+                                    {p.titulo && (
+                                        <h3 style={{
+                                            fontSize: "1.6rem",
+                                            fontWeight: 800,
+                                            color: "#3a88ed",
+                                            textTransform: "uppercase",
+                                            letterSpacing: "-0.5px",
+                                            margin: "0 0 12px 0",
+                                        }}>{p.titulo}</h3>
+                                    )}
+                                    <p style={{
+                                        fontSize: "1.2rem",
+                                        color: "#666",
+                                        lineHeight: 1.6,
+                                        margin: 0,
+                                    }}>{p.texto}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </section>
 
+                {/* ================================================================
+                    DESAFIOS
+                ================================================================ */}
                 <section id="desafios" className="desafios-section">
                     <div className="desafios-header">
-                        <h1 className="titulo-desafios-especial">Características dos Desafios no ProGama</h1>
+                        {/* ANTES: <h1 className="titulo-desafios-especial">Características dos Desafios no ProGama</h1> */}
+                        {/* AGORA: */}
+                        <h1 className="titulo-desafios-especial">{desafios.titulo}</h1>
                         <div className="titulo-sublinhado"></div>
-                        <p className="desafios-descricao">Os <strong>Desafios</strong> são missões interativas criadas pelo professor para o aluno.</p>
+                        <p className="desafios-descricao">
+                            Os <strong>Desafios</strong> {desafios.subtitulo.replace(/^Os Desafios\s*/i, "")}
+                        </p>
                     </div>
 
                     <div className="acoes-desafios-container">
+                        {/* ANTES: lista hardcoded ["Criar desafios de lógica personalizados", ...] */}
+                        {/* AGORA: vem de desafios.professor.lista */}
                         <PerfilCardHorizontal
-                            classeExtra="professor-style" icone="👨‍🏫" sub="Professor" titulo="Desafiante"
-                            lista={["Criar desafios de lógica personalizados", "Definir recompensas e níveis"]}
+                            classeExtra="professor-style"
+                            icone="👨‍🏫"
+                            sub="Professor"
+                            titulo={desafios.professor.titulo}
+                            lista={desafios.professor.lista}
                         />
                         <PerfilCardHorizontal
-                            classeExtra="aluno-style" icone="🧑‍🎓" sub="Aluno" titulo="Desafiador"
-                            lista={["Subir no ranking global", "Ganhar medalhas exclusivas", "Aprender através do jogo"]}
+                            classeExtra="aluno-style"
+                            icone="🧑‍🎓"
+                            sub="Aluno"
+                            titulo={desafios.aluno.titulo}
+                            lista={desafios.aluno.lista}
                         />
                     </div>
 
                     <div className="desafios-main-container">
                         <div className="path-container-full">
                             <div className="path-line-back"></div>
-                            {niveis.map((nivel, index) => (
-                                <div key={index} className={`nivel-item ${nivelSelecionado === index ? "active" : ""}`} onClick={() => setNivelSelecionado(index)}>
+                            {/* ANTES: niveis era uma constante hardcoded no topo do componente */}
+                            {/* AGORA: vem de desafios.niveis */}
+                            {desafios.niveis.map((nivel, index) => (
+                                <div
+                                    key={nivel.id}
+                                    className={`nivel-item ${nivelSelecionado === index ? "active" : ""}`}
+                                    onClick={() => setNivelSelecionado(index)}
+                                >
                                     <div className="nivel-circulo"><span>{nivel.emoji}</span></div>
                                     <span className="nivel-nome">{nivel.nome}</span>
                                 </div>
                             ))}
                         </div>
+
                         <div className="requisitos-display" key={nivelSelecionado}>
                             <div className="requisitos-card">
                                 <span className="badge-nivel">Nível {nivelSelecionado + 1}</span>
-                                <h3>{niveis[nivelSelecionado].nome}</h3>
-                                <p>{niveis[nivelSelecionado].req}</p>
+                                <h3>{desafios.niveis[nivelSelecionado].nome}</h3>
+                                <p>{desafios.niveis[nivelSelecionado].req}</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="resultados-wrapper-integrado">
                         <div className="resultados-header-clean">
-                            <h2>Mascote Tico: Guia de Resultados</h2>
+                            <h2>Guia de Resultados</h2>
                             <p>O que acontece no final de cada desafio?</p>
                         </div>
                         <div className="feedback-container-horizontal">
-                            <FeedbackTico tipo="vitoria" img={mascotedesafio} status="Ganhaste!" lista={["Sobes no Ranking", "Ganhas medalhas", "Ganhas afeição do Tico"]} />
-                            <FeedbackTico tipo="aprendizagem" img={mascoteTriste} status="Falhas-te" lista={["Vês a correção imediata", "Não ganhas pontos", "O Tico motiva-te a continuar"]} />
+                            <FeedbackTico
+                                tipo="vitoria"
+                                img={mascotedesafio}
+                                status={desafios.resultados.vitoria.status}
+                                lista={desafios.resultados.vitoria.lista}
+                            />
+                            <FeedbackTico
+                                tipo="aprendizagem"
+                                img={mascoteTriste}
+                                status={desafios.resultados.derrota.status}
+                                lista={desafios.resultados.derrota.lista}
+                            />
                         </div>
                     </div>
                 </section>
 
+                {/* ================================================================
+                    TESTES
+                ================================================================ */}
                 <section id="testes" className="testes-section">
-                    <h1 className="titulo-seccao">Características Dos Testes Online</h1>
+                    <h1 className="titulo-seccao">{testes.titulo}</h1>
                     <div className="sublinhado-seccao"></div>
-                    <p className="testes-subtitle">O sistema de testes do <strong>ProGama</strong> foi desenhado para oferecer uma avaliação precisa e dinâmica...</p>
+                    <p className="testes-subtitle">
+                        O sistema de testes do <strong>ProGama</strong> {testes.subtitulo.replace(/^O sistema de testes do ProGama\s*/i, "")}
+                    </p>
 
                     <div className="testes-acoes-container">
                         <PerfilCardHorizontal
-                            classeExtra="professor-style" icone="🧑‍🏫" sub="Professor" titulo="Criação e Gestão"
-                            lista={["Personalizar questões e limites de tempo", "Gerar pautas de avaliação automáticas", "Analisar estatísticas de desempenho da turma"]}
+                            classeExtra="professor-style"
+                            icone="🧑‍🏫"
+                            sub="Professor"
+                            titulo={testes.professor.titulo}
+                            lista={testes.professor.lista}
                         />
                         <PerfilCardHorizontal
-                            classeExtra="aluno-style" icone="🧑‍🎓" sub="Aluno" titulo="Prática e Revisão"
-                            lista={["Responder a testes com cronómetro real", "Aceder a correções detalhadas na hora", "Acompanhar a evolução das tuas notas"]}
+                            classeExtra="aluno-style"
+                            icone="🧑‍🎓"
+                            sub="Aluno"
+                            titulo={testes.aluno.titulo}
+                            lista={testes.aluno.lista}
                         />
                     </div>
 
@@ -208,13 +348,27 @@ export default function LandingPage() {
                             <p>O que acontece no final de cada teste?</p>
                         </div>
                         <div className="feedback-container-horizontal">
-                            <FeedbackTico tipo="vitoria" img={mascoteteste} status="Aprovou" lista={["Nota superior a 50%", "Professor e Aluno Recebem FeedBack"]} />
-                            <FeedbackTico tipo="aprendizagem" img={mascoteTriste2} status="Reprovou" lista={["Professor e Aluno Recebem FeedBack", "Analisar as correções do Tico"]} />
+                            <FeedbackTico
+                                tipo="vitoria"
+                                img={mascoteteste}
+                                status={testes.resultados.aprovado.status}
+                                lista={testes.resultados.aprovado.lista}
+                            />
+                            <FeedbackTico
+                                tipo="aprendizagem"
+                                img={mascoteTriste2}
+                                status={testes.resultados.reprovado.status}
+                                lista={testes.resultados.reprovado.lista}
+                            />
                         </div>
                     </div>
                 </section>
+
             </main>
 
+            {/* ================================================================
+                FOOTER
+            ================================================================ */}
             <footer className="footer">
                 <div className="footer-container">
                     <div className="footer-brand-section">
@@ -222,24 +376,30 @@ export default function LandingPage() {
                             <img src={logo} alt="ProGama Logo" className="footer-logo-img" />
                             <span className="footer-brand-name">ProGama</span>
                         </div>
-                        <p className="footer-tagline">Agora com o ProGama tu divertes-te na escola.</p>
+                        {/* ANTES: <p className="footer-tagline">Agora com o ProGama tu divertes-te na escola.</p> */}
+                        {/* AGORA: */}
+                        <p className="footer-tagline">{footer.tagline}</p>
                     </div>
                     <div className="footer-contact-section">
                         <h4>Contacto</h4>
                         <div className="footer-contact-info">
-                            <p>📍 Porto, Portugal</p>
-                            <p>📧 suporte@progama.pt</p>
+                            <p>📍 {footer.localizacao}</p>
+                            <p>📧 {footer.email}</p>
                         </div>
                     </div>
                 </div>
                 <div className="footer-bottom">
                     <div className="footer-divider"></div>
                     <div className="footer-bottom-flex">
-                        <p>© 2026 ProGama - Plataforma de Testes e Desafios Online| Todos os direitos reservados.</p>
-                        <div className="footer-links"><a href="#">Privacidade</a><a href="#">Termos</a></div>
+                        <p>© 2026 ProGama - Plataforma de Testes e Desafios Online | Todos os direitos reservados.</p>
+                        <div className="footer-links">
+                            <a href="#">Privacidade</a>
+                            <a href="#">Termos</a>
+                        </div>
                     </div>
                 </div>
             </footer>
+
         </div>
     );
 }
