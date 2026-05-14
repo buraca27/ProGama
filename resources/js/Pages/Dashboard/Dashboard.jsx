@@ -24,6 +24,7 @@ import DesafiosView from "./Components/Alunos/DesafiosView";
 import LeaderboardView from "./Components/Gamificacao/LeaderboardView";
 import NotificacoesView from "./Components/Notificacoes/NotificacoesView";
 import DesafioModal from "./Components/Alunos/DesafioModal";
+import AdminLandingEditor from "../LandingPage/assets/AdminLandingEditor";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Incluindo tarefasAluno) ---
@@ -56,6 +57,7 @@ export default function Dashboard(props) {
         ranking_badges = [],
         notificacoesData = null,
         initialDesafioModalId = null,
+        landingConteudo = null,
     } = props;
 
     // =============================================================================
@@ -248,6 +250,10 @@ export default function Dashboard(props) {
 
                 {activeView === "notificacoes" && (
                     <NotificacoesView notificacoesData={notificacoesData} />
+                )}
+
+                {activeView === "updateLandingPage" && (
+                    <AdminLandingEditor conteudo={landingConteudo} />
                 )}
             </div>
 

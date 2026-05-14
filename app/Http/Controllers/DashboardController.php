@@ -300,6 +300,7 @@ class DashboardController extends Controller
             'boletim',
             'leaderboard',
             'notificacoes',
+            'updateLandingPage',
         ];
 
         if (!in_array($initialView, $allowedViews, true)) {
@@ -352,6 +353,7 @@ class DashboardController extends Controller
             'initialView' => $initialView,
             'initialSubmissaoId' => $initialSubmissaoId,
             'initialDesafioModalId' => $initialDesafioModalId,
+            'landingConteudo' => \App\Models\LandingPageContent::first()?->conteudo ?? [],
             'userRoleReal' => $cargoReal,
             'estatisticas' => $estatisticas,
             'utilizadores' => User::with(['turma', 'turmasLecionadas'])->orderBy('created_at', 'desc')->get(),

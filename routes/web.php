@@ -88,6 +88,12 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
         });
 
+        Route::get('/dashboard/update-landing-page', function () {
+            return redirect()->route('dashboard', [
+                'view' => 'updateLandingPage',
+            ]);
+        })->name('dashboard.update-landing-page');
+
         // Turmas (Criar, Editar, Apagar, Atribuir)
         Route::prefix('dashboard/turmas')->name('turmas.')->group(function () {
             Route::post('/', [TurmaController::class, 'store'])->name('store');
