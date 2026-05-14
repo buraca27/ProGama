@@ -8,4 +8,4 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('notificacoes:lembretes-prazo')->dailyAt('08:00');
+// Prazo_Proximo é agora visual no frontend — notificação removida da BD.

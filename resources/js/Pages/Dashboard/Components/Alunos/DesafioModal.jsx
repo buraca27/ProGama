@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm, router } from "@inertiajs/react";
 
 function formatDateTime(value) {
@@ -59,6 +59,22 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
         return () => clearInterval(intervalo);
     }, [duracaoSegundos, startTime]);
 
+    // --- Timer do prazo absoluto (data_fim do professor) ---
+    const calcDataFimRestante = useCallback(() => {
+        if (!desafio?.data_fim) return null;
+        return Math.max(0, Math.floor((new Date(desafio.data_fim).getTime() - Date.now()) / 1000));
+    }, [desafio?.data_fim]);
+
+    const [dataFimRestante, setDataFimRestante] = useState(calcDataFimRestante);
+
+    useEffect(() => {
+        if (!desafio?.data_fim) return;
+        const intervalo = setInterval(() => {
+            setDataFimRestante(calcDataFimRestante());
+        }, 1000);
+        return () => clearInterval(intervalo);
+    }, [desafio?.data_fim, calcDataFimRestante]);
+
     // --- Deteção de troca de aba/janela ---
     const [tabSwitches, setTabSwitches] = useState(0);
     const lastSwitchRef = useRef(0);
@@ -92,8 +108,15 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
     const [toastMsg, setToastMsg] = useState(null);
     const showToast = (msg) => {
         setToastMsg(msg);
-        setTimeout(() => setToastMsg(null), 4000);
+        setTimeout(() => setToastMsg(null), 6000);
     };
+
+    // Refs para auto-submit sem stale closure
+    const autoSubmetidoRef = useRef(false);
+    const tabSwitchesRef = useRef(0);
+
+    // Sincroniza tabSwitchesRef com o estado para uso no auto-submit
+    useEffect(() => { tabSwitchesRef.current = tabSwitches; }, [tabSwitches]);
 
     // --- Form ---
     const form = useForm({ respostas: {} });
@@ -119,6 +142,43 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
         });
         form.setData("respostas", iniciais);
     }, [atribuicao, inscricao]);
+
+    // Ref para a função buildPayload (evita stale closure no auto-submit)
+    const buildPayloadRef = useRef(null);
+
+    // --- Auto-submit quando data_fim expira e o aluno está Em_Resolucao ---
+    useEffect(() => {
+        if (
+            dataFimRestante !== null &&
+            dataFimRestante <= 0 &&
+            inscricao?.estado === "Em_Resolucao" &&
+            !autoSubmetidoRef.current &&
+            atribuicao
+        ) {
+            autoSubmetidoRef.current = true;
+            showToast("⏰ Prazo encerrado! A submeter automaticamente as tuas respostas...");
+            const payload = buildPayloadRef.current ? buildPayloadRef.current() : [];
+            router.post(
+                route("aluno.desafios.submeter", atribuicao.id),
+                {
+                    respostas: payload,
+                    finalizar: true,
+                    tab_switches: tabSwitchesRef.current,
+                    return_view: returnView || "dashboard",
+                    auto_submit: true,
+                },
+                {
+                    onSuccess: () => {
+                        if (storageKey) sessionStorage.removeItem(storageKey);
+                    },
+                    onError: () => {
+                        showToast("Erro ao submeter automaticamente. Tenta submeter manualmente.");
+                    },
+                },
+            );
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dataFimRestante]);
 
     const now = new Date();
     const abriu = desafio?.data_inicio ? new Date(desafio.data_inicio) : null;
@@ -177,7 +237,7 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
         });
     };
 
-    const buildPayload = () =>
+    const buildPayload = useCallback(() =>
         getPerguntas(desafio).map((pergunta) => {
             const r = form.data.respostas?.[pergunta.id] || {};
             return {
@@ -186,7 +246,10 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
                 ids_opcoes_escolhidas: r.ids_opcoes_escolhidas || [],
                 resposta_texto: r.resposta_texto || "",
             };
-        });
+        }), [desafio, form.data.respostas]);
+
+    // Mantém a ref atualizada para uso no auto-submit sem stale closure
+    buildPayloadRef.current = buildPayload;
 
     const handleGuardarRascunho = () => {
         if (!atribuicao) return;
@@ -346,6 +409,18 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
                         {tempoEsgotado && (
                             <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-bold text-red-700 dark:text-red-300">
                                 ⏰ O tempo limite foi atingido. Já não é possível submeter.
+                            </div>
+                        )}
+
+                        {dataFimRestante !== null && dataFimRestante <= 0 && (
+                            <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-bold text-red-700 dark:text-red-300">
+                                ⏰ O prazo definido pelo professor terminou. As respostas foram submetidas automaticamente.
+                            </div>
+                        )}
+
+                        {dataFimRestante !== null && dataFimRestante > 0 && dataFimRestante <= 600 && inscricao?.estado === "Em_Resolucao" && (
+                            <div className="rounded-lg border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 px-4 py-3 text-sm font-semibold text-orange-700 dark:text-orange-300">
+                                ⚠️ O prazo fecha em menos de {Math.ceil(dataFimRestante / 60)} minuto{dataFimRestante > 60 ? "s" : ""}! As respostas serão submetidas automaticamente quando fechar.
                             </div>
                         )}
 

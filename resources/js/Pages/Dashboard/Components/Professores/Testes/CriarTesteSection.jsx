@@ -121,79 +121,43 @@ export default function CriarTesteSection({
                     </select>
                 </div>
 
-                {!isTarefa && (
-                    <>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Tempo limite (minutos)
-                            </label>
-                            <input
-                                type="number"
-                                min={1}
-                                value={testeForm.data.duracao_minutos}
-                                onChange={(e) =>
-                                    testeForm.setData("duracao_minutos", e.target.value)
-                                }
-                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                placeholder="Opcional"
-                            />
-                        </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Tempo limite (minutos)
+                    </label>
+                    <input
+                        type="number"
+                        min={1}
+                        value={testeForm.data.duracao_minutos}
+                        onChange={(e) =>
+                            testeForm.setData("duracao_minutos", e.target.value)
+                        }
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        placeholder="Opcional"
+                    />
+                </div>
 
-                        {!config.semPesoNota && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Peso na nota final (%)
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
-                                    value={testeForm.data.peso_avaliacao ?? "0"}
-                                    onChange={(e) =>
-                                        testeForm.setData("peso_avaliacao", e.target.value)
-                                    }
-                                    className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                    placeholder="0 a 100"
-                                />
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    Define quanto esta avaliação conta para a nota final.
-                                </p>
-                            </div>
-                        )}
-                    </>
-                )}
-
-                {isTarefa && (
-                    <>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Data de início
-                            </label>
-                            <input
-                                type="datetime-local"
-                                value={testeForm.data.data_inicio || ""}
-                                onChange={(e) =>
-                                    testeForm.setData("data_inicio", e.target.value)
-                                }
-                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Data de término
-                            </label>
-                            <input
-                                type="datetime-local"
-                                value={testeForm.data.data_fim || ""}
-                                onChange={(e) =>
-                                    testeForm.setData("data_fim", e.target.value)
-                                }
-                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                            />
-                        </div>
-                    </>
+                {!config.semPesoNota && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Peso na nota final (%)
+                        </label>
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={testeForm.data.peso_avaliacao ?? "0"}
+                            onChange={(e) =>
+                                testeForm.setData("peso_avaliacao", e.target.value)
+                            }
+                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                            placeholder="0 a 100"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Define quanto esta avaliação conta para a nota final.
+                        </p>
+                    </div>
                 )}
             </div>
 

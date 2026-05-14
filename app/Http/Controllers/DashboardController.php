@@ -435,11 +435,18 @@ class DashboardController extends Controller
             'ranking_nivel' => $rankingNivel,
             'ranking_badges' => $rankingBadges,
             'notificacoesData' => in_array($cargoReal, ['aluno', 'professor'])
-                ? Notificacao::where('id_utilizador', $user->id)
-                    ->orderBy('created_at', 'desc')
-                    ->paginate(10, ['*'], 'notif_page')
-                    ->withQueryString()
+                ? (function () use ($request, $user) {
+                    $tiposPermitidos = ['Novo_Desafio', 'Desafio_Corrigido', 'Teste_Corrigido', 'XP_Recebido', 'Novo_Nivel', 'Badge_Ganho', 'Submissao_Aluno', 'Alerta_Integridade', 'Alteracao_Datas'];
+                    $tipo  = in_array($request->query('notif_tipo'), $tiposPermitidos, true) ? $request->query('notif_tipo') : null;
+                    $ordem = $request->query('notif_ordem') === 'asc' ? 'asc' : 'desc';
+                    $query = Notificacao::where('id_utilizador', $user->id);
+                    if ($tipo !== null) {
+                        $query->where('tipo_notificacao', $tipo);
+                    }
+                    return $query->orderBy('created_at', $ordem)->paginate(10, ['*'], 'notif_page')->withQueryString();
+                })()
                 : null,
+            'notifFiltros' => ['tipo' => $request->query('notif_tipo'), 'ordem' => $request->query('notif_ordem', 'desc')],
         ]);
 
 

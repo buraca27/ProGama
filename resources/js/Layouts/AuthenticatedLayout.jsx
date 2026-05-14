@@ -4,7 +4,45 @@ import { Link, router, usePage } from "@inertiajs/react";
 import Modal from "@/Components/Modal";
 import UpdatePasswordForm from "@/Pages/Dashboard/Components/Profile/UpdatePasswordForm";
 import Toast from "@/Components/Toast";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+function formatPrazoCountdown(dataFimStr) {
+    const diff = Math.max(0, Math.floor((new Date(dataFimStr).getTime() - Date.now()) / 1000));
+    if (diff <= 0) return "Terminou";
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    const s = diff % 60;
+    if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+    if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+    return `${s}s`;
+}
+
+function PrazoAlertaItem({ alerta }) {
+    const [label, setLabel] = useState(() => formatPrazoCountdown(alerta.data_fim));
+
+    useEffect(() => {
+        const tick = () => setLabel(formatPrazoCountdown(alerta.data_fim));
+        // Atualiza a cada segundo quando falta menos de 1 hora, caso contrário a cada minuto
+        const diff = Math.max(0, new Date(alerta.data_fim).getTime() - Date.now());
+        const intervalo = diff < 3600_000 ? 1000 : 60_000;
+        const id = setInterval(tick, intervalo);
+        return () => clearInterval(id);
+    }, [alerta.data_fim]);
+
+    const diff = new Date(alerta.data_fim).getTime() - Date.now();
+    const urgente = diff < 3_600_000; // menos de 1 hora
+
+    return (
+        <div className={`rounded-lg px-2 py-2 text-xs ${urgente ? "bg-orange-50 dark:bg-orange-900/20" : "bg-gray-50 dark:bg-gray-700/40"}`}>
+            <p className={`font-bold truncate ${urgente ? "text-orange-700 dark:text-orange-300" : "text-gray-700 dark:text-gray-200"}`}>
+                ⏰ {alerta.titulo}
+            </p>
+            <p className={`mt-0.5 tabular-nums ${urgente ? "text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 dark:text-gray-400"}`}>
+                Falta {label}
+            </p>
+        </div>
+    );
+}
 
 const TIPO_LABEL = {
     Novo_Desafio: "Novo Desafio",
@@ -25,7 +63,7 @@ export default function AuthenticatedLayout({
     activeView,
     onViewChange,
 }) {
-    const { auth, flash, notifications } = usePage().props;
+    const { auth, flash, notifications, prazo_alertas } = usePage().props;
 
     // Verifica se o utilizador tem de mudar a password
     const mustChangePassword = auth.user.must_change_password;
@@ -40,6 +78,7 @@ export default function AuthenticatedLayout({
 
     const unreadCount = notifications?.unread_count || 0;
     const notificationItems = notifications?.items || [];
+    const prazoAlertas = prazo_alertas || [];
 
     const dirtyLabels = useMemo(
         () => Object.values(dirtyEditors).filter(Boolean),
@@ -312,10 +351,10 @@ export default function AuthenticatedLayout({
                         </button>
 
                         {showNotifications && (
-                            <div className="absolute bottom-12 left-0 right-0 z-50 rounded-xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-800">
-                                <div className="max-h-72 overflow-y-auto space-y-1">
+                            <div className="absolute bottom-12 left-0 right-0 z-50 rounded-xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-600 dark:bg-gray-900 dark:shadow-black/50">
+                                <div className="max-h-72 overflow-y-auto scrollbar-hide space-y-1">
                                     {notificationItems.length === 0 && (
-                                        <p className="px-2 py-2 text-xs text-gray-500">Sem notificacoes.</p>
+                                        <p className="px-2 py-2 text-xs text-gray-500 dark:text-gray-400">Sem notificacoes.</p>
                                     )}
 
                                     {notificationItems.map((item) => (
@@ -323,7 +362,7 @@ export default function AuthenticatedLayout({
                                             type="button"
                                             key={item.id}
                                             onClick={() => markNotificationRead(item.id, item.tipo_notificacao, item.id_desafio_relacionado ?? null, item.id_submissao_relacionada ?? null)}
-                                            className={`w-full rounded-lg px-2 py-2 text-left text-xs ${item.lida ? "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" : "bg-blue-50 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200"} ${item.id_desafio_relacionado ? "cursor-pointer" : ""}`}
+                                            className={`w-full rounded-lg px-2 py-2 text-left text-xs transition-colors ${item.lida ? "text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700" : "bg-blue-50 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"} ${item.id_desafio_relacionado ? "cursor-pointer" : ""}`}
                                         >
                                             <p className="font-semibold">{TIPO_LABEL[item.tipo_notificacao] ?? item.tipo_notificacao}</p>
                                             <p className="mt-0.5 line-clamp-2">{item.mensagem}</p>
@@ -334,11 +373,11 @@ export default function AuthenticatedLayout({
                                     ))}
                                 </div>
 
-                                <div className="mt-2 flex items-center justify-between gap-2">
+                                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2">
                                     <button
                                         type="button"
                                         onClick={markAllNotificationsRead}
-                                        className="rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700 transition"
+                                        className="rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800 transition"
                                     >
                                         Ler todas
                                     </button>
@@ -348,7 +387,7 @@ export default function AuthenticatedLayout({
                                             setShowNotifications(false);
                                             router.visit(route("dashboard", { view: "notificacoes" }));
                                         }}
-                                        className="rounded-md bg-gray-900 px-2 py-1 text-xs font-semibold text-white dark:bg-gray-100 dark:text-gray-900"
+                                        className="rounded-md bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition"
                                     >
                                         Centro
                                     </button>
