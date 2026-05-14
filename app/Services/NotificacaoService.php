@@ -217,15 +217,15 @@ class NotificacaoService
         );
     }
 
-    public function dispararLembretesPrazoParaAluno(User $aluno): void
+    public function getPrazoAlertasParaAluno(User $aluno): array
     {
         if ((int) $aluno->id_role !== 3) {
-            return;
+            return [];
         }
 
-        $limite = now()->addHours(24);
-
-        $desafios = DB::table('Atribuicoes_Desafio as ad')
+        // Usa data_fim_tentativas: prazo real que o professor define ao atribuir o desafio.
+        // Mostra todos os prazos futuros, excluindo atribuições já submetidas/concluídas.
+        return DB::table('Atribuicoes_Desafio as ad')
             ->join('Desafio as d', 'ad.id_desafio', '=', 'd.id')
             ->where(function ($q) use ($aluno) {
                 $q->where('ad.id_aluno', '=', (int) $aluno->id)
@@ -234,33 +234,28 @@ class NotificacaoService
                             ->where('ad.id_turma', '=', (int) ($aluno->id_turma ?? 0));
                     });
             })
-            ->where('d.data_fim', '>=', now())
-            ->where('d.data_fim', '<=', $limite)
-            ->select('d.id', 'd.titulo', 'd.data_fim')
-            ->get();
-
-        foreach ($desafios as $desafio) {
-            $jaNotificado = Notificacao::query()
-                ->where('id_utilizador', (int) $aluno->id)
-                ->where('tipo_notificacao', 'Prazo_Proximo')
-                ->where('id_desafio_relacionado', (int) $desafio->id)
-                ->exists(); // REMOVIDA A CONDIÇÃO DAS 12 HORAS AQUI!
-
-            // Se já foi notificado alguma vez para este desafio, ignora e não faz SPAM.
-            if ($jaNotificado) {
-                continue;
-            }
-
-            $mensagem = 'Prazo próximo: "' . $desafio->titulo . '" termina ' . now()->diffForHumans($desafio->data_fim, true) . '.';
-
-            $this->criarParaUtilizador(
-                (int) $aluno->id,
-                'Prazo_Proximo',
-                $mensagem,
-                (int) $desafio->id // Corrigido a passagem do ID aqui também!
-            );
-        }
+            ->whereNotNull('ad.data_fim_tentativas')
+            ->where('ad.data_fim_tentativas', '>', now())
+            ->whereNotExists(function ($sub) use ($aluno) {
+                $sub->from('Submissoes_Desafio_Aluno as s')
+                    ->whereColumn('s.id_atribuicao', 'ad.id')
+                    ->where('s.id_aluno', '=', (int) $aluno->id)
+                    ->whereIn('s.estado', ['Submetido', 'Avaliado', 'Concluido']);
+            })
+            ->select('d.id', 'd.titulo', 'ad.data_fim_tentativas as data_fim', 'ad.id as id_atribuicao')
+            ->distinct()
+            ->orderBy('ad.data_fim_tentativas', 'asc')
+            ->get()
+            ->map(fn($row) => [
+                'id_desafio'    => $row->id,
+                'id_atribuicao' => $row->id_atribuicao,
+                'titulo'        => $row->titulo,
+                'data_fim'      => $row->data_fim,
+            ])
+            ->values()
+            ->toArray();
     }
+
     public function recentesParaUtilizador(int $idUtilizador, int $limite = 8): Collection
     {
         return Notificacao::query()

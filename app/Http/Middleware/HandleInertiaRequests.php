@@ -32,10 +32,6 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
 
-        if ($user && (int) $user->id_role === 3) {
-            app(NotificacaoService::class)->dispararLembretesPrazoParaAluno($user);
-        }
-
         $roleMap = [1 => 'admin', 2 => 'professor', 3 => 'aluno'];
         $userRoleReal = $user ? ($roleMap[$user->id_role] ?? 'aluno') : null;
 
@@ -71,6 +67,9 @@ class HandleInertiaRequests extends Middleware
                     ? app(NotificacaoService::class)->recentesParaUtilizador((int) $user->id, 8)
                     : [],
             ],
+            'prazo_alertas' => fn() => $user && (int) $user->id_role === 3
+                ? app(NotificacaoService::class)->getPrazoAlertasParaAluno($user)
+                : [],
         ];
     }
 }
