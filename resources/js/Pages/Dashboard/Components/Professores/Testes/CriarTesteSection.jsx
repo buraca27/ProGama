@@ -8,6 +8,7 @@ export default function CriarTesteSection({
     submitTeste,
     testeForm,
     categorias,
+    badgesProfessor = [],
     categoriaFiltro,
     setCategoriaFiltro,
     textoPerguntaFiltro,
@@ -34,6 +35,7 @@ export default function CriarTesteSection({
     const config =
         CONTEXTO_AVALIACAO[testeForm.data.tipo_avaliacao] ||
         CONTEXTO_AVALIACAO.Desafio;
+    const isTarefa = testeForm.data.tipo_desafio === "Tarefa";
 
     const obterRespostaPergunta = (pergunta) => {
         const opcoes = Array.isArray(pergunta?.opcoes) ? pergunta.opcoes : [];
@@ -82,16 +84,20 @@ export default function CriarTesteSection({
                 {config.temInstrucoes && (
                     <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Instruções ou Contexto
+                            {isTarefa ? "Descrição da Tarefa" : "Instruções ou Contexto"}
                         </label>
                         <textarea
-                            rows="3"
+                            rows={isTarefa ? "6" : "3"}
                             value={testeForm.data.instrucoes || ""}
                             onChange={(e) =>
                                 testeForm.setData("instrucoes", e.target.value)
                             }
                             className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 resize-y"
-                            placeholder="Introduza as instruções iniciais para os alunos..."
+                            placeholder={
+                                isTarefa
+                                    ? "Descreve em detalhe o que o aluno deve entregar, critérios e prazos..."
+                                    : "Introduza as instruções iniciais para os alunos..."
+                            }
                         />
                     </div>
                 )}
@@ -115,47 +121,198 @@ export default function CriarTesteSection({
                     </select>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Tempo limite (minutos)
-                    </label>
-                    <input
-                        type="number"
-                        min={1}
-                        value={testeForm.data.duracao_minutos}
-                        onChange={(e) =>
-                            testeForm.setData("duracao_minutos", e.target.value)
-                        }
-                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        placeholder="Opcional"
-                    />
-                </div>
+                {!isTarefa && (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Tempo limite (minutos)
+                            </label>
+                            <input
+                                type="number"
+                                min={1}
+                                value={testeForm.data.duracao_minutos}
+                                onChange={(e) =>
+                                    testeForm.setData("duracao_minutos", e.target.value)
+                                }
+                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                placeholder="Opcional"
+                            />
+                        </div>
 
-                {!config.semPesoNota && (
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Peso na nota final (%)
-                        </label>
-                        <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={testeForm.data.peso_avaliacao ?? "0"}
-                            onChange={(e) =>
-                                testeForm.setData("peso_avaliacao", e.target.value)
-                            }
-                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                            placeholder="0 a 100"
-                        />
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Define quanto esta avaliação conta para a nota final.
-                        </p>
-                    </div>
+                        {!config.semPesoNota && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Peso na nota final (%)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={testeForm.data.peso_avaliacao ?? "0"}
+                                    onChange={(e) =>
+                                        testeForm.setData("peso_avaliacao", e.target.value)
+                                    }
+                                    className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                    placeholder="0 a 100"
+                                />
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Define quanto esta avaliação conta para a nota final.
+                                </p>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {isTarefa && (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Data de início
+                            </label>
+                            <input
+                                type="datetime-local"
+                                value={testeForm.data.data_inicio || ""}
+                                onChange={(e) =>
+                                    testeForm.setData("data_inicio", e.target.value)
+                                }
+                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Data de término
+                            </label>
+                            <input
+                                type="datetime-local"
+                                value={testeForm.data.data_fim || ""}
+                                onChange={(e) =>
+                                    testeForm.setData("data_fim", e.target.value)
+                                }
+                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                            />
+                        </div>
+                    </>
                 )}
             </div>
 
-            {mostrarListaPerguntas && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        XP Base da Conclusão
+                    </label>
+                    <input
+                        type="number"
+                        min={0}
+                        value={testeForm.data.xp_base ?? 50}
+                        onChange={(e) =>
+                            testeForm.setData("xp_base", e.target.value)
+                        }
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                </div>
+
+                <div className="flex items-end">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input
+                            type="checkbox"
+                            checked={Boolean(testeForm.data.auto_award_xp)}
+                            onChange={(e) =>
+                                testeForm.setData(
+                                    "auto_award_xp",
+                                    e.target.checked,
+                                )
+                            }
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        Atribuir XP automaticamente após avaliação
+                    </label>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Badge existente (opcional)
+                    </label>
+                    <select
+                        value={testeForm.data.badge_existente_id || ""}
+                        onChange={(e) =>
+                            testeForm.setData("badge_existente_id", e.target.value)
+                        }
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    >
+                        <option value="">Sem badge automática</option>
+                        {(badgesProfessor || []).map((badge) => (
+                            <option key={badge.id} value={badge.id}>
+                                {badge.nome}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Ou criar nova badge
+                    </label>
+                    <input
+                        type="text"
+                        value={testeForm.data.nova_badge_nome || ""}
+                        onChange={(e) =>
+                            testeForm.setData("nova_badge_nome", e.target.value)
+                        }
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        placeholder="Nome da badge"
+                    />
+                    <textarea
+                        rows="2"
+                        value={testeForm.data.nova_badge_descricao || ""}
+                        onChange={(e) =>
+                            testeForm.setData(
+                                "nova_badge_descricao",
+                                e.target.value,
+                            )
+                        }
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        placeholder="Descrição curta da badge"
+                    />
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                            testeForm.setData(
+                                "nova_badge_imagem",
+                                e.target.files?.[0] || null,
+                            )
+                        }
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                </div>
+            </div>
+
+            {testeForm.data.tipo_desafio === "Tarefa" && (
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-2">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Anexo da tarefa
+                        </label>
+                        <input
+                            type="file"
+                            onChange={(e) =>
+                                testeForm.setData(
+                                    "anexo_global_ficheiro",
+                                    e.target.files?.[0] || null,
+                                )
+                            }
+                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Adiciona um único ficheiro de apoio. Os alunos podem submeter um ficheiro ou um link.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {!isTarefa && mostrarListaPerguntas && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -211,74 +368,76 @@ export default function CriarTesteSection({
                 </div>
             )}
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-gray-900 dark:text-gray-100">
-                        Selecionar perguntas existentes
-                    </h4>
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-500">
-                            Selecionadas:{" "}
-                            {(testeForm.data.pergunta_ids || []).length}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setMostrarListaPerguntas((estado) => !estado)
-                            }
-                            className="px-3 py-1 rounded-md text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
-                        >
-                            {mostrarListaPerguntas
-                                ? "Esconder Lista"
-                                : "Mostrar Lista"}
-                        </button>
-                    </div>
-                </div>
-                {mostrarListaPerguntas && (
-                    <div className="max-h-44 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
-                        {perguntasFiltradas.length === 0 && (
-                            <p className="text-sm text-gray-500">
-                                Sem perguntas para os filtros aplicados.
-                            </p>
-                        )}
-                        {perguntasFiltradas.map((pergunta) => (
-                            <div
-                                key={pergunta.id}
-                                className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300"
+            {!isTarefa && (
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-gray-900 dark:text-gray-100">
+                            Selecionar perguntas existentes
+                        </h4>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-500">
+                                Selecionadas:{" "}
+                                {(testeForm.data.pergunta_ids || []).length}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setMostrarListaPerguntas((estado) => !estado)
+                                }
+                                className="px-3 py-1 rounded-md text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
                             >
-                                <input
-                                    type="checkbox"
-                                    checked={(
-                                        testeForm.data.pergunta_ids || []
-                                    ).includes(pergunta.id)}
-                                    onChange={() =>
-                                        togglePerguntaSelecionada(pergunta.id)
-                                    }
-                                    className="mt-1"
-                                />
-                                <div className="flex-1">
-                                    <span className="cursor-pointer">
-                                        <strong className="font-semibold">
-                                            {pergunta.tipo_pergunta.replaceAll(
-                                                "_",
-                                                " ",
-                                            )}
-                                        </strong>
-                                        <br />
-                                        {pergunta.texto}
-                                    </span>
-                                    <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
-                                        Resposta:{" "}
-                                        {obterRespostaPergunta(pergunta)}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
+                                {mostrarListaPerguntas
+                                    ? "Esconder Lista"
+                                    : "Mostrar Lista"}
+                            </button>
+                        </div>
                     </div>
-                )}
-            </div>
+                    {mostrarListaPerguntas && (
+                        <div className="max-h-44 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
+                            {perguntasFiltradas.length === 0 && (
+                                <p className="text-sm text-gray-500">
+                                    Sem perguntas para os filtros aplicados.
+                                </p>
+                            )}
+                            {perguntasFiltradas.map((pergunta) => (
+                                <div
+                                    key={pergunta.id}
+                                    className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={(
+                                            testeForm.data.pergunta_ids || []
+                                        ).includes(pergunta.id)}
+                                        onChange={() =>
+                                            togglePerguntaSelecionada(pergunta.id)
+                                        }
+                                        className="mt-1"
+                                    />
+                                    <div className="flex-1">
+                                        <span className="cursor-pointer">
+                                            <strong className="font-semibold">
+                                                {pergunta.tipo_pergunta.replaceAll(
+                                                    "_",
+                                                    " ",
+                                                )}
+                                            </strong>
+                                            <br />
+                                            {pergunta.texto}
+                                        </span>
+                                        <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+                                            Resposta:{" "}
+                                            {obterRespostaPergunta(pergunta)}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
-            {(testeForm.data.pergunta_ids || []).length > 0 && (
+            {!isTarefa && (testeForm.data.pergunta_ids || []).length > 0 && (
                 <div className="space-y-2">
                     <h4 className="font-bold text-gray-900 dark:text-gray-100">
                         Ordem das perguntas selecionadas
@@ -385,7 +544,8 @@ export default function CriarTesteSection({
                 </div>
             )}
 
-            <div className="space-y-3">
+            {!isTarefa && (
+                <div className="space-y-3">
                 <div className="flex items-center justify-between">
                     <h4 className="font-bold text-gray-900 dark:text-gray-100">
                         Criar novas perguntas ({config.nome.toLowerCase()})
@@ -430,6 +590,8 @@ export default function CriarTesteSection({
                     ),
                 )}
             </div>
+            )}
+
 
             <div className="flex items-center gap-3">
                 <button
@@ -452,21 +614,25 @@ export default function CriarTesteSection({
                 )}
             </div>
 
-            <div
-                className={`text-sm font-semibold ${
-                    excedePontuacaoMaxima && config.escalaFixa20
-                        ? "text-red-600"
-                        : "text-emerald-600"
-                }`}
-            >
-                Pontuação total: {totalPontuacaoTeste}
-                {config.escalaFixa20 && "/20"}
-            </div>
+            {!isTarefa && (
+                <>
+                    <div
+                        className={`text-sm font-semibold ${
+                            excedePontuacaoMaxima && config.escalaFixa20
+                                ? "text-red-600"
+                                : "text-emerald-600"
+                        }`}
+                    >
+                        Pontuação total: {totalPontuacaoTeste}
+                        {config.escalaFixa20 && "/20"}
+                    </div>
 
-            {testeForm.errors.total_pontuacao && (
-                <p className="text-sm text-red-600">
-                    {testeForm.errors.total_pontuacao}
-                </p>
+                    {testeForm.errors.total_pontuacao && (
+                        <p className="text-sm text-red-600">
+                            {testeForm.errors.total_pontuacao}
+                        </p>
+                    )}
+                </>
             )}
             {Object.values(testeForm.errors || {}).length > 0 && (
                 <p className="text-sm text-red-600">

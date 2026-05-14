@@ -1,6 +1,6 @@
 // resources/js/Pages/Dashboard/Dashboard.jsx
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
 
@@ -19,8 +19,12 @@ import CategoriasView from "./Components/Categorias/CategoriasView";
 import TestesView from "./Components/Professores/TestesView";
 import TarefasView from "./Components/Professores/TarefasView";
 import AvaliacoesView from "./Components/Professores/AvaliacoesView";
+import BoletimView from "./Components/Professores/BoletimView";
 import DesafiosView from "./Components/Alunos/DesafiosView";
 import LeaderboardView from "./Components/Gamificacao/LeaderboardView";
+import NotificacoesView from "./Components/Notificacoes/NotificacoesView";
+import DesafioModal from "./Components/Alunos/DesafioModal";
+import AdminLandingEditor from "../LandingPage/assets/AdminLandingEditor";
 
 export default function Dashboard(props) {
     // --- Desestruturação das Props (Incluindo tarefasAluno) ---
@@ -35,28 +39,58 @@ export default function Dashboard(props) {
         status,
         mustVerifyEmail,
         initialView = "dashboard",
+        initialSubmissaoId = null,
         perguntasProfessor = [],
         perguntasBancoProfessor = null,
         perguntasBancoFiltros = null,
         testesProfessor = [],
         tarefasProfessor = [],
-        tarefasAluno = [],
-        submissoesAluno = [],
         desafiosAluno = [],
         inscricoesDesafiosAluno = [],
+        notasAluno = [],
         correcoesProfessor = null,
         trabalhosPendentes = 0,
+        badgesProfessor = [],
         podio = [],
         ranking_xp = [],
         ranking_nivel = [],
         ranking_badges = [],
+        notificacoesData = null,
+        initialDesafioModalId = null,
+        landingConteudo = null,
     } = props;
 
     // =============================================================================
     // ESTADOS DE NAVEGAÇÃO E INTERFACE
     // =============================================================================
     const [activeView, setActiveView] = useState(initialView || "dashboard");
+
+    // Sync when Inertia navigates to a different ?view= (e.g. clicking "Centro de Notificações")
+    React.useEffect(() => {
+        if (initialView && initialView !== activeView) {
+            setActiveView(initialView);
+        }
+    }, [initialView]);
     const [showNovoUserForm, setShowNovoUserForm] = useState(false);
+    const [desafioModalId, setDesafioModalId] = useState(initialDesafioModalId);
+
+    const desafioModalAtribuicao = useMemo(
+        () => (desafioModalId ? (desafiosAluno.find((a) => a.id_desafio === desafioModalId) ?? null) : null),
+        [desafioModalId, desafiosAluno],
+    );
+    const desafioModalInscricao = useMemo(
+        () => (desafioModalId ? (inscricoesDesafiosAluno.find((i) => i.id_desafio === desafioModalId) ?? null) : null),
+        [desafioModalId, inscricoesDesafiosAluno],
+    );
+
+    const handleCloseDesafioModal = () => {
+        setDesafioModalId(null);
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("desafio_modal_id")) {
+            url.searchParams.delete("desafio_modal_id");
+            window.history.replaceState({}, "", url.toString());
+        }
+    };
 
     // =============================================================================
     // ESTADOS DOS MODAIS
@@ -167,6 +201,7 @@ export default function Dashboard(props) {
                         perguntasBancoFiltros={perguntasBancoFiltros}
                         testesProfessor={testesProfessor}
                         categorias={categorias}
+                        badgesProfessor={badgesProfessor}
                     />
                 )}
 
@@ -195,10 +230,13 @@ export default function Dashboard(props) {
 
                 {/* 7. OUTROS PLACEHOLDERS */}
                 {activeView === "avaliacoes" && (
-                    <AvaliacoesView correcoesProfessor={correcoesProfessor} />
+                    <AvaliacoesView
+                        correcoesProfessor={correcoesProfessor}
+                        initialSubmissaoId={initialSubmissaoId}
+                    />
                 )}
                 {activeView === "boletim" && (
-                    <PlaceholderView title="Boletim de Notas" icon="🎓" />
+                    <BoletimView notasAluno={notasAluno} />
                 )}
 
                 {activeView === "leaderboard" && (
@@ -209,7 +247,25 @@ export default function Dashboard(props) {
                         ranking_badges={ranking_badges}
                     />
                 )}
+
+                {activeView === "notificacoes" && (
+                    <NotificacoesView notificacoesData={notificacoesData} />
+                )}
+
+                {activeView === "updateLandingPage" && (
+                    <AdminLandingEditor conteudo={landingConteudo} />
+                )}
             </div>
+
+            {/* MODAL DE DESAFIO */}
+            {desafioModalId && (
+                <DesafioModal
+                    atribuicao={desafioModalAtribuicao}
+                    inscricao={desafioModalInscricao}
+                    onClose={handleCloseDesafioModal}
+                    returnView={activeView}
+                />
+            )}
 
             {/* MODAIS GLOBAIS */}
             <UserModals

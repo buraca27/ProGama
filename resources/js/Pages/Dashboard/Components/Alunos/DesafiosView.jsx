@@ -23,7 +23,11 @@ function statusDesafio(atribuicao, inscricao) {
         ? new Date(atribuicao.desafio.data_fim)
         : null;
 
-    if (inscricao && ["Submetido", "Concluido"].includes(inscricao.estado)) {
+    if (inscricao && ["Submetido", "Concluido", "Avaliado"].includes(inscricao.estado)) {
+        if (inscricao.estado === "Avaliado") {
+            return { label: "Avaliado", tone: "emerald" };
+        }
+
         return inscricao.estado === "Concluido"
             ? { label: "Concluido", tone: "emerald" }
             : { label: "Submetido", tone: "blue" };
@@ -96,7 +100,9 @@ export default function DesafiosView({
     }, [desafiosOrdenados]);
 
     const selectedAtribuicao = useMemo(
-        () => desafiosOrdenados.find((d) => d.id === selectedAtribuicaoId) || null,
+        () =>
+            desafiosOrdenados.find((d) => d.id === selectedAtribuicaoId) ||
+            null,
         [desafiosOrdenados, selectedAtribuicaoId],
     );
 
@@ -131,7 +137,9 @@ export default function DesafiosView({
                 id_opcao_escolhida: existente?.id_opcao_escolhida
                     ? Number(existente.id_opcao_escolhida)
                     : null,
-                ids_opcoes_escolhidas: Array.isArray(existente?.ids_opcoes_escolhidas)
+                ids_opcoes_escolhidas: Array.isArray(
+                    existente?.ids_opcoes_escolhidas,
+                )
                     ? existente.ids_opcoes_escolhidas.map((id) => Number(id))
                     : [],
                 resposta_texto: existente?.resposta_texto || "",
@@ -153,14 +161,25 @@ export default function DesafiosView({
             ["Submetido", "Concluido", "Falhado"].includes(i.estado),
     ).length;
 
+    const limiteTentativas = selectedAtribuicao?.tentativas_maximas || null;
+    const esgotouTentativas = limiteTentativas
+        ? totalTentativasFeitas >= limiteTentativas
+        : false;
+
     const temRascunho = Boolean(
         inscricaoAtual && inscricaoAtual.estado === "Em_Resolucao",
+    );
+
+    const desafioFechado = Boolean(
+        inscricaoAtual && ["Avaliado", "Concluido"].includes(inscricaoAtual.estado),
     );
 
     const podeInteragir =
         selectedAtribuicao &&
         perguntas.length > 0 &&
-        !bloqueadoPorData;
+        !bloqueadoPorData &&
+        !desafioFechado &&
+        !esgotouTentativas;
 
     const onSelectOption = (idPergunta, idOpcao) => {
         const prev = form.data.respostas || {};
@@ -173,6 +192,32 @@ export default function DesafiosView({
                 }),
                 id_opcao_escolhida: Number(idOpcao),
                 ids_opcoes_escolhidas: [Number(idOpcao)],
+            },
+        });
+    };
+
+    const onToggleMultipleOption = (idPergunta, idOpcao) => {
+        const prev = form.data.respostas || {};
+        const respostaAtual = prev[idPergunta] || {
+            id_pergunta: Number(idPergunta),
+            resposta_texto: "",
+            ids_opcoes_escolhidas: [],
+        };
+
+        const opcoesSelecionadas = respostaAtual.ids_opcoes_escolhidas || [];
+        const idOpcaoNum = Number(idOpcao);
+
+        // Toggle: se já está selecionada, remove; senão, adiciona
+        const novasOpcoes = opcoesSelecionadas.includes(idOpcaoNum)
+            ? opcoesSelecionadas.filter((id) => id !== idOpcaoNum)
+            : [...opcoesSelecionadas, idOpcaoNum];
+
+        form.setData("respostas", {
+            ...prev,
+            [idPergunta]: {
+                ...respostaAtual,
+                id_opcao_escolhida: novasOpcoes[0] || null,
+                ids_opcoes_escolhidas: novasOpcoes,
             },
         });
     };
@@ -218,7 +263,9 @@ export default function DesafiosView({
                 onSuccess: () => mostrarToast("Rascunho guardado com sucesso."),
                 onError: (erros) => {
                     form.setError(erros);
-                    mostrarToast("Erro ao guardar! Verifica os avisos a vermelho.");
+                    mostrarToast(
+                        "Erro ao guardar! Verifica os avisos a vermelho.",
+                    );
                 },
             },
         );
@@ -289,7 +336,8 @@ export default function DesafiosView({
                                 atribuicao.id_desafio,
                             );
                             const status = statusDesafio(atribuicao, inscricao);
-                            const active = atribuicao.id === selectedAtribuicaoId;
+                            const active =
+                                atribuicao.id === selectedAtribuicaoId;
 
                             return (
                                 <button
@@ -316,10 +364,16 @@ export default function DesafiosView({
                                         </span>
                                     </div>
                                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                        Abre: {formatDateTime(atribuicao.desafio?.data_inicio)}
+                                        Abre:{" "}
+                                        {formatDateTime(
+                                            atribuicao.desafio?.data_inicio,
+                                        )}
                                     </p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        Fecha: {formatDateTime(atribuicao.desafio?.data_fim)}
+                                        Fecha:{" "}
+                                        {formatDateTime(
+                                            atribuicao.desafio?.data_fim,
+                                        )}
                                     </p>
                                 </button>
                             );
@@ -339,17 +393,27 @@ export default function DesafiosView({
                                     {desafio?.titulo || "Desafio"}
                                 </h3>
                                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                    Tipo: {String(desafio?.tipo_desafio || "—").replaceAll("_", " ")}
+                                    Tipo:{" "}
+                                    {String(
+                                        desafio?.tipo_desafio || "—",
+                                    ).replaceAll("_", " ")}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                                    Janela: {formatDateTime(desafio?.data_inicio)} ate {formatDateTime(desafio?.data_fim)}
+                                    Janela:{" "}
+                                    {formatDateTime(desafio?.data_inicio)} ate{" "}
+                                    {formatDateTime(desafio?.data_fim)}
                                 </p>
                                 <p className="mt-1 text-sm font-medium text-blue-600 dark:text-blue-400">
-                                    Tentativas submetidas: {totalTentativasFeitas}
+                                    Tentativas submetidas:{" "}
+                                    {totalTentativasFeitas}
+                                    {limiteTentativas &&
+                                        ` / ${limiteTentativas}`}
+                                    {!limiteTentativas && " (Ilimitadas)"}
                                 </p>
                                 {desafio?.duracao_minutos && (
                                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                                        Duracao maxima por tentativa: {desafio.duracao_minutos} min
+                                        Duracao maxima por tentativa:{" "}
+                                        {desafio.duracao_minutos} min
                                     </p>
                                 )}
                                 {desafio?.descricao && (
@@ -361,21 +425,52 @@ export default function DesafiosView({
 
                             {temRascunho && (
                                 <div className="flex items-center gap-2 rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/20 px-4 py-3 text-sm text-violet-700 dark:text-violet-300">
-                                    <span className="font-semibold">Rascunho guardado.</span>
-                                    <span>As tuas respostas foram carregadas automaticamente.</span>
+                                    <span className="font-semibold">
+                                        Rascunho guardado.
+                                    </span>
+                                    <span>
+                                        As tuas respostas foram carregadas
+                                        automaticamente.
+                                    </span>
+                                </div>
+                            )}
+
+                            {esgotouTentativas && (
+                                <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-300">
+                                    <p className="font-semibold">
+                                        ⚠️ Tentativas esgotadas
+                                    </p>
+                                    <p className="mt-1">
+                                        Esgotaste o número máximo de tentativas
+                                        para este desafio ({limiteTentativas}).
+                                        Não podes submeter mais respostas.
+                                    </p>
+                                </div>
+                            )}
+
+                            {desafioFechado && (
+                                <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+                                    <p className="font-semibold">
+                                        Desafio fechado
+                                    </p>
+                                    <p className="mt-1">
+                                        Este desafio já foi corrigido e fechado pelo professor. Não é possível submeter novamente.
+                                    </p>
                                 </div>
                             )}
 
                             {(form.errors.desafio || form.errors.respostas) && (
                                 <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
-                                    {form.errors.desafio || form.errors.respostas}
+                                    {form.errors.desafio ||
+                                        form.errors.respostas}
                                 </div>
                             )}
 
                             <div className="space-y-5">
                                 {perguntas.map((pergunta, index) => {
                                     const resposta =
-                                        form.data.respostas?.[pergunta.id] || {};
+                                        form.data.respostas?.[pergunta.id] ||
+                                        {};
 
                                     return (
                                         <div
@@ -391,7 +486,9 @@ export default function DesafiosView({
 
                                             {pergunta.url_anexo_pergunta && (
                                                 <img
-                                                    src={pergunta.url_anexo_pergunta}
+                                                    src={
+                                                        pergunta.url_anexo_pergunta
+                                                    }
                                                     alt="Anexo"
                                                     className="mt-3 max-h-48 rounded-lg object-contain border border-gray-200 dark:border-gray-700"
                                                 />
@@ -420,50 +517,78 @@ export default function DesafiosView({
                                                 />
                                             ) : (
                                                 <div className="mt-3 space-y-2">
-                                                    {(pergunta.opcoes || []).map(
-                                                        (opcao) => {
-                                                            const checked =
-                                                                Number(
-                                                                    resposta.id_opcao_escolhida,
-                                                                ) ===
-                                                                Number(opcao.id);
+                                                    {(
+                                                        pergunta.opcoes || []
+                                                    ).map((opcao) => {
+                                                        const isMultipleChoice =
+                                                            pergunta.tipo_pergunta ===
+                                                            "Escolha_Multipla";
+                                                        const opcoesSelecionadas =
+                                                            resposta.ids_opcoes_escolhidas ||
+                                                            [];
 
-                                                            return (
-                                                                <label
-                                                                    key={opcao.id}
-                                                                    className={`flex items-start gap-3 rounded-lg border px-3 py-2 transition ${
+                                                        const checked =
+                                                            isMultipleChoice
+                                                                ? opcoesSelecionadas.includes(
+                                                                      Number(
+                                                                          opcao.id,
+                                                                      ),
+                                                                  )
+                                                                : Number(
+                                                                      resposta.id_opcao_escolhida,
+                                                                  ) ===
+                                                                  Number(
+                                                                      opcao.id,
+                                                                  );
+
+                                                        return (
+                                                            <label
+                                                                key={opcao.id}
+                                                                className={`flex items-start gap-3 rounded-lg border px-3 py-2 transition ${
+                                                                    checked
+                                                                        ? "border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20"
+                                                                        : "border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800/60"
+                                                                } ${!podeInteragir ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                                                            >
+                                                                <input
+                                                                    type={
+                                                                        isMultipleChoice
+                                                                            ? "checkbox"
+                                                                            : "radio"
+                                                                    }
+                                                                    name={
+                                                                        isMultipleChoice
+                                                                            ? undefined
+                                                                            : `pergunta_${pergunta.id}`
+                                                                    }
+                                                                    checked={
                                                                         checked
-                                                                            ? "border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20"
-                                                                            : "border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800/60"
-                                                                    } ${!podeInteragir ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-                                                                >
-                                                                    <input
-                                                                        type="radio"
-                                                                        name={`pergunta_${pergunta.id}`}
-                                                                        checked={
-                                                                            checked
-                                                                        }
-                                                                        onChange={() =>
-                                                                            onSelectOption(
-                                                                                pergunta.id,
-                                                                                opcao.id,
-                                                                            )
-                                                                        }
-                                                                        disabled={
-                                                                            !podeInteragir ||
-                                                                            form.processing
-                                                                        }
-                                                                        className="mt-0.5 text-blue-600 focus:ring-blue-500"
-                                                                    />
-                                                                    <span className="text-sm text-gray-700 dark:text-gray-200">
-                                                                        {
-                                                                            opcao.texto_opcao
-                                                                        }
-                                                                    </span>
-                                                                </label>
-                                                            );
-                                                        },
-                                                    )}
+                                                                    }
+                                                                    onChange={() =>
+                                                                        isMultipleChoice
+                                                                            ? onToggleMultipleOption(
+                                                                                  pergunta.id,
+                                                                                  opcao.id,
+                                                                              )
+                                                                            : onSelectOption(
+                                                                                  pergunta.id,
+                                                                                  opcao.id,
+                                                                              )
+                                                                    }
+                                                                    disabled={
+                                                                        !podeInteragir ||
+                                                                        form.processing
+                                                                    }
+                                                                    className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                                                                />
+                                                                <span className="text-sm text-gray-700 dark:text-gray-200">
+                                                                    {
+                                                                        opcao.texto_opcao
+                                                                    }
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
@@ -474,20 +599,28 @@ export default function DesafiosView({
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <div>
                                     {inscricaoAtual?.data_ultima_tentativa &&
-                                        ["Submetido", "Concluido"].includes(inscricaoAtual?.estado) && (
+                                        ["Submetido", "Concluido", "Avaliado"].includes(
+                                            inscricaoAtual?.estado,
+                                        ) && (
                                             <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                                                Ultima submissao em {formatDateTime(inscricaoAtual.data_ultima_tentativa)}.
+                                                Ultima submissao em{" "}
+                                                {formatDateTime(
+                                                    inscricaoAtual.data_ultima_tentativa,
+                                                )}
+                                                .
                                             </p>
                                         )}
                                     {bloqueadoPorData && (
                                         <p className="text-sm font-medium text-red-700 dark:text-red-300">
-                                            Este desafio esta fora da janela de resolucao.
+                                            Este desafio esta fora da janela de
+                                            resolucao.
                                         </p>
                                     )}
                                     {!bloqueadoPorData &&
                                         perguntas.length === 0 && (
                                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                Este desafio nao tem perguntas configuradas.
+                                                Este desafio nao tem perguntas
+                                                configuradas.
                                             </p>
                                         )}
                                 </div>

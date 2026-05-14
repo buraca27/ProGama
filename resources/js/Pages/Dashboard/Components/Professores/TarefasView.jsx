@@ -12,6 +12,7 @@ export default function TarefasView({
     const [editDatas, setEditDatas] = useState({
         data_hora_abertura: "",
         data_hora_fecho: "",
+        sem_consulta: true,
     });
     const menusRef = useRef({});
 
@@ -21,6 +22,7 @@ export default function TarefasView({
         data_hora_abertura: "",
         data_hora_fecho: "",
         tentativas_maximas: "",
+        sem_consulta: true,
     });
 
     const testesDisponiveis = useMemo(
@@ -84,7 +86,8 @@ export default function TarefasView({
                     turma_ids: [],
                     data_hora_abertura: "",
                     data_hora_fecho: "",
-                    tentativas_maximas: "", // Corrigido: limpar tentativas também
+                    tentativas_maximas: "",
+                    sem_consulta: true,
                 });
                 setShowTaskForm(false);
             },
@@ -97,6 +100,7 @@ export default function TarefasView({
         setEditDatas({
             data_hora_abertura: toDatetimeLocal(tarefa.data_hora_abertura),
             data_hora_fecho: toDatetimeLocal(tarefa.data_hora_fecho),
+            sem_consulta: tarefa.sem_consulta ?? true,
         });
     };
 
@@ -105,6 +109,7 @@ export default function TarefasView({
         setEditDatas({
             data_hora_abertura: "",
             data_hora_fecho: "",
+            sem_consulta: true,
         });
     };
 
@@ -114,6 +119,7 @@ export default function TarefasView({
             {
                 data_hora_abertura: editDatas.data_hora_abertura,
                 data_hora_fecho: editDatas.data_hora_fecho,
+                sem_consulta: editDatas.sem_consulta,
             },
             {
                 preserveScroll: true,
@@ -290,6 +296,26 @@ export default function TarefasView({
                             </div>
                         </div>
 
+                        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20 p-3">
+                            <input
+                                type="checkbox"
+                                id="com_consulta"
+                                checked={!tarefaForm.data.sem_consulta}
+                                onChange={(e) =>
+                                    tarefaForm.setData("sem_consulta", !e.target.checked)
+                                }
+                                className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <label htmlFor="com_consulta" className="cursor-pointer">
+                                <span className="block text-sm font-bold text-blue-700 dark:text-blue-300">
+                                    Com consulta
+                                </span>
+                                <span className="block text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                                    Por defeito o teste é <strong>sem consulta</strong>. Ativa esta opção se quiseres permitir que o aluno consulte outros recursos durante a resolução.
+                                </span>
+                            </label>
+                        </div>
+
                         {Object.values(tarefaForm.errors || {}).length > 0 && (
                             <p className="text-sm text-red-600 dark:text-red-400">
                                 Não foi possível criar o desafio. Verifica os
@@ -360,6 +386,11 @@ export default function TarefasView({
                                             ? tarefa.tentativas_maximas
                                             : "Ilimitadas"}
                                     </p>
+                                    {tarefa.sem_consulta && (
+                                        <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                                            🚫 Sem Consulta
+                                        </span>
+                                    )}
                                     <p className="text-xs text-gray-500 mt-1">
                                         Criada em:{" "}
                                         {new Date(
@@ -471,6 +502,25 @@ export default function TarefasView({
                                             className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                         />
                                     </div>
+                                    <div className="md:col-span-2">
+                                        <label className="flex items-start gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={!editDatas.sem_consulta}
+                                                onChange={(e) =>
+                                                    setEditDatas((prev) => ({
+                                                        ...prev,
+                                                        sem_consulta: !e.target.checked,
+                                                    }))
+                                                }
+                                                className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span>
+                                                <span className="block text-xs font-bold text-blue-700 dark:text-blue-300">Com consulta</span>
+                                                <span className="block text-xs text-gray-500 dark:text-gray-400">Ativa se quiseres permitir consulta. Por defeito é sem consulta.</span>
+                                            </span>
+                                        </label>
+                                    </div>
                                     <div className="md:col-span-2 flex items-center gap-2">
                                         <button
                                             type="button"
@@ -479,7 +529,7 @@ export default function TarefasView({
                                             }
                                             className="px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
                                         >
-                                            Guardar datas
+                                            Guardar
                                         </button>
                                         <button
                                             type="button"

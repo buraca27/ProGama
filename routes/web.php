@@ -40,6 +40,11 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     });
 
     Route::prefix('dashboard/aluno')->name('aluno.')->group(function () {
+        Route::get('/desafios/{idAtribuicao}/submeter', function () {
+            return redirect()->route('dashboard', [
+                'view' => 'desafios',
+            ]);
+        });
         Route::post('/desafios/{idAtribuicao}/submeter', [AlunoDesafioController::class, 'submeter'])->name('desafios.submeter');
     });
 
@@ -58,6 +63,8 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     Route::prefix('social')->name('social.')->group(function () {
         Route::get('/', [SocialController::class, 'index'])->name('hub');
         Route::post('/seguir/{usuario}', [SocialController::class, 'seguir'])->name('seguir');
+        Route::post('/aceitar/{usuario}', [SocialController::class, 'aceitarPedido'])->name('aceitar');
+        Route::post('/recusar/{usuario}', [SocialController::class, 'recusarPedido'])->name('recusar');
         Route::delete('/seguir/{usuario}', [SocialController::class, 'deixarSeguir'])->name('deixar-seguir');
     });
 
@@ -80,6 +87,12 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::put('/{id}', [UserController::class, 'update'])->name('update');
             Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
         });
+
+        Route::get('/dashboard/update-landing-page', function () {
+            return redirect()->route('dashboard', [
+                'view' => 'updateLandingPage',
+            ]);
+        })->name('dashboard.update-landing-page');
 
         // Turmas (Criar, Editar, Apagar, Atribuir)
         Route::prefix('dashboard/turmas')->name('turmas.')->group(function () {
@@ -104,7 +117,6 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::delete('/{id}', [CategoriaController::class, 'destroy'])->name('destroy');
         });
     });
-
     // --- 4. PERFIL DO UTILIZADOR ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

@@ -130,6 +130,11 @@ export default function TrabalhosView({
                 id_opcao_escolhida: existente?.id_opcao_escolhida
                     ? Number(existente.id_opcao_escolhida)
                     : null,
+                ids_opcoes_escolhidas: Array.isArray(
+                    existente?.ids_opcoes_escolhidas,
+                )
+                    ? existente.ids_opcoes_escolhidas.map((id) => Number(id))
+                    : [],
                 resposta_texto: existente?.resposta_texto || "",
             };
         });
@@ -180,6 +185,33 @@ export default function TrabalhosView({
                     resposta_texto: "",
                 }),
                 id_opcao_escolhida: Number(idOpcao),
+                ids_opcoes_escolhidas: [Number(idOpcao)],
+            },
+        });
+    };
+
+    const onToggleMultipleOption = (idPergunta, idOpcao) => {
+        const prev = form.data.respostas || {};
+        const respostaAtual = prev[idPergunta] || {
+            id_pergunta: Number(idPergunta),
+            resposta_texto: "",
+            ids_opcoes_escolhidas: [],
+        };
+
+        const opcoesSelecionadas = respostaAtual.ids_opcoes_escolhidas || [];
+        const idOpcaoNum = Number(idOpcao);
+
+        // Toggle: se já está selecionada, remove; senão, adiciona
+        const novasOpcoes = opcoesSelecionadas.includes(idOpcaoNum)
+            ? opcoesSelecionadas.filter((id) => id !== idOpcaoNum)
+            : [...opcoesSelecionadas, idOpcaoNum];
+
+        form.setData("respostas", {
+            ...prev,
+            [idPergunta]: {
+                ...respostaAtual,
+                id_opcao_escolhida: novasOpcoes[0] || null,
+                ids_opcoes_escolhidas: novasOpcoes,
             },
         });
     };
@@ -206,6 +238,7 @@ export default function TrabalhosView({
             return {
                 id_pergunta: Number(pergunta.id),
                 id_opcao_escolhida: r.id_opcao_escolhida || null,
+                ids_opcoes_escolhidas: r.ids_opcoes_escolhidas || [],
                 resposta_texto: r.resposta_texto || "",
             };
         });
@@ -476,11 +509,26 @@ export default function TrabalhosView({
                                                     {(
                                                         pergunta.opcoes || []
                                                     ).map((opcao) => {
+                                                        const isMultipleChoice =
+                                                            pergunta.tipo_pergunta ===
+                                                            "Escolha_Multipla";
+                                                        const opcoesSelecionadas =
+                                                            resposta.ids_opcoes_escolhidas ||
+                                                            [];
+
                                                         const checked =
-                                                            Number(
-                                                                resposta.id_opcao_escolhida,
-                                                            ) ===
-                                                            Number(opcao.id);
+                                                            isMultipleChoice
+                                                                ? opcoesSelecionadas.includes(
+                                                                      Number(
+                                                                          opcao.id,
+                                                                      ),
+                                                                  )
+                                                                : Number(
+                                                                      resposta.id_opcao_escolhida,
+                                                                  ) ===
+                                                                  Number(
+                                                                      opcao.id,
+                                                                  );
 
                                                         return (
                                                             <label
@@ -492,16 +540,29 @@ export default function TrabalhosView({
                                                                 } ${!podeInteragir ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
                                                             >
                                                                 <input
-                                                                    type="radio"
-                                                                    name={`pergunta_${pergunta.id}`}
+                                                                    type={
+                                                                        isMultipleChoice
+                                                                            ? "checkbox"
+                                                                            : "radio"
+                                                                    }
+                                                                    name={
+                                                                        isMultipleChoice
+                                                                            ? undefined
+                                                                            : `pergunta_${pergunta.id}`
+                                                                    }
                                                                     checked={
                                                                         checked
                                                                     }
                                                                     onChange={() =>
-                                                                        onSelectOption(
-                                                                            pergunta.id,
-                                                                            opcao.id,
-                                                                        )
+                                                                        isMultipleChoice
+                                                                            ? onToggleMultipleOption(
+                                                                                  pergunta.id,
+                                                                                  opcao.id,
+                                                                              )
+                                                                            : onSelectOption(
+                                                                                  pergunta.id,
+                                                                                  opcao.id,
+                                                                              )
                                                                     }
                                                                     disabled={
                                                                         !podeInteragir ||
