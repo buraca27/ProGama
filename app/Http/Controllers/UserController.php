@@ -50,7 +50,6 @@ class UserController extends Controller
                 'data_nascimento' => $request->data_nascimento,
                 'password' => Hash::make($password),
                 'id_role' => $roleId,
-                'id_nivel' => 1,
                 'foto_perfil' => $request->foto_perfil,
                 'created_at' => now(),
                 'updated_at' => now(),

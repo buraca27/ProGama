@@ -23,3 +23,8 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 start-dev.bat
+.vite
+teste.txt
+a.txt
+.claudeignore
+.claude/settings.local.json

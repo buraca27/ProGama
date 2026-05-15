@@ -1,7 +1,18 @@
 // resources/js/Pages/Dashboard/Partials/StatsGrid.jsx
 import React from "react";
 
-export default function StatsGrid({ userRole, estatisticas, auth, turmas }) {
+export default function StatsGrid({
+    userRole,
+    estatisticas,
+    auth,
+    turmas,
+    disciplinas = [],
+    trabalhosPendentes = 0,
+    tarefasProfessor = [],
+    desafiosAluno = [],
+    inscricoesDesafiosAluno = [],
+    notasAluno = [],
+}) {
     return (
         <div className="max-w-7xl mx-auto space-y-6">
             {/* Banner de Boas-vindas */}
@@ -71,14 +82,14 @@ export default function StatsGrid({ userRole, estatisticas, auth, turmas }) {
                         />
                         <DashboardCard
                             title="Trabalhos para Avaliar"
-                            value="12" // Aqui depois ligamos a lógica real
+                            value={trabalhosPendentes}
                             sub="Submissões pendentes"
                             color="text-orange-600 dark:text-orange-400"
                         />
                         <DashboardCard
-                            title="Próxima Aula"
-                            value="14:30"
-                            sub="Sala 12 - Bloco B"
+                            title="Tarefas Atribuídas"
+                            value={tarefasProfessor?.length || 0}
+                            sub="Testes atribuídos a alunos"
                             color="text-blue-600 dark:text-blue-400"
                         />
                     </>
@@ -89,20 +100,33 @@ export default function StatsGrid({ userRole, estatisticas, auth, turmas }) {
                     <>
                         <DashboardCard
                             title="Disciplinas"
-                            value={turmas?.length || 0}
-                            sub="Onde estás matriculado"
+                            value={disciplinas?.length || 0}
+                            sub="Total de disciplinas matriculadas"
                             color="text-purple-600 dark:text-purple-400"
                         />
                         <DashboardCard
                             title="Tarefas Pendentes"
-                            value="3"
-                            sub="Entrega até amanhã"
+                            value={(() => {
+                                // Conta desafios não completados (sem submissão ou em resolução)
+                                const totalDesafios = desafiosAluno?.length || 0;
+                                const desafiosCompletos = inscricoesDesafiosAluno?.filter(
+                                    (submissao) => submissao.estado === "Concluido" || submissao.estado === "Avaliado" || submissao.estado === "Submetido"
+                                ).length || 0;
+                                return Math.max(0, totalDesafios - desafiosCompletos);
+                            })()}
+                            sub="Tarefas a aguardar resolução"
                             color="text-red-600 dark:text-red-400"
                         />
                         <DashboardCard
                             title="Média Global"
-                            value="16.4"
-                            sub="Valores calculados"
+                            value={(() => {
+                                // Calcula a média das notas avaliadas
+                                if (!notasAluno || notasAluno.length === 0) return "-";
+                                const soma = notasAluno.reduce((acc, nota) => acc + (nota.valor || 0), 0);
+                                const media = soma / notasAluno.length;
+                                return media.toFixed(1);
+                            })()}
+                            sub="Com base nos testes avaliados"
                             color="text-yellow-600 dark:text-yellow-400"
                         />
                     </>

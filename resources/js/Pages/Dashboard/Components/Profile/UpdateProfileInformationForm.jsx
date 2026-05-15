@@ -18,6 +18,7 @@ export default function UpdateProfileInformation({
         useForm({
             name: user.name,
             email: user.email,
+            email_pessoal: user.email_pessoal || "",
             foto_perfil: user.foto_perfil || "",
         });
 
@@ -117,12 +118,35 @@ export default function UpdateProfileInformation({
                     <InputError className="mt-2" message={errors.email} />
                 </div>
 
+                <div>
+                    <InputLabel
+                        htmlFor="email_pessoal"
+                        value="Email Pessoal / Perfil Social"
+                    />
+                    <TextInput
+                        id="email_pessoal"
+                        type="email"
+                        className="mt-1 block w-full"
+                        value={data.email_pessoal}
+                        onChange={(e) =>
+                            setData("email_pessoal", e.target.value)
+                        }
+                        autoComplete="email"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                        Adiciona um email pessoal para o teu perfil social e
+                        contatos.
+                    </p>
+                    <InputError
+                        className="mt-2"
+                        message={errors.email_pessoal}
+                    />
+                </div>
+
                 <div className="flex items-center gap-4">
                     <PrimaryButton disabled={processing}>
                         Guardar Alterações
                     </PrimaryButton>
-                    
-                    {/* AQUI FOI CORRIGIDO: Substituí o Transition por um render condicional simples */}
                     {recentlySuccessful && (
                         <p className="text-sm text-green-600 dark:text-green-400 font-bold">
                             Guardado com sucesso!
