@@ -23,6 +23,9 @@ class User extends Authenticatable
         'must_change_password',
         'nif',
         'data_nascimento',
+        'twofa_totp_enabled',
+        'twofa_code',
+        'twofa_expires',
     ];
 
     protected $hidden = [
@@ -35,6 +38,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'twofa_expires' => 'datetime',
         ];
     }
 

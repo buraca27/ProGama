@@ -124,8 +124,8 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
         });
     });
     // --- 4. PERFIL DO UTILIZADOR ---
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/2fa', [ProfileController::class, 'toggle2FA'])->name('profile.2fa.toggle');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 

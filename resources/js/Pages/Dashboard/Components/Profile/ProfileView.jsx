@@ -5,8 +5,16 @@ import UpdatePasswordForm from "./UpdatePasswordForm";
 import DeleteUserForm from "./DeleteUserForm";
 import UpdateThemeForm from "./UpdateThemeForm";
 import { MedalStat } from "@/Pages/Dashboard/Components/Social/BadgeDetailPopup";
+import TwoFactorSettingsForm from "./TwoFactorSettingsForm";
 
-export default function ProfileView({ mustVerifyEmail, status, onOpenPerfil, onViewChange, showForms = true, showStats = true }) {
+export default function ProfileView({
+    mustVerifyEmail,
+    status,
+    onOpenPerfil,
+    onViewChange,
+    showForms = true,
+    showStats = true,
+}) {
     const user = usePage().props.auth.user || {};
     const isAluno = (user.id_role ?? 3) === 3;
     const xpTotal = user.xp_total ?? 0;
@@ -21,7 +29,12 @@ export default function ProfileView({ mustVerifyEmail, status, onOpenPerfil, onV
     const seguindo = user.seguindo_count ?? 0;
     const conexoes = user.conexoes_count ?? 0;
 
-    const roleLabel = user.id_role === 1 ? "Secretaria" : user.id_role === 2 ? "Professor" : "Aluno";
+    const roleLabel =
+        user.id_role === 1
+            ? "Secretaria"
+            : user.id_role === 2
+              ? "Professor"
+              : "Aluno";
 
     return (
         <div className="max-w-7xl mx-auto space-y-6">
@@ -88,12 +101,22 @@ export default function ProfileView({ mustVerifyEmail, status, onOpenPerfil, onV
                                         </div>
                                         <div className="rounded-3xl bg-slate-50 p-4 dark:bg-slate-900">
                                             <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                                                Badges Conquistadas ({badgesCount})
+                                                Badges Conquistadas (
+                                                {badgesCount})
                                             </p>
                                             <div className="mt-2 flex items-center justify-around">
-                                                <MedalStat type="ouro"   count={badgesOuro} />
-                                                <MedalStat type="prata"  count={badgesPrata} />
-                                                <MedalStat type="bronze" count={badgesBronze} />
+                                                <MedalStat
+                                                    type="ouro"
+                                                    count={badgesOuro}
+                                                />
+                                                <MedalStat
+                                                    type="prata"
+                                                    count={badgesPrata}
+                                                />
+                                                <MedalStat
+                                                    type="bronze"
+                                                    count={badgesBronze}
+                                                />
                                             </div>
                                         </div>
                                     </div>
@@ -102,10 +125,16 @@ export default function ProfileView({ mustVerifyEmail, status, onOpenPerfil, onV
                                         <div className="flex items-center justify-between gap-4">
                                             <div>
                                                 <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                                                    Progresso para o próximo nível
+                                                    Progresso para o próximo
+                                                    nível
                                                 </p>
                                                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                    {xpTotal} / {xpProximoNivel} XP &nbsp;·&nbsp; {Math.round(percentagemNivel)}%
+                                                    {xpTotal} / {xpProximoNivel}{" "}
+                                                    XP &nbsp;·&nbsp;{" "}
+                                                    {Math.round(
+                                                        percentagemNivel,
+                                                    )}
+                                                    %
                                                 </p>
                                             </div>
                                             <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -115,7 +144,9 @@ export default function ProfileView({ mustVerifyEmail, status, onOpenPerfil, onV
                                         <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                                             <div
                                                 className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-500"
-                                                style={{ width: `${Math.min(Math.max(percentagemNivel, 0), 100)}%` }}
+                                                style={{
+                                                    width: `${Math.min(Math.max(percentagemNivel, 0), 100)}%`,
+                                                }}
                                             />
                                         </div>
                                     </div>
@@ -129,7 +160,8 @@ export default function ProfileView({ mustVerifyEmail, status, onOpenPerfil, onV
                                 Conexões da Rede
                             </h2>
                             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                                Seguindo {seguindo} pessoas, com {seguidores} seguidores e {conexoes} conexões mútuas.
+                                Seguindo {seguindo} pessoas, com {seguidores}{" "}
+                                seguidores e {conexoes} conexões mútuas.
                             </p>
                             <div className="mt-4 flex flex-wrap gap-3">
                                 <button
@@ -155,7 +187,8 @@ export default function ProfileView({ mustVerifyEmail, status, onOpenPerfil, onV
                                 Perfil Social
                             </h2>
                             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                                Atualiza o teu email pessoal para que outros alunos possam encontrar-te fora da plataforma.
+                                Atualiza o teu email pessoal para que outros
+                                alunos possam encontrar-te fora da plataforma.
                             </p>
                             <div className="mt-6 grid gap-4">
                                 <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
@@ -163,7 +196,8 @@ export default function ProfileView({ mustVerifyEmail, status, onOpenPerfil, onV
                                         Email Pessoal
                                     </p>
                                     <p className="mt-2 text-sm text-slate-900 dark:text-white">
-                                        {user.email_pessoal || "Ainda não definido"}
+                                        {user.email_pessoal ||
+                                            "Ainda não definido"}
                                     </p>
                                 </div>
                                 <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
@@ -171,7 +205,8 @@ export default function ProfileView({ mustVerifyEmail, status, onOpenPerfil, onV
                                         Visibilidade
                                     </p>
                                     <p className="mt-2 text-sm text-slate-900 dark:text-white">
-                                        Perfil público disponível na rede social.
+                                        Perfil público disponível na rede
+                                        social.
                                     </p>
                                 </div>
                             </div>
@@ -195,6 +230,11 @@ export default function ProfileView({ mustVerifyEmail, status, onOpenPerfil, onV
                     <div className="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-xl border border-gray-100 dark:border-gray-700">
                         <UpdatePasswordForm className="max-w-xl" />
                     </div>
+
+                    <div className="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-xl border border-gray-100 dark:border-gray-700">
+                        <TwoFactorSettingsForm />
+                    </div>
+
                     <div className="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-xl border border-gray-100 dark:border-gray-700">
                         <DeleteUserForm className="max-w-xl" />
                     </div>

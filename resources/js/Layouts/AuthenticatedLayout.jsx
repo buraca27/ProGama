@@ -6,8 +6,6 @@ import UpdatePasswordForm from "@/Pages/Dashboard/Components/Profile/UpdatePassw
 import Toast from "@/Components/Toast";
 import { useEffect, useMemo, useState } from "react";
 
-
-
 const TIPO_LABEL = {
     Novo_Desafio: "Novo Desafio",
     Desafio_Corrigido: "Desafio Corrigido",
@@ -38,7 +36,8 @@ export default function AuthenticatedLayout({
     const [showUnsavedModal, setShowUnsavedModal] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [showMobileNotifications, setShowMobileNotifications] = useState(false);
+    const [showMobileNotifications, setShowMobileNotifications] =
+        useState(false);
 
     const unreadCount = notifications?.unread_count || 0;
     const notificationItems = notifications?.items || [];
@@ -48,15 +47,24 @@ export default function AuthenticatedLayout({
         [dirtyEditors],
     );
     const dirtyDisciplinas = useMemo(
-        () => dirtyLabels.filter((l) => l.startsWith("disciplina ")).map((l) => l.replace(/^disciplina\s+/, "")),
+        () =>
+            dirtyLabels
+                .filter((l) => l.startsWith("disciplina "))
+                .map((l) => l.replace(/^disciplina\s+/, "")),
         [dirtyLabels],
     );
     const dirtyTurmas = useMemo(
-        () => dirtyLabels.filter((l) => l.startsWith("turma ")).map((l) => l.replace(/^turma\s+/, "")),
+        () =>
+            dirtyLabels
+                .filter((l) => l.startsWith("turma "))
+                .map((l) => l.replace(/^turma\s+/, "")),
         [dirtyLabels],
     );
     const dirtyOutros = useMemo(
-        () => dirtyLabels.filter((l) => !l.startsWith("disciplina ") && !l.startsWith("turma ")),
+        () =>
+            dirtyLabels.filter(
+                (l) => !l.startsWith("disciplina ") && !l.startsWith("turma "),
+            ),
         [dirtyLabels],
     );
     const hasUnsavedChanges = dirtyLabels.length > 0;
@@ -74,7 +82,11 @@ export default function AuthenticatedLayout({
             });
         };
         window.addEventListener("dashboard:editor-dirty", handleDirtyEditor);
-        return () => window.removeEventListener("dashboard:editor-dirty", handleDirtyEditor);
+        return () =>
+            window.removeEventListener(
+                "dashboard:editor-dirty",
+                handleDirtyEditor,
+            );
     }, []);
 
     /* Polling de notificações apenas quando o tab está visível.
@@ -93,44 +105,72 @@ export default function AuthenticatedLayout({
         document.addEventListener("visibilitychange", onVisibilityChange);
         return () => {
             clearInterval(interval);
-            document.removeEventListener("visibilitychange", onVisibilityChange);
+            document.removeEventListener(
+                "visibilitychange",
+                onVisibilityChange,
+            );
         };
     }, []);
 
     const handleViewChange = (nextView) => {
         setMobileMenuOpen(false);
         if (!onViewChange || nextView === activeView) return;
-        if (!hasUnsavedChanges) { onViewChange(nextView); return; }
+        if (!hasUnsavedChanges) {
+            onViewChange(nextView);
+            return;
+        }
         setPendingView(nextView);
         setShowUnsavedModal(true);
     };
 
     const discardChangesAndChangeView = () => {
-        if (!pendingView || !onViewChange) { setShowUnsavedModal(false); return; }
+        if (!pendingView || !onViewChange) {
+            setShowUnsavedModal(false);
+            return;
+        }
         setShowUnsavedModal(false);
         onViewChange(pendingView);
         setPendingView(null);
     };
 
-    const markNotificationRead = (id, tipo = null, idDesafio = null, idSubmissao = null) => {
-        router.post(route("notificacoes.ler", id), {}, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => {
-                setShowNotifications(false);
-                if (tipo === "Submissao_Aluno" && idSubmissao) {
-                    router.visit(route("dashboard", { view: "avaliacoes", submissao_id: idSubmissao }));
-                } else if (idDesafio) {
-                    const params = { desafio_modal_id: idDesafio };
-                    if (activeView && activeView !== "dashboard") params.view = activeView;
-                    router.visit(route("dashboard", params));
-                }
+    const markNotificationRead = (
+        id,
+        tipo = null,
+        idDesafio = null,
+        idSubmissao = null,
+    ) => {
+        router.post(
+            route("notificacoes.ler", id),
+            {},
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    setShowNotifications(false);
+                    if (tipo === "Submissao_Aluno" && idSubmissao) {
+                        router.visit(
+                            route("dashboard", {
+                                view: "avaliacoes",
+                                submissao_id: idSubmissao,
+                            }),
+                        );
+                    } else if (idDesafio) {
+                        const params = { desafio_modal_id: idDesafio };
+                        if (activeView && activeView !== "dashboard")
+                            params.view = activeView;
+                        router.visit(route("dashboard", params));
+                    }
+                },
             },
-        });
+        );
     };
 
     const markAllNotificationsRead = () => {
-        router.post(route("notificacoes.ler-todas"), {}, { preserveScroll: true, preserveState: true });
+        router.post(
+            route("notificacoes.ler-todas"),
+            {},
+            { preserveScroll: true, preserveState: true },
+        );
     };
 
     // ─── Helpers de navegação (render functions, não componentes React) ──────
@@ -160,7 +200,6 @@ export default function AuthenticatedLayout({
             </button>
         );
     };
-
     const MenuLink = ({ href, label }) => (
         <Link
             href={href}
@@ -169,6 +208,20 @@ export default function AuthenticatedLayout({
         >
             {label}
         </Link>
+    );
+
+    // --- ADICIONA ESTE BLOCO AQUI ---
+    const ExternalMenuLink = ({ href, label }) => (
+        <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-200 text-left font-medium text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+            <span>{label}</span>
+            <span className="text-xs opacity-50"></span>
+        </a>
     );
 
     // ─── Conteúdo da barra lateral (partilhado entre desktop e mobile) ────────
@@ -184,12 +237,27 @@ export default function AuthenticatedLayout({
                             <div className="pt-4 pb-2 px-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                                 Administração
                             </div>
-                            <MenuButton id="utilizadores" label="Gerir Utilizadores" />
+                            <MenuButton
+                                id="utilizadores"
+                                label="Gerir Utilizadores"
+                            />
                             <MenuButton id="turmas" label="Gestão de Turmas" />
-                            <MenuButton id="disciplinas" label="Gestão de Disciplinas" />
-                            <MenuButton id="categorias" label="Gestão de Categorias" />
-                            <MenuButton id="definicoes" label="Definições do Sistema" />
-                            <MenuButton id="updateLandingPage" label="Modificar Landing Page" />
+                            <MenuButton
+                                id="disciplinas"
+                                label="Gestão de Disciplinas"
+                            />
+                            <MenuButton
+                                id="categorias"
+                                label="Gestão de Categorias"
+                            />
+                            <MenuButton
+                                id="definicoes"
+                                label="Definições do Sistema"
+                            />
+                            <MenuButton
+                                id="updateLandingPage"
+                                label="Modificar Landing Page"
+                            />
                         </>
                     )}
 
@@ -198,10 +266,19 @@ export default function AuthenticatedLayout({
                             <div className="pt-4 pb-2 px-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                                 Área de Ensino
                             </div>
-                            <MenuButton id="minhas-turmas" label="As Minhas Turmas" />
+                            <MenuButton
+                                id="minhas-turmas"
+                                label="As Minhas Turmas"
+                            />
                             <MenuButton id="testes" label="Desafios" />
-                            <MenuButton id="tarefas" label="Atribuir Desafios" />
-                            <MenuButton id="avaliacoes" label="Avaliações e Notas" />
+                            <MenuButton
+                                id="tarefas"
+                                label="Atribuir Desafios"
+                            />
+                            <MenuButton
+                                id="avaliacoes"
+                                label="Avaliações e Notas"
+                            />
                         </>
                     )}
 
@@ -210,8 +287,14 @@ export default function AuthenticatedLayout({
                             <div className="pt-4 pb-2 px-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                                 Área do Aluno
                             </div>
-                            <MenuButton id="disciplinas" label="As Minhas Disciplinas" />
-                            <MenuButton id="trabalhos" label="Trabalhos Pendentes" />
+                            <MenuButton
+                                id="disciplinas"
+                                label="As Minhas Disciplinas"
+                            />
+                            <MenuButton
+                                id="trabalhos"
+                                label="Trabalhos Pendentes"
+                            />
                             <MenuButton id="desafios" label="Desafios" />
                             <MenuButton id="boletim" label="Boletim de Notas" />
                         </>
@@ -223,13 +306,27 @@ export default function AuthenticatedLayout({
                     {onViewChange ? (
                         <MenuButton id="leaderboard" label="Leaderboard" />
                     ) : (
-                        <MenuLink href={route("dashboard", { view: "leaderboard" })} label="Leaderboard" />
+                        <MenuLink
+                            href={route("dashboard", { view: "leaderboard" })}
+                            label="Leaderboard"
+                        />
                     )}
                     {onViewChange ? (
                         <MenuButton id="social" label="Rede Social" />
                     ) : (
-                        <MenuLink href={route("social.hub")} label="Rede Social" />
+                        <MenuLink
+                            href={route("social.hub")}
+                            label="Rede Social"
+                        />
                     )}
+                    {/* --- NOVA SECÇÃO DE FERRAMENTAS --- */}
+                    <div className="pt-4 pb-2 px-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                        Ferramentas
+                    </div>
+                    <ExternalMenuLink
+                        href="https://www.progama.pt:2096/"
+                        label="Webmail Institucional"
+                    />
                 </nav>
             </div>
 
@@ -245,7 +342,9 @@ export default function AuthenticatedLayout({
                             <span>🔔</span>
                             <span>Notificações</span>
                         </span>
-                        <span className={`min-w-5 h-5 px-1 rounded-full text-xs font-bold flex items-center justify-center ${unreadCount > 0 ? "bg-red-500 text-white" : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"}`}>
+                        <span
+                            className={`min-w-5 h-5 px-1 rounded-full text-xs font-bold flex items-center justify-center ${unreadCount > 0 ? "bg-red-500 text-white" : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"}`}
+                        >
                             {unreadCount}
                         </span>
                     </button>
@@ -254,20 +353,38 @@ export default function AuthenticatedLayout({
                         <div className="absolute bottom-12 left-0 right-0 z-50 rounded-xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-600 dark:bg-gray-900 dark:shadow-black/50">
                             <div className="max-h-72 overflow-y-auto scrollbar-hide space-y-1">
                                 {notificationItems.length === 0 && (
-                                    <p className="px-2 py-2 text-xs text-gray-500 dark:text-gray-400">Sem notificações.</p>
+                                    <p className="px-2 py-2 text-xs text-gray-500 dark:text-gray-400">
+                                        Sem notificações.
+                                    </p>
                                 )}
                                 {notificationItems.map((item) => (
                                     <button
                                         type="button"
                                         key={item.id}
-                                        onClick={() => markNotificationRead(item.id, item.tipo_notificacao, item.id_desafio_relacionado ?? null, item.id_submissao_relacionada ?? null)}
+                                        onClick={() =>
+                                            markNotificationRead(
+                                                item.id,
+                                                item.tipo_notificacao,
+                                                item.id_desafio_relacionado ??
+                                                    null,
+                                                item.id_submissao_relacionada ??
+                                                    null,
+                                            )
+                                        }
                                         className={`w-full rounded-lg px-2 py-2 text-left text-xs transition-colors ${item.lida ? "text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700" : "bg-blue-50 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"} ${item.id_desafio_relacionado ? "cursor-pointer" : ""}`}
                                     >
-                                        <p className="font-semibold">{TIPO_LABEL[item.tipo_notificacao] ?? item.tipo_notificacao}</p>
-                                        <p className="mt-0.5 line-clamp-2">{item.mensagem}</p>
+                                        <p className="font-semibold">
+                                            {TIPO_LABEL[
+                                                item.tipo_notificacao
+                                            ] ?? item.tipo_notificacao}
+                                        </p>
+                                        <p className="mt-0.5 line-clamp-2">
+                                            {item.mensagem}
+                                        </p>
                                         {item.id_desafio_relacionado && (
                                             <p className="mt-1 text-[10px] opacity-60">
-                                                {item.tipo_notificacao === "Submissao_Aluno"
+                                                {item.tipo_notificacao ===
+                                                "Submissao_Aluno"
                                                     ? "Clica para corrigir a submissão →"
                                                     : "Clica para iniciar o desafio →"}
                                             </p>
@@ -291,7 +408,11 @@ export default function AuthenticatedLayout({
                                         if (onViewChange) {
                                             onViewChange("notificacoes");
                                         } else {
-                                            router.visit(route("dashboard", { view: "notificacoes" }));
+                                            router.visit(
+                                                route("dashboard", {
+                                                    view: "notificacoes",
+                                                }),
+                                            );
                                         }
                                     }}
                                     className="rounded-md bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition"
@@ -337,7 +458,6 @@ export default function AuthenticatedLayout({
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden transition-colors duration-200">
-
             {/* ── MOBILE: Backdrop ─────────────────────────────────────────── */}
             {mobileMenuOpen && (
                 <div
@@ -354,7 +474,11 @@ export default function AuthenticatedLayout({
             >
                 {/* Cabeçalho do drawer mobile */}
                 <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
-                    <Link href="/" className="flex items-center" onClick={() => setMobileMenuOpen(false)}>
+                    <Link
+                        href="/"
+                        className="flex items-center"
+                        onClick={() => setMobileMenuOpen(false)}
+                    >
                         <ApplicationLogo className="block h-7 w-auto fill-current text-blue-600 dark:text-blue-400" />
                         <span className="ml-2 font-extrabold text-lg text-gray-900 dark:text-gray-100 tracking-tight">
                             ProGama
@@ -366,14 +490,22 @@ export default function AuthenticatedLayout({
                         className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                         aria-label="Fechar menu"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                            />
                         </svg>
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto">
-                    {sidebarNav}
-                </div>
+                <div className="flex-1 overflow-y-auto">{sidebarNav}</div>
             </div>
 
             {/* ── DESKTOP: Sidebar fixa ────────────────────────────────────── */}
@@ -386,14 +518,11 @@ export default function AuthenticatedLayout({
                         </span>
                     </Link>
                 </div>
-                <div className="flex-1 overflow-y-auto">
-                    {sidebarNav}
-                </div>
+                <div className="flex-1 overflow-y-auto">{sidebarNav}</div>
             </aside>
 
             {/* ── ÁREA DE CONTEÚDO ─────────────────────────────────────────── */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-
                 {/* Barra superior mobile */}
                 <div className="md:hidden relative flex items-center justify-between h-14 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 shrink-0 z-20">
                     <Link href="/" className="flex items-center">
@@ -430,8 +559,18 @@ export default function AuthenticatedLayout({
                             className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                             aria-label="Abrir menu"
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            <svg
+                                className="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M4 6h16M4 12h16M4 18h16"
+                                />
                             </svg>
                         </button>
                     </div>
@@ -442,11 +581,15 @@ export default function AuthenticatedLayout({
                             {/* Backdrop para fechar ao clicar fora */}
                             <div
                                 className="fixed inset-0 z-10"
-                                onClick={() => setShowMobileNotifications(false)}
+                                onClick={() =>
+                                    setShowMobileNotifications(false)
+                                }
                             />
                             <div className="absolute top-full right-2 mt-1 w-80 max-w-[calc(100vw-1rem)] z-20 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-600 dark:bg-gray-900">
                                 <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-gray-100 dark:border-gray-700">
-                                    <span className="text-sm font-bold text-gray-800 dark:text-gray-100">Notificações</span>
+                                    <span className="text-sm font-bold text-gray-800 dark:text-gray-100">
+                                        Notificações
+                                    </span>
                                     {unreadCount > 0 && (
                                         <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-500 text-white">
                                             {unreadCount} novas
@@ -464,8 +607,17 @@ export default function AuthenticatedLayout({
                                             type="button"
                                             key={item.id}
                                             onClick={() => {
-                                                setShowMobileNotifications(false);
-                                                markNotificationRead(item.id, item.tipo_notificacao, item.id_desafio_relacionado ?? null, item.id_submissao_relacionada ?? null);
+                                                setShowMobileNotifications(
+                                                    false,
+                                                );
+                                                markNotificationRead(
+                                                    item.id,
+                                                    item.tipo_notificacao,
+                                                    item.id_desafio_relacionado ??
+                                                        null,
+                                                    item.id_submissao_relacionada ??
+                                                        null,
+                                                );
                                             }}
                                             className={`w-full rounded-lg px-3 py-2 text-left text-xs transition-colors ${
                                                 item.lida
@@ -473,11 +625,18 @@ export default function AuthenticatedLayout({
                                                     : "bg-blue-50 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"
                                             }`}
                                         >
-                                            <p className="font-semibold">{TIPO_LABEL[item.tipo_notificacao] ?? item.tipo_notificacao}</p>
-                                            <p className="mt-0.5 line-clamp-2">{item.mensagem}</p>
+                                            <p className="font-semibold">
+                                                {TIPO_LABEL[
+                                                    item.tipo_notificacao
+                                                ] ?? item.tipo_notificacao}
+                                            </p>
+                                            <p className="mt-0.5 line-clamp-2">
+                                                {item.mensagem}
+                                            </p>
                                             {item.id_desafio_relacionado && (
                                                 <p className="mt-1 text-[10px] opacity-60">
-                                                    {item.tipo_notificacao === "Submissao_Aluno"
+                                                    {item.tipo_notificacao ===
+                                                    "Submissao_Aluno"
                                                         ? "Toca para corrigir a submissão →"
                                                         : "Toca para iniciar o desafio →"}
                                                 </p>
@@ -488,7 +647,9 @@ export default function AuthenticatedLayout({
                                 <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-gray-100 dark:border-gray-700">
                                     <button
                                         type="button"
-                                        onClick={() => { markAllNotificationsRead(); }}
+                                        onClick={() => {
+                                            markAllNotificationsRead();
+                                        }}
                                         className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800 transition"
                                     >
                                         Ler todas
@@ -500,7 +661,11 @@ export default function AuthenticatedLayout({
                                             if (onViewChange) {
                                                 onViewChange("notificacoes");
                                             } else {
-                                                router.visit(route("dashboard", { view: "notificacoes" }));
+                                                router.visit(
+                                                    route("dashboard", {
+                                                        view: "notificacoes",
+                                                    }),
+                                                );
                                             }
                                         }}
                                         className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition"
@@ -545,7 +710,11 @@ export default function AuthenticatedLayout({
             </Modal>
 
             {/* ── Modal: alterações por guardar ────────────────────────────── */}
-            <Modal show={showUnsavedModal} maxWidth="md" onClose={() => setShowUnsavedModal(false)}>
+            <Modal
+                show={showUnsavedModal}
+                maxWidth="md"
+                onClose={() => setShowUnsavedModal(false)}
+            >
                 <div className="p-6 bg-white dark:bg-gray-800">
                     <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                         Alteracoes por guardar
@@ -557,7 +726,9 @@ export default function AuthenticatedLayout({
                             </p>
                             <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
                                 {dirtyDisciplinas.map((nome, index) => (
-                                    <li key={`disciplina-${nome}-${index}`}>{nome}</li>
+                                    <li key={`disciplina-${nome}-${index}`}>
+                                        {nome}
+                                    </li>
                                 ))}
                             </ul>
                         </div>
@@ -569,7 +740,9 @@ export default function AuthenticatedLayout({
                             </p>
                             <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
                                 {dirtyTurmas.map((nome, index) => (
-                                    <li key={`turma-${nome}-${index}`}>{nome}</li>
+                                    <li key={`turma-${nome}-${index}`}>
+                                        {nome}
+                                    </li>
                                 ))}
                             </ul>
                         </div>
@@ -581,7 +754,9 @@ export default function AuthenticatedLayout({
                             </p>
                             <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
                                 {dirtyOutros.map((label, index) => (
-                                    <li key={`outro-${label}-${index}`}>{label}</li>
+                                    <li key={`outro-${label}-${index}`}>
+                                        {label}
+                                    </li>
                                 ))}
                             </ul>
                         </div>
@@ -589,7 +764,10 @@ export default function AuthenticatedLayout({
                     <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                         <button
                             type="button"
-                            onClick={() => { setShowUnsavedModal(false); setPendingView(null); }}
+                            onClick={() => {
+                                setShowUnsavedModal(false);
+                                setPendingView(null);
+                            }}
                             className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
                         >
                             Cancelar
