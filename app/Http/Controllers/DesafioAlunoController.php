@@ -68,14 +68,30 @@ class DesafioAlunoController extends Controller
         ]);
     }
 
+    private function findAtribuicao(Desafio $desafio, $usuario): ?AtribuicaoDesafio
+    {
+        $idTurma = $usuario->id_turma ? (int) $usuario->id_turma : null;
+
+        return AtribuicaoDesafio::where('id_desafio', $desafio->id)
+            ->where(function ($q) use ($usuario, $idTurma) {
+                $q->where('id_aluno', $usuario->id)
+                    ->orWhere(function ($or) use ($idTurma) {
+                        $or->whereNull('id_aluno');
+                        if ($idTurma) {
+                            $or->where('id_turma', $idTurma);
+                        } else {
+                            $or->whereRaw('1 = 0');
+                        }
+                    });
+            })
+            ->first();
+    }
+
     public function show(Desafio $desafio, Request $request)
     {
         $usuario = $request->user();
 
-        $atribuicao = AtribuicaoDesafio::query()
-            ->where('id_desafio', '=', (int) $desafio->id, 'and')
-            ->where('id_aluno', '=', (int) $usuario->id, 'and')
-            ->first();
+        $atribuicao = $this->findAtribuicao($desafio, $usuario);
 
         if (!$atribuicao) {
             abort(403, 'Desafio não atribuído a este utilizador');
@@ -124,12 +140,12 @@ class DesafioAlunoController extends Controller
                 ->filter(fn($anexo) => is_array($anexo) && !empty($anexo['caminho']))
                 ->map(fn($anexo) => [
                     'nome' => $anexo['nome'] ?? basename((string) $anexo['caminho']),
-                    'url' => \Illuminate\Support\Facades\Storage::disk('public')->url((string) $anexo['caminho']),
+                    'url' => '/storage/' . $anexo['caminho'],
                 ])
                 ->values()
                 ->all(),
             'anexo_global_url' => $desafio->descricao_ficheiro
-                ? \Illuminate\Support\Facades\Storage::disk('public')->url($desafio->descricao_ficheiro)
+                ? '/storage/' . $desafio->descricao_ficheiro
                 : null,
         ]);
     }
@@ -138,9 +154,7 @@ class DesafioAlunoController extends Controller
     {
         $usuario = $request->user();
 
-        $atribuicao = $desafio->atribuicoes()
-            ->where('id_aluno', $usuario->id)
-            ->first();
+        $atribuicao = $this->findAtribuicao($desafio, $usuario);
 
         if (!$atribuicao instanceof AtribuicaoDesafio) {
             return $request->expectsJson()
@@ -297,15 +311,18 @@ class DesafioAlunoController extends Controller
         $usuario = $request->user();
 
         $validated = $request->validate([
-            'ficheiro' => 'nullable|required_without:link_submissao|file|max:10240',
-            'link_submissao' => 'nullable|required_without:ficheiro|url|max:2048',
+            'ficheiro' => 'nullable|file|max:20480',
+            'link_submissao' => 'nullable|url|max:2048',
             'mensagem_submissao' => 'nullable|string|max:5000',
         ]);
 
-        $atribuicao = AtribuicaoDesafio::query()
-            ->where('id_desafio', '=', (int) $desafio->id, 'and')
-            ->where('id_aluno', '=', (int) $usuario->id, 'and')
-            ->first();
+        if (empty($validated['ficheiro']) && empty($validated['link_submissao'])) {
+            return back()->withErrors([
+                'ficheiro' => 'Deves submeter um ficheiro ou um link.',
+            ]);
+        }
+
+        $atribuicao = $this->findAtribuicao($desafio, $usuario);
 
         if (!$atribuicao || !$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {
             return $request->expectsJson()
@@ -332,11 +349,6 @@ class DesafioAlunoController extends Controller
             'numero_tentativa' => $atribuicao->submissoes()->count() + 1,
             'data_submissao' => now(),
             'metadata' => $metadata,
-        ]);
-
-        RespostaDesafioAluno::create([
-            'id_submissao' => $submissao->id,
-            'resposta_texto' => json_encode($metadata, JSON_UNESCAPED_SLASHES),
         ]);
 
         if ($desafio->id_formador) {

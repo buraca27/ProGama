@@ -271,12 +271,16 @@ class DashboardController extends Controller
                         ];
                     })->values()->all();
 
+                    $metadata = $inscricao->metadata ?? [];
+                    $ficheiroCaminho = $metadata['ficheiro'] ?? null;
+
                     return [
                         'id' => (int) $inscricao->id,
                         'estado' => $inscricao->estado === 'Concluido'
                             ? 'Corrigido'
                             : ($inscricao->estado === 'Submetido' ? 'Aguardando_Correcao' : $inscricao->estado),
-                        'nota_final' => null,
+                        'nota_final' => $inscricao->nota !== null ? (float) $inscricao->nota : null,
+                        'feedback_professor' => $inscricao->feedback_professor,
                         'corrigido_em' => $inscricao->updated_at,
                         'publicado_em' => $inscricao->estado === 'Concluido' ? $inscricao->updated_at : null,
                         'corrigido_por' => [
@@ -287,9 +291,16 @@ class DashboardController extends Controller
                         'teste' => [
                             'id' => (int) ($inscricao->desafio?->id ?? 0),
                             'titulo' => (string) ($inscricao->desafio?->titulo ?? 'Desafio'),
+                            'tipo_desafio' => (string) ($inscricao->desafio?->tipo_desafio ?? 'Quiz'),
                             'perguntas' => $perguntas,
                         ],
                         'respostas' => $respostas,
+                        'submissao_ficheiro_url' => $ficheiroCaminho
+                            ? '/storage/' . $ficheiroCaminho
+                            : null,
+                        'submissao_ficheiro_nome' => $ficheiroCaminho ? basename($ficheiroCaminho) : null,
+                        'submissao_link' => $metadata['link_submissao'] ?? null,
+                        'submissao_mensagem' => $metadata['mensagem_submissao'] ?? null,
                     ];
                 });
 

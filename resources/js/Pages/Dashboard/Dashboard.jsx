@@ -12,25 +12,39 @@ import { Head, router } from "@inertiajs/react";
 // =============================================================================
 import StatsGrid from "./Components/UI/StatsGrid";
 
-const UsersView         = lazy(() => import("./Components/Users/UsersView"));
-const UserModals        = lazy(() => import("./Components/Users/UserModals"));
-const TurmasView        = lazy(() => import("./Components/Turmas/TurmasView"));
-const DisciplinasView   = lazy(() => import("./Components/Disciplinas/DisciplinasView"));
-const PlaceholderView   = lazy(() => import("./Components/UI/PlaceholderView"));
-const ProfileView       = lazy(() => import("./Components/Profile/ProfileView"));
-const SettingsView      = lazy(() => import("./Components/Profile/SettingsView"));
-const CategoriasView    = lazy(() => import("./Components/Categorias/CategoriasView"));
-const TestesView        = lazy(() => import("./Components/Professores/TestesView"));
-const TarefasView       = lazy(() => import("./Components/Professores/TarefasView"));
-const AvaliacoesView    = lazy(() => import("./Components/Professores/AvaliacoesView"));
-const BoletimView       = lazy(() => import("./Components/Professores/BoletimView"));
-const DesafiosView      = lazy(() => import("./Components/Alunos/DesafiosView"));
-const LeaderboardView   = lazy(() => import("./Components/Gamificacao/LeaderboardView"));
-const SocialView           = lazy(() => import("./Components/Social/SocialView"));
-const PerfilPublicoModal   = lazy(() => import("./Components/Social/PerfilPublicoModal"));
-const NotificacoesView  = lazy(() => import("./Components/Notificacoes/NotificacoesView"));
-const DesafioModal      = lazy(() => import("./Components/Alunos/DesafioModal"));
-const AdminLandingEditor = lazy(() => import("../LandingPage/assets/AdminLandingEditor"));
+const UsersView = lazy(() => import("./Components/Users/UsersView"));
+const UserModals = lazy(() => import("./Components/Users/UserModals"));
+const TurmasView = lazy(() => import("./Components/Turmas/TurmasView"));
+const DisciplinasView = lazy(
+    () => import("./Components/Disciplinas/DisciplinasView"),
+);
+const PlaceholderView = lazy(() => import("./Components/UI/PlaceholderView"));
+const ProfileView = lazy(() => import("./Components/Profile/ProfileView"));
+const SettingsView = lazy(() => import("./Components/Profile/SettingsView"));
+const CategoriasView = lazy(
+    () => import("./Components/Categorias/CategoriasView"),
+);
+const TestesView = lazy(() => import("./Components/Professores/TestesView"));
+const TarefasView = lazy(() => import("./Components/Professores/TarefasView"));
+const AvaliacoesView = lazy(
+    () => import("./Components/Professores/AvaliacoesView"),
+);
+const BoletimView = lazy(() => import("./Components/Professores/BoletimView"));
+const DesafiosView = lazy(() => import("./Components/Alunos/DesafiosView"));
+const LeaderboardView = lazy(
+    () => import("./Components/Gamificacao/LeaderboardView"),
+);
+const SocialView = lazy(() => import("./Components/Social/SocialView"));
+const PerfilPublicoModal = lazy(
+    () => import("./Components/Social/PerfilPublicoModal"),
+);
+const NotificacoesView = lazy(
+    () => import("./Components/Notificacoes/NotificacoesView"),
+);
+const DesafioModal = lazy(() => import("./Components/Alunos/DesafioModal"));
+const AdminLandingEditor = lazy(
+    () => import("../LandingPage/assets/AdminLandingEditor"),
+);
 
 function ViewSpinner() {
     return (
@@ -86,7 +100,11 @@ export default function Dashboard(props) {
     // Ignoring "dashboard" prevents social/profile actions (which redirect back to /dashboard)
     // from resetting the active view the user is currently on.
     React.useEffect(() => {
-        if (initialView && initialView !== "dashboard" && initialView !== activeView) {
+        if (
+            initialView &&
+            initialView !== "dashboard" &&
+            initialView !== activeView
+        ) {
             setActiveView(initialView);
         }
     }, [initialView]);
@@ -100,20 +118,32 @@ export default function Dashboard(props) {
             only: ["perfilPublicoData"],
             data: { perfil_publico_id: id },
             replace: true,
-            onSuccess: () => window.history.replaceState(null, "", route("dashboard")),
+            onSuccess: () =>
+                window.history.replaceState(null, "", route("dashboard")),
         });
     };
 
     const closePerfilPublico = () => setPerfilPublicoId(null);
 
-    const perfilPublicoLoading = perfilPublicoId !== null && perfilPublicoData?.usuario?.id !== perfilPublicoId;
+    const perfilPublicoLoading =
+        perfilPublicoId !== null &&
+        perfilPublicoData?.usuario?.id !== perfilPublicoId;
 
     const desafioModalAtribuicao = useMemo(
-        () => (desafioModalId ? (desafiosAluno.find((a) => a.id_desafio === desafioModalId) ?? null) : null),
+        () =>
+            desafioModalId
+                ? (desafiosAluno.find((a) => a.id_desafio === desafioModalId) ??
+                  null)
+                : null,
         [desafioModalId, desafiosAluno],
     );
     const desafioModalInscricao = useMemo(
-        () => (desafioModalId ? (inscricoesDesafiosAluno.find((i) => i.id_desafio === desafioModalId) ?? null) : null),
+        () =>
+            desafioModalId
+                ? (inscricoesDesafiosAluno.find(
+                      (i) => i.id_desafio === desafioModalId,
+                  ) ?? null)
+                : null,
         [desafioModalId, inscricoesDesafiosAluno],
     );
 
@@ -166,6 +196,13 @@ export default function Dashboard(props) {
                     {/* 1. VISTA PRINCIPAL */}
                     {activeView === "dashboard" && (
                         <div className="space-y-6">
+                            <ProfileView
+                                mustVerifyEmail={mustVerifyEmail}
+                                status={status}
+                                onOpenPerfil={openPerfilPublico}
+                                onViewChange={setActiveView}
+                                showForms={false}
+                            />
                             <StatsGrid
                                 userRole={userRoleReal}
                                 estatisticas={estatisticas}
@@ -175,15 +212,10 @@ export default function Dashboard(props) {
                                 trabalhosPendentes={trabalhosPendentes}
                                 tarefasProfessor={tarefasProfessor}
                                 desafiosAluno={desafiosAluno}
-                                inscricoesDesafiosAluno={inscricoesDesafiosAluno}
+                                inscricoesDesafiosAluno={
+                                    inscricoesDesafiosAluno
+                                }
                                 notasAluno={notasAluno}
-                            />
-                            <ProfileView
-                                mustVerifyEmail={mustVerifyEmail}
-                                status={status}
-                                onOpenPerfil={openPerfilPublico}
-                                onViewChange={setActiveView}
-                                showForms={false}
                             />
                         </div>
                     )}
@@ -313,7 +345,9 @@ export default function Dashboard(props) {
                             sugestoes={socialData?.sugestoes ?? []}
                             seguindo={socialData?.seguindo ?? []}
                             seguidores={socialData?.seguidores ?? []}
-                            pedidosPendentes={socialData?.pedidos_pendentes ?? []}
+                            pedidosPendentes={
+                                socialData?.pedidos_pendentes ?? []
+                            }
                             social_stats={socialData?.social_stats ?? {}}
                             isSearching={socialData?.is_searching ?? false}
                             active_filter={socialData?.active_filter ?? ""}

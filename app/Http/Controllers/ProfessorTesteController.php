@@ -130,9 +130,9 @@ class ProfessorTesteController extends Controller
         }
 
         $totalPontuacao = collect($syncData)->sum('pontuacao_extra');
-        if ($totalPontuacao > 20) {
+        if (!empty($syncData) && abs($totalPontuacao - 20) > 0.001) {
             throw ValidationException::withMessages([
-                'total_pontuacao' => 'A soma da pontuação das perguntas não pode ultrapassar 20. Ajusta os valores antes de guardar o teste.',
+                'total_pontuacao' => "A pontuação total tem de ser exatamente 20. Atualmente tem {$totalPontuacao} valor(es).",
             ]);
         }
 
@@ -184,11 +184,11 @@ class ProfessorTesteController extends Controller
             'nova_badge_nome' => 'nullable|string|max:100|required_with:nova_badge_imagem',
             'nova_badge_descricao' => 'nullable|string|max:500',
             'nova_badge_imagem' => 'nullable|image|max:4096',
-            'nova_badge_raridade' => 'nullable|integer|in:1,2,3',
-            'anexo_global_ficheiro' => 'nullable|file|max:10240',
+            'nova_badge_raridade' => 'nullable|integer|in:1,2,3,4',
+            'anexo_global_ficheiro' => 'nullable|file|max:20480',
             'anexo_global_url_atual' => 'nullable|string',
             'anexos_professor_ficheiros' => 'nullable|array',
-            'anexos_professor_ficheiros.*' => 'file|max:10240',
+            'anexos_professor_ficheiros.*' => 'file|max:20480',
             'anexos_professor_atuais' => 'nullable|array',
             'anexos_professor_atuais.*.nome' => 'nullable|string',
             'anexos_professor_atuais.*.caminho' => 'nullable|string',
@@ -226,8 +226,8 @@ class ProfessorTesteController extends Controller
             'nova_badge_imagem.image' => 'O ficheiro da nova badge tem de ser uma imagem válida.',
             'nova_badge_imagem.max' => 'A imagem da nova badge não pode ter mais de 4MB.',
             'nova_badge_raridade.in' => 'A raridade da nova badge é inválida.',
-            'anexo_global_ficheiro.max' => 'O anexo global não pode ter mais de 10MB.',
-            'anexos_professor_ficheiros.*.max' => 'Cada anexo do professor não pode ter mais de 10MB.',
+            'anexo_global_ficheiro.max' => 'O anexo global não pode ter mais de 20MB.',
+            'anexos_professor_ficheiros.*.max' => 'Cada anexo do professor não pode ter mais de 20MB.',
         ]);
     }
 
@@ -851,7 +851,7 @@ class ProfessorTesteController extends Controller
             $anexos[] = [
                 'nome' => $ficheiro->getClientOriginalName(),
                 'caminho' => $caminho,
-                'url' => Storage::disk('public')->url($caminho),
+                'url' => '/storage/' . $caminho,
             ];
         }
 

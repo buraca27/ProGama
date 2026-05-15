@@ -31,8 +31,10 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
 
         Route::post('/testes', [ProfessorTesteController::class, 'storeTeste'])->name('testes.store');
         Route::put('/testes/{id}', [ProfessorTesteController::class, 'updateTeste'])->name('testes.update');
+        Route::get('/testes/{id}', fn() => redirect()->route('dashboard'))->name('testes.show');
         Route::post('/tarefas', [ProfessorTesteController::class, 'storeTarefa'])->name('tarefas.store');
         Route::put('/tarefas/{idTarefa}', [ProfessorTesteController::class, 'updateTarefa'])->name('tarefas.update');
+        Route::get('/tarefas/{idTarefa}', fn() => redirect()->route('dashboard'))->name('tarefas.show');
         Route::post('/tarefas/{idTarefa}/terminar', [ProfessorTesteController::class, 'terminarTarefa'])->name('tarefas.terminar');
         Route::delete('/tarefas/{idTarefa}', [ProfessorTesteController::class, 'destroyTarefa'])->name('tarefas.destroy');
         Route::put('/correcoes/{idTesteRealizado}', [ProfessorTesteController::class, 'updateCorrecao'])->name('correcoes.update');
@@ -54,6 +56,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
         Route::post('/{desafio}/iniciar-quiz', [DesafioAlunoController::class, 'iniciarQuiz'])->name('iniciar-quiz');
         Route::post('/{desafio}/submeter-quiz', [DesafioAlunoController::class, 'submeterQuiz'])->name('submeter-quiz');
         Route::post('/{desafio}/submeter-tarefa', [DesafioAlunoController::class, 'submeterTarefa'])->name('submeter-tarefa');
+        Route::get('/{desafio}/submeter-tarefa', fn() => redirect()->route('dashboard'))->name('submeter-tarefa.fallback');
         Route::get('/{desafio}/historico', [DesafioAlunoController::class, 'historicoSubmissoes'])->name('historico');
     });
 

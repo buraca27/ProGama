@@ -15,35 +15,7 @@ export default function StatsGrid({
 }) {
     return (
         <div className="max-w-7xl mx-auto space-y-6">
-            {/* Banner de Boas-vindas */}
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-xl border border-gray-100 dark:border-gray-700">
-                <div className="p-6 text-gray-900 dark:text-gray-100 text-lg flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center overflow-hidden border-2 border-blue-500 shrink-0">
-                        {auth.user.foto_perfil ? (
-                            <img
-                                src={auth.user.foto_perfil}
-                                alt="Perfil"
-                                className="w-full h-full object-cover"
-                            />
-                        ) : (
-                            <span className="text-xl font-bold text-blue-600 dark:text-blue-300">
-                                {auth.user.name.charAt(0)}
-                            </span>
-                        )}
-                    </div>
-                    <span>
-                        Olá, <strong>{auth.user.name}</strong>! Bem-vindo de
-                        volta à tua área de
-                        <span className="text-blue-600 dark:text-blue-400 font-bold ml-1">
-                            {userRole === "admin"
-                                ? "Secretaria"
-                                : userRole.charAt(0).toUpperCase() +
-                                  userRole.slice(1)}
-                        </span>
-                        .
-                    </span>
-                </div>
-            </div>
+
 
             {/* Grelha de Estatísticas Dinâmica */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -36,7 +36,9 @@ export const createTesteFormDefaults = () => ({
     nova_badge_nome: "",
     nova_badge_descricao: "",
     nova_badge_imagem: null,
+    nova_badge_raridade: "1",
     anexo_global_ficheiro: null,
+    anexos_professor_ficheiros: [],
 });
 
 export const createNovaPerguntaTesteDefaults = () => ({
@@ -49,7 +51,7 @@ export const CONTEXTO_AVALIACAO = {
         nome: "Desafio",
         placeholderTitulo: "Ex: Desafio de Logica - Semana 3",
         temInstrucoes: true,
-        escalaFixa20: false,
+        escalaFixa20: true,
         semPesoNota: true,
     },
 };

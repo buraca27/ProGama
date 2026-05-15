@@ -65,6 +65,9 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
         [correcoesPaginadas, selectedId],
     );
 
+    const isTarefa = selectedSubmissao?.teste?.tipo_desafio === 'Tarefa'
+        || (selectedSubmissao && (selectedSubmissao.respostas || []).length === 0 && (selectedSubmissao.submissao_ficheiro_url || selectedSubmissao.submissao_link));
+
     useEffect(() => {
         if (initialSubmissaoId && correcoesPaginadas.some((item) => item.id === initialSubmissaoId)) {
             setSelectedId(initialSubmissaoId);
@@ -90,9 +93,24 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
         publicar: false,
     });
 
+    const tarefaForm = useForm({
+        nota_final: "",
+        comentario_final: "",
+        publicar: false,
+    });
+
     useEffect(() => {
         if (!selectedSubmissao) {
             correcaoForm.setData("respostas", []);
+            return;
+        }
+
+        if (selectedSubmissao.teste?.tipo_desafio === 'Tarefa') {
+            tarefaForm.setData({
+                nota_final: selectedSubmissao.nota_final ?? "",
+                comentario_final: selectedSubmissao.feedback_professor ?? "",
+                publicar: false,
+            });
             return;
         }
 
@@ -122,16 +140,25 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
     const submitCorrecao = (publicar) => {
         if (!selectedSubmissao) return;
 
-        correcaoForm.transform((data) => ({
-            ...data,
-            publicar,
-        }));
-
+        correcaoForm.transform((data) => ({ ...data, publicar }));
         correcaoForm.put(
             route("professor.correcoes.update", selectedSubmissao.id),
             {
                 preserveScroll: true,
                 onFinish: () => correcaoForm.transform((data) => data),
+            },
+        );
+    };
+
+    const submitTarefaCorrecao = (publicar) => {
+        if (!selectedSubmissao) return;
+
+        tarefaForm.transform((data) => ({ ...data, publicar }));
+        tarefaForm.put(
+            route("professor.correcoes.update", selectedSubmissao.id),
+            {
+                preserveScroll: true,
+                onFinish: () => tarefaForm.transform((data) => data),
             },
         );
     };
@@ -292,142 +319,143 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
                             </div>
                         </div>
 
-                        <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
-                            {(selectedSubmissao.respostas || []).map(
-                                (resposta, index) => {
-                                    const maxPergunta = Number(
-                                        mapaPontuacoes.get(
-                                            resposta.id_pergunta,
-                                        ) || 1,
-                                    );
-                                    const respostaForm =
-                                        correcaoForm.data.respostas?.[index] ||
-                                        {};
-
-                                    return (
-                                        <div
-                                            key={resposta.id}
-                                            className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3"
+                        {isTarefa ? (
+                            <div className="space-y-4">
+                                {/* Ficheiro/link submetido */}
+                                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                        Submissão do aluno
+                                    </p>
+                                    {selectedSubmissao.submissao_ficheiro_url && (
+                                        <a
+                                            href={selectedSubmissao.submissao_ficheiro_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
                                         >
-                                            <div className="flex items-start justify-between gap-3">
+                                            Descarregar ficheiro — {selectedSubmissao.submissao_ficheiro_nome}
+                                        </a>
+                                    )}
+                                    {selectedSubmissao.submissao_link && (
+                                        <a
+                                            href={selectedSubmissao.submissao_link}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="block text-sm text-blue-600 dark:text-blue-400 hover:underline break-all"
+                                        >
+                                            {selectedSubmissao.submissao_link}
+                                        </a>
+                                    )}
+                                    {selectedSubmissao.submissao_mensagem && (
+                                        <div className="bg-gray-50 dark:bg-gray-700/40 rounded-md p-3 text-sm text-gray-700 dark:text-gray-200">
+                                            <strong>Mensagem:</strong> {selectedSubmissao.submissao_mensagem}
+                                        </div>
+                                    )}
+                                    {!selectedSubmissao.submissao_ficheiro_url && !selectedSubmissao.submissao_link && (
+                                        <p className="text-sm text-gray-400 italic">Sem ficheiro ou link submetido.</p>
+                                    )}
+                                </div>
+
+                                {/* Formulário de correção para Tarefa */}
+                                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                        Avaliação
+                                    </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
+                                                Nota (0 – 20)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                max={20}
+                                                step={0.1}
+                                                value={tarefaForm.data.nota_final}
+                                                onChange={(e) => tarefaForm.setData("nota_final", e.target.value)}
+                                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                                placeholder="Ex: 14.5"
+                                            />
+                                            {tarefaForm.errors.nota_final && (
+                                                <p className="mt-1 text-xs text-red-600">{tarefaForm.errors.nota_final}</p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
+                                                Comentário para o aluno
+                                            </label>
+                                            <textarea
+                                                rows={3}
+                                                value={tarefaForm.data.comentario_final}
+                                                onChange={(e) => tarefaForm.setData("comentario_final", e.target.value)}
+                                                className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white resize-none"
+                                                placeholder="Feedback opcional..."
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
+                                {(selectedSubmissao.respostas || []).map(
+                                    (resposta, index) => {
+                                        const maxPergunta = Number(mapaPontuacoes.get(resposta.id_pergunta) || 1);
+                                        const respostaForm = correcaoForm.data.respostas?.[index] || {};
+
+                                        return (
+                                            <div key={resposta.id} className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
                                                 <div>
                                                     <p className="font-semibold text-gray-900 dark:text-gray-100">
-                                                        {resposta.pergunta
-                                                            ?.texto ||
-                                                            "Pergunta"}
+                                                        {resposta.pergunta?.texto || "Pergunta"}
                                                     </p>
                                                     <p className="text-xs text-gray-500 mt-1">
-                                                        Tipo:{" "}
-                                                        {formatTipoPergunta(
-                                                            resposta.pergunta
-                                                                ?.tipo_pergunta,
-                                                        )}{" "}
-                                                        | Máx: {maxPergunta}
+                                                        Tipo: {formatTipoPergunta(resposta.pergunta?.tipo_pergunta)} | Máx: {maxPergunta}
                                                     </p>
                                                 </div>
-                                            </div>
-
-                                            <div className="bg-gray-50 dark:bg-gray-700/40 rounded-md p-3 text-sm text-gray-700 dark:text-gray-200">
-                                                <strong>
-                                                    Resposta do aluno:
-                                                </strong>{" "}
-                                                {formatarRespostaAluno(
-                                                    resposta,
-                                                )}
-                                            </div>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                                <div>
-                                                    <label className="block text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
-                                                        Estado
-                                                    </label>
-                                                    <select
-                                                        value={
-                                                            respostaForm.status_correcao ||
-                                                            "Por_Avaliar"
-                                                        }
-                                                        onChange={(e) =>
-                                                            updateRespostaField(
-                                                                index,
-                                                                "status_correcao",
-                                                                e.target.value,
-                                                            )
-                                                        }
-                                                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                                    >
-                                                        <option value="Por_Avaliar">
-                                                            Por Avaliar
-                                                        </option>
-                                                        <option value="Correto">
-                                                            Correto
-                                                        </option>
-                                                        <option value="Errado">
-                                                            Errado
-                                                        </option>
-                                                    </select>
+                                                <div className="bg-gray-50 dark:bg-gray-700/40 rounded-md p-3 text-sm text-gray-700 dark:text-gray-200">
+                                                    <strong>Resposta do aluno:</strong> {formatarRespostaAluno(resposta)}
                                                 </div>
-
-                                                <div>
-                                                    <label className="block text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
-                                                        Pontuação
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        min={0}
-                                                        max={maxPergunta}
-                                                        value={
-                                                            respostaForm.pontuacao_obtida ??
-                                                            0
-                                                        }
-                                                        onChange={(e) =>
-                                                            updateRespostaField(
-                                                                index,
-                                                                "pontuacao_obtida",
-                                                                Math.min(
-                                                                    maxPergunta,
-                                                                    Math.max(
-                                                                        0,
-                                                                        Number(
-                                                                            e
-                                                                                .target
-                                                                                .value ||
-                                                                                0,
-                                                                        ),
-                                                                    ),
-                                                                ),
-                                                            )
-                                                        }
-                                                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                                    />
-                                                </div>
-
-                                                <div className="md:col-span-1">
-                                                    <label className="block text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">
-                                                        Comentário
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={
-                                                            respostaForm.comentario_formador ||
-                                                            ""
-                                                        }
-                                                        onChange={(e) =>
-                                                            updateRespostaField(
-                                                                index,
-                                                                "comentario_formador",
-                                                                e.target.value,
-                                                            )
-                                                        }
-                                                        className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                                        placeholder="Feedback para o aluno"
-                                                    />
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">Estado</label>
+                                                        <select
+                                                            value={respostaForm.status_correcao || "Por_Avaliar"}
+                                                            onChange={(e) => updateRespostaField(index, "status_correcao", e.target.value)}
+                                                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                                        >
+                                                            <option value="Por_Avaliar">Por Avaliar</option>
+                                                            <option value="Correto">Correto</option>
+                                                            <option value="Errado">Errado</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">Pontuação</label>
+                                                        <input
+                                                            type="number"
+                                                            min={0}
+                                                            max={maxPergunta}
+                                                            value={respostaForm.pontuacao_obtida ?? 0}
+                                                            onChange={(e) => updateRespostaField(index, "pontuacao_obtida", Math.min(maxPergunta, Math.max(0, Number(e.target.value || 0))))}
+                                                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300">Comentário</label>
+                                                        <input
+                                                            type="text"
+                                                            value={respostaForm.comentario_formador || ""}
+                                                            onChange={(e) => updateRespostaField(index, "comentario_formador", e.target.value)}
+                                                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                                                            placeholder="Feedback para o aluno"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                },
-                            )}
-                        </div>
+                                        );
+                                    },
+                                )}
+                            </div>
+                        )}
 
                         {correcaoForm.errors?.respostas && (
                             <p className="text-sm text-red-600">
@@ -438,16 +466,16 @@ export default function AvaliacoesView({ correcoesProfessor = null, initialSubmi
                         <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
                             <button
                                 type="button"
-                                disabled={correcaoForm.processing}
-                                onClick={() => submitCorrecao(false)}
+                                disabled={isTarefa ? tarefaForm.processing : correcaoForm.processing}
+                                onClick={() => isTarefa ? submitTarefaCorrecao(false) : submitCorrecao(false)}
                                 className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold"
                             >
                                 Guardar Correção
                             </button>
                             <button
                                 type="button"
-                                disabled={correcaoForm.processing}
-                                onClick={() => submitCorrecao(true)}
+                                disabled={isTarefa ? tarefaForm.processing : correcaoForm.processing}
+                                onClick={() => isTarefa ? submitTarefaCorrecao(true) : submitCorrecao(true)}
                                 className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                             >
                                 Publicar Nota
