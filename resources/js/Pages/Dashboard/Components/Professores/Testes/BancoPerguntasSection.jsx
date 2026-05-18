@@ -131,11 +131,17 @@ export default function BancoPerguntasSection({
                     >
                         Guardar Pergunta
                     </button>
-                    {Object.values(perguntaForm.errors || {}).length > 0 && (
-                        <p className="text-sm text-red-600">
-                            Não foi possível guardar a pergunta. Verifica os
-                            campos.
-                        </p>
+                    {Object.keys(perguntaForm.errors || {}).length > 0 && (
+                        <div className="mt-2 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-400 dark:border-red-800 rounded-lg text-sm">
+                            <strong className="flex items-center gap-2 mb-2 font-bold">
+                                <span>❌</span> Não foi possível guardar a pergunta. Verifica os campos:
+                            </strong>
+                            <ul className="list-disc ml-6 space-y-1">
+                                {Object.entries(perguntaForm.errors).map(([key, err]) => (
+                                    <li key={key}>{err}</li>
+                                ))}
+                            </ul>
+                        </div>
                     )}
                 </form>
             )}
@@ -167,12 +173,17 @@ export default function BancoPerguntasSection({
                             Cancelar
                         </button>
                     </div>
-                    {Object.values(perguntaEditForm.errors || {}).length >
-                        0 && (
-                        <p className="text-sm text-red-600">
-                            Não foi possível atualizar a pergunta. Verifica os
-                            campos.
-                        </p>
+                    {Object.keys(perguntaEditForm.errors || {}).length > 0 && (
+                        <div className="mt-2 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-400 dark:border-red-800 rounded-lg text-sm">
+                            <strong className="flex items-center gap-2 mb-2 font-bold">
+                                <span>❌</span> Não foi possível guardar as alterações. Verifica os campos:
+                            </strong>
+                            <ul className="list-disc ml-6 space-y-1">
+                                {Object.entries(perguntaEditForm.errors).map(([key, err]) => (
+                                    <li key={key}>{err}</li>
+                                ))}
+                            </ul>
+                        </div>
                     )}
                 </form>
             )}

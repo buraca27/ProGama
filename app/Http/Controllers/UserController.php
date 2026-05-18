@@ -4,15 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\{DB, Hash, Mail, Http, Log};
-use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\{DB, Hash, Mail, Log, Password};
+use App\Services\CPanelService; // Importamos o novo Service do cPanel
 
 class UserController extends Controller
 {
     /**
      * CRIAÇÃO DE UTILIZADOR
      */
-    public function store(Request $request)
+    public function store(Request $request, CPanelService $cpanelService)
     {
         Log::info("--- NOVO PEDIDO DE CRIAÇÃO ---");
         Log::info("Dados recebidos:", $request->all());
@@ -50,15 +50,13 @@ class UserController extends Controller
                 'data_nascimento' => $request->data_nascimento,
                 'password' => Hash::make($password),
                 'id_role' => $roleId,
-                'id_nivel' => 1,
                 'foto_perfil' => $request->foto_perfil,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
-            // 2. Criação no Host (cPanel)
-            // Chamamos apenas uma vez para evitar duplicados
-            $this->manageCPanel($emailFormatado, $password, 'add_pop');
+            // 2. Criação no Host (cPanel) usando o CPanelService
+            $cpanelService->createEmail($emailFormatado, $password);
 
             DB::commit();
 
@@ -78,7 +76,7 @@ class UserController extends Controller
         }
     }
 
-/**
+    /**
      * EDIÇÃO DE UTILIZADOR
      */
     public function update(Request $request, $id)
@@ -121,7 +119,7 @@ class UserController extends Controller
     /**
      * ELIMINAÇÃO DE UTILIZADOR
      */
-    public function destroy($id)
+    public function destroy($id, CPanelService $cpanelService)
     {
         $user = User::findOrFail($id);
 
@@ -132,39 +130,15 @@ class UserController extends Controller
             ]);
         }
 
-        // Notifica e remove do Host antes de apagar da BD
+        // Notifica o utilizador e remove do Host antes de apagar da BD
         $this->sendTerminationEmail($user);
-        $this->manageCPanel($user->email, null, 'delete_pop');
+        
+        // Remove do cPanel usando o CPanelService
+        $cpanelService->deleteEmail($user->email);
 
         $user->delete();
 
         return redirect()->route('dashboard')->with('success', 'Utilizador apagado definitivamente.');
-    }
-
-    /**
-     * COMUNICAÇÃO COM O CPANEL (HOST)
-     */
-    private function manageCPanel($email, $password, $function)
-    {
-        $emailUser = explode('@', $email)[0];
-        $domain = trim(env('CPANEL_DOMAIN'));
-
-        Log::info("A tentar $function no cPanel para: " . $email);
-
-        try {
-            $response = Http::withoutVerifying()
-                ->withBasicAuth(env('CPANEL_USER'), env('CPANEL_PASS'))
-                ->get("https://{$domain}:2083/execute/Email/{$function}", [
-                    'email' => $emailUser,
-                    'password' => $password,
-                    'domain' => $domain,
-                    'quota' => 500,
-                ]);
-
-            Log::info("Resposta Host ($function): " . $response->body());
-        } catch (\Exception $e) {
-            Log::error("Erro crítico no Host ($function): " . $e->getMessage());
-        }
     }
 
     /**
@@ -218,7 +192,6 @@ HTML;
         }
     }
 
-
     /**
      * ENVIAR PEDIDO DE RESET DE PASSWORD (INDIVIDUAL)
      */
@@ -240,9 +213,6 @@ HTML;
     }
 
     /**
-     * 
-     * 
-     * /**
      * EMAIL CUSTOMIZADO DE RESET (ENVIADO PARA EMAIL PESSOAL)
      */
     private function sendCustomResetEmail($user, $token)
@@ -284,7 +254,7 @@ HTML;
         }
     }
 
-     /**
+    /**
      * EMAIL DE ENCERRAMENTO
      */
     private function sendTerminationEmail($user)

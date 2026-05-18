@@ -68,9 +68,20 @@ function getPerguntas(desafio) {
     return desafio.teste_associado?.perguntas || [];
 }
 
+const LEFT_BORDER_CLASS = {
+    blue: "border-l-blue-400 dark:border-l-blue-600",
+    emerald: "border-l-emerald-400 dark:border-l-emerald-600",
+    slate: "border-l-slate-300 dark:border-l-slate-600",
+    red: "border-l-red-400 dark:border-l-red-600",
+    amber: "border-l-amber-400 dark:border-l-amber-600",
+    violet: "border-l-violet-400 dark:border-l-violet-600",
+};
+
 export default function DesafiosView({
     desafiosAluno = [],
     inscricoesDesafiosAluno = [],
+    mode = "desafios",
+    onOpenDesafioModal = null,
 }) {
     const [selectedAtribuicaoId, setSelectedAtribuicaoId] = useState(null);
     const [toastMsg, setToastMsg] = useState(null);
@@ -93,17 +104,33 @@ export default function DesafiosView({
         return map;
     }, [inscricoesDesafiosAluno]);
 
-    useEffect(() => {
-        if (!selectedAtribuicaoId && desafiosOrdenados.length > 0) {
-            setSelectedAtribuicaoId(desafiosOrdenados[0].id);
+    // "trabalhos": tudo exceto permanentemente fechado (Avaliado/Concluido)
+    // "desafios": só os que têm submissão (Submetido/Concluido/Avaliado)
+    const desafiosParaMostrar = useMemo(() => {
+        if (mode === "trabalhos") {
+            return desafiosOrdenados.filter((a) => {
+                const insc = inscricoesPorDesafio.get(a.id_desafio);
+                return !insc || !["Avaliado", "Concluido"].includes(insc.estado);
+            });
         }
-    }, [desafiosOrdenados]);
+        return desafiosOrdenados.filter((a) => {
+            const insc = inscricoesPorDesafio.get(a.id_desafio);
+            return insc && ["Submetido", "Concluido", "Avaliado"].includes(insc.estado);
+        });
+    }, [mode, desafiosOrdenados, inscricoesPorDesafio]);
+
+    useEffect(() => {
+        if (mode !== "desafios") return;
+        if (!selectedAtribuicaoId && desafiosParaMostrar.length > 0) {
+            setSelectedAtribuicaoId(desafiosParaMostrar[0].id);
+        }
+    }, [desafiosParaMostrar, mode]);
 
     const selectedAtribuicao = useMemo(
         () =>
-            desafiosOrdenados.find((d) => d.id === selectedAtribuicaoId) ||
+            desafiosParaMostrar.find((d) => d.id === selectedAtribuicaoId) ||
             null,
-        [desafiosOrdenados, selectedAtribuicaoId],
+        [desafiosParaMostrar, selectedAtribuicaoId],
     );
 
     const inscricaoAtual = useMemo(() => {
@@ -117,6 +144,7 @@ export default function DesafiosView({
     const form = useForm({ respostas: {} });
 
     useEffect(() => {
+        if (mode !== "desafios") return;
         if (!selectedAtribuicao) {
             form.setData("respostas", {});
             return;
@@ -147,7 +175,7 @@ export default function DesafiosView({
         });
 
         form.setData("respostas", iniciais);
-    }, [selectedAtribuicao, inscricaoAtual]);
+    }, [selectedAtribuicao, inscricaoAtual, mode]);
 
     const now = new Date();
     const abriu = desafio?.data_inicio ? new Date(desafio.data_inicio) : null;
@@ -207,7 +235,6 @@ export default function DesafiosView({
         const opcoesSelecionadas = respostaAtual.ids_opcoes_escolhidas || [];
         const idOpcaoNum = Number(idOpcao);
 
-        // Toggle: se já está selecionada, remove; senão, adiciona
         const novasOpcoes = opcoesSelecionadas.includes(idOpcaoNum)
             ? opcoesSelecionadas.filter((id) => id !== idOpcaoNum)
             : [...opcoesSelecionadas, idOpcaoNum];
@@ -291,14 +318,99 @@ export default function DesafiosView({
         );
     };
 
-    if (!desafiosOrdenados.length) {
+    // =========================================================================
+    // RENDER: TRABALHOS MODE — grid de cards que abre o DesafioModal
+    // =========================================================================
+    if (mode === "trabalhos") {
+        if (!desafiosParaMostrar.length) {
+            return (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        Trabalhos pendentes
+                    </h3>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        Não tens trabalhos pendentes de momento.
+                    </p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                    Trabalhos pendentes
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {desafiosParaMostrar.map((atribuicao) => {
+                        const inscricao = inscricoesPorDesafio.get(atribuicao.id_desafio);
+                        const status = statusDesafio(atribuicao, inscricao);
+                        const desafioCard = atribuicao.desafio;
+
+                        const ctaLabel = (() => {
+                            if (inscricao?.estado === "Em_Resolucao") return "Continuar rascunho";
+                            if (inscricao?.estado === "Submetido") return "Nova tentativa";
+                            if (status.label === "Por abrir") return "Ver detalhes";
+                            if (status.label === "Prazo encerrado") return "Ver detalhes";
+                            return "Iniciar desafio";
+                        })();
+
+                        return (
+                            <button
+                                key={atribuicao.id}
+                                type="button"
+                                onClick={() => onOpenDesafioModal?.(atribuicao.id_desafio)}
+                                className={`w-full text-left rounded-xl border border-gray-100 dark:border-gray-700 border-l-4 ${LEFT_BORDER_CLASS[status.tone] || LEFT_BORDER_CLASS.slate} bg-white dark:bg-gray-800 p-4 hover:shadow-md hover:border-gray-200 dark:hover:border-gray-600 transition group`}
+                            >
+                                <div className="flex items-start justify-between gap-2 mb-3">
+                                    <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition line-clamp-2 leading-snug">
+                                        {desafioCard?.titulo || "Desafio sem título"}
+                                    </h4>
+                                    <span
+                                        className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${badgeClass(status.tone)}`}
+                                    >
+                                        {status.label}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {desafioCard?.data_inicio && (
+                                        <p>Abre: {formatDateTime(desafioCard.data_inicio)}</p>
+                                    )}
+                                    {desafioCard?.data_fim && (
+                                        <p>Fecha: {formatDateTime(desafioCard.data_fim)}</p>
+                                    )}
+                                    {desafioCard?.duracao_minutos && (
+                                        <p>Duração: {desafioCard.duracao_minutos} min</p>
+                                    )}
+                                    {atribuicao.tentativas_maximas && (
+                                        <p>Tentativas máximas: {atribuicao.tentativas_maximas}</p>
+                                    )}
+                                </div>
+
+                                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50 flex justify-end">
+                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full transition group-hover:opacity-100 opacity-60 ${badgeClass(status.tone)}`}>
+                                        {ctaLabel} →
+                                    </span>
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
+
+    // =========================================================================
+    // RENDER: DESAFIOS MODE — split view, apenas desafios submetidos
+    // =========================================================================
+    if (!desafiosParaMostrar.length) {
         return (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Desafios pendentes
+                    Desafios submetidos
                 </h3>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                    Ainda nao tens desafios atribuidos.
+                    Ainda não submeteste nenhum desafio.
                 </p>
             </div>
         );
@@ -327,11 +439,11 @@ export default function DesafiosView({
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <aside className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        Desafios atribuidos
+                        Desafios submetidos
                     </h3>
 
                     <div className="mt-4 space-y-3 max-h-[65vh] overflow-y-auto pr-1">
-                        {desafiosOrdenados.map((atribuicao) => {
+                        {desafiosParaMostrar.map((atribuicao) => {
                             const inscricao = inscricoesPorDesafio.get(
                                 atribuicao.id_desafio,
                             );
@@ -384,7 +496,7 @@ export default function DesafiosView({
                 <section className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                     {!selectedAtribuicao ? (
                         <p className="text-sm text-gray-600 dark:text-gray-300">
-                            Seleciona um desafio para responder.
+                            Seleciona um desafio para ver as respostas.
                         </p>
                     ) : (
                         <div className="space-y-6">
@@ -454,7 +566,7 @@ export default function DesafiosView({
                                         Desafio fechado
                                     </p>
                                     <p className="mt-1">
-                                        Este desafio já foi corrigido e fechado pelo professor. Não é possível submeter novamente.
+                                        Este desafio já foi fechado pelo professor. Não é possível submeter novamente.
                                     </p>
                                 </div>
                             )}
@@ -471,6 +583,9 @@ export default function DesafiosView({
                                     const resposta =
                                         form.data.respostas?.[pergunta.id] ||
                                         {};
+                                    const originalResposta = (inscricaoAtual?.respostas || []).find(
+                                        (r) => Number(r.id_pergunta) === Number(pergunta.id)
+                                    );
 
                                     return (
                                         <div
@@ -589,6 +704,17 @@ export default function DesafiosView({
                                                             </label>
                                                         );
                                                     })}
+                                                </div>
+                                            )}
+
+                                            {originalResposta?.comentario_formador && (
+                                                <div className="mt-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 p-3 border border-blue-100 dark:border-blue-800/50">
+                                                    <p className="text-xs font-semibold text-blue-800 dark:text-blue-300 uppercase tracking-wider mb-1">
+                                                        Feedback do Professor
+                                                    </p>
+                                                    <p className="text-sm text-blue-900 dark:text-blue-100 whitespace-pre-line">
+                                                        {originalResposta.comentario_formador}
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>

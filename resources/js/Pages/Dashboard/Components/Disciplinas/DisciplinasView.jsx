@@ -8,6 +8,7 @@ export default function DisciplinasView({
     turmas,
     utilizadores,
     userRole,
+    onOpenPerfil,
 }) {
     // ==========================================
     // ESTADOS DOS MODAIS E FILTRO
@@ -338,15 +339,21 @@ export default function DisciplinasView({
                                                                         )
                                                                     )}
                                                                 </div>
-                                                                <div className="min-w-0">
+                                                                <div className="min-w-0 flex-1">
                                                                     <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-                                                                        {
-                                                                            aluno.name
-                                                                        }
+                                                                        {aluno.name}
                                                                     </p>
                                                                     <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold uppercase tracking-tighter">
                                                                         Colega
                                                                     </p>
+                                                                    {onOpenPerfil && (
+                                                                        <button
+                                                                            onClick={() => onOpenPerfil(aluno.id)}
+                                                                            className="text-[10px] font-semibold text-blue-600 hover:underline"
+                                                                        >
+                                                                            Ver perfil
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         ),

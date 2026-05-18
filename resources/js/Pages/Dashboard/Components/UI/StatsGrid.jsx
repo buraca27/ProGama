@@ -6,40 +6,16 @@ export default function StatsGrid({
     estatisticas,
     auth,
     turmas,
+    disciplinas = [],
     trabalhosPendentes = 0,
     tarefasProfessor = [],
+    desafiosAluno = [],
+    inscricoesDesafiosAluno = [],
+    notasAluno = [],
 }) {
     return (
         <div className="max-w-7xl mx-auto space-y-6">
-            {/* Banner de Boas-vindas */}
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-xl border border-gray-100 dark:border-gray-700">
-                <div className="p-6 text-gray-900 dark:text-gray-100 text-lg flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center overflow-hidden border-2 border-blue-500 shrink-0">
-                        {auth.user.foto_perfil ? (
-                            <img
-                                src={auth.user.foto_perfil}
-                                alt="Perfil"
-                                className="w-full h-full object-cover"
-                            />
-                        ) : (
-                            <span className="text-xl font-bold text-blue-600 dark:text-blue-300">
-                                {auth.user.name.charAt(0)}
-                            </span>
-                        )}
-                    </div>
-                    <span>
-                        Olá, <strong>{auth.user.name}</strong>! Bem-vindo de
-                        volta à tua área de
-                        <span className="text-blue-600 dark:text-blue-400 font-bold ml-1">
-                            {userRole === "admin"
-                                ? "Secretaria"
-                                : userRole.charAt(0).toUpperCase() +
-                                  userRole.slice(1)}
-                        </span>
-                        .
-                    </span>
-                </div>
-            </div>
+
 
             {/* Grelha de Estatísticas Dinâmica */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -96,20 +72,33 @@ export default function StatsGrid({
                     <>
                         <DashboardCard
                             title="Disciplinas"
-                            value={turmas?.length || 0}
-                            sub="Onde estás matriculado"
+                            value={disciplinas?.length || 0}
+                            sub="Total de disciplinas matriculadas"
                             color="text-purple-600 dark:text-purple-400"
                         />
                         <DashboardCard
                             title="Tarefas Pendentes"
-                            value="3"
-                            sub="Entrega até amanhã"
+                            value={(() => {
+                                // Conta desafios não completados (sem submissão ou em resolução)
+                                const totalDesafios = desafiosAluno?.length || 0;
+                                const desafiosCompletos = inscricoesDesafiosAluno?.filter(
+                                    (submissao) => submissao.estado === "Concluido" || submissao.estado === "Avaliado" || submissao.estado === "Submetido"
+                                ).length || 0;
+                                return Math.max(0, totalDesafios - desafiosCompletos);
+                            })()}
+                            sub="Tarefas a aguardar resolução"
                             color="text-red-600 dark:text-red-400"
                         />
                         <DashboardCard
                             title="Média Global"
-                            value="16.4"
-                            sub="Valores calculados"
+                            value={(() => {
+                                // Calcula a média das notas avaliadas
+                                if (!notasAluno || notasAluno.length === 0) return "-";
+                                const soma = notasAluno.reduce((acc, nota) => acc + (nota.valor || 0), 0);
+                                const media = soma / notasAluno.length;
+                                return media.toFixed(1);
+                            })()}
+                            sub="Com base nos testes avaliados"
                             color="text-yellow-600 dark:text-yellow-400"
                         />
                     </>

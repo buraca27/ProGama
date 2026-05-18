@@ -28,6 +28,7 @@ class Desafio extends Model
         'peso_nota',
         'nota_minima_passagem',
         'url_anexo_global',
+        'descricao_ficheiro',
         'anexos_professor_json',
         'exige_submissao',
         'cooldown_minutos',

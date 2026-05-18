@@ -21,8 +21,8 @@ return new class extends Migration
             DB::statement('ALTER TABLE `Notificacoes` ADD CONSTRAINT `notificacoes_id_usuario_relacionado_foreign` FOREIGN KEY (`id_usuario_relacionado`) REFERENCES `users`(`id`) ON DELETE SET NULL');
         }
 
-        // Add new notification types if they are not already present.
-        DB::statement("ALTER TABLE `Notificacoes` MODIFY `tipo_notificacao` ENUM('Novo_Teste', 'Novo_Desafio', 'Teste_Corrigido', 'Badge_Ganho', 'Aviso_Sistema', 'Pedido_Conexao', 'Conexao_Aceite', 'Conexao_Recusada') NOT NULL");
+        // Adiciona os novos tipos mantendo os existentes para evitar truncação de dados.
+        DB::statement("ALTER TABLE `Notificacoes` MODIFY `tipo_notificacao` ENUM('Novo_Teste','Novo_Desafio','Teste_Corrigido','Desafio_Corrigido','Badge_Ganho','Aviso_Sistema','XP_Recebido','Novo_Nivel','Prazo_Proximo','Submissao_Aluno','Alerta_Integridade','Alteracao_Datas','Pedido_Conexao','Conexao_Aceite','Conexao_Recusada') NOT NULL");
     }
 
     public function down(): void

@@ -11,6 +11,9 @@ const TIPO_LABEL = {
     Submissao_Aluno: "Submissão de Aluno",
     Alerta_Integridade: "Alerta de Integridade",
     Alteracao_Datas: "Datas Alteradas",
+    Pedido_Conexao: "Pedido de Conexão",
+    Conexao_Aceite: "Conexão Aceite",
+    Conexao_Recusada: "Conexão Recusada",
 };
 
 const TIPO_COR = {
@@ -23,6 +26,9 @@ const TIPO_COR = {
     Submissao_Aluno: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
     Alerta_Integridade: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
     Alteracao_Datas: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+    Pedido_Conexao: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+    Conexao_Aceite: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    Conexao_Recusada: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
 };
 
 const TIPO_ICONE = {
@@ -35,6 +41,9 @@ const TIPO_ICONE = {
     Submissao_Aluno: "📝",
     Alerta_Integridade: "🚨",
     Alteracao_Datas: "📅",
+    Pedido_Conexao: "👤",
+    Conexao_Aceite: "🤝",
+    Conexao_Recusada: "👋",
 };
 
 const FILTRO_CHIPS = [
@@ -60,22 +69,28 @@ export default function NotificacoesView({ notificacoesData }) {
     const mostraPrazos = tipoAtivo === "Prazo_Proximo";
 
     const aplicarFiltro = (novoTipo, novaOrdem) => {
-        const params = { view: "notificacoes" };
-        if (novoTipo)                       params.notif_tipo  = novoTipo;
-        if (novaOrdem && novaOrdem !== "desc") params.notif_ordem = novaOrdem;
-        router.visit(route("dashboard", params), {
+        const data = {};
+        if (novoTipo)                          data.notif_tipo  = novoTipo;
+        if (novaOrdem && novaOrdem !== "desc") data.notif_ordem = novaOrdem;
+        router.visit(route("dashboard", data), {
+            only: ["notificacoesData", "notifFiltros", "prazo_alertas"],
             preserveState: true,
             preserveScroll: true,
+            replace: true,
+            onSuccess: () => window.history.replaceState(null, "", route("dashboard")),
         });
     };
 
     const mudarPagina = (pagina) => {
-        const params = { view: "notificacoes", notif_page: pagina };
-        if (tipoAtivo)             params.notif_tipo  = tipoAtivo;
-        if (ordemAtiva !== "desc") params.notif_ordem = ordemAtiva;
-        router.visit(route("dashboard", params), {
+        const data = { notif_page: pagina };
+        if (tipoAtivo)             data.notif_tipo  = tipoAtivo;
+        if (ordemAtiva !== "desc") data.notif_ordem = ordemAtiva;
+        router.visit(route("dashboard", data), {
+            only: ["notificacoesData"],
             preserveState: true,
             preserveScroll: true,
+            replace: true,
+            onSuccess: () => window.history.replaceState(null, "", route("dashboard")),
         });
     };
 

@@ -25,4 +25,6 @@ Thumbs.db
 start-dev.bat
 .vite
 teste.txt
-.claude/
+a.txt
+.claudeignore
+.claude/settings.local.json

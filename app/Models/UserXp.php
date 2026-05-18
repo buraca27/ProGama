@@ -34,18 +34,16 @@ class UserXp extends Model
     }
 
     /**
-     * Adição de XP - atualiza nível se necessário
+     * Adição de XP - atualiza nível e cache do próximo nível.
      */
     public function adicionarXp(int $xpGanho): void
     {
         $this->xp_total += $xpGanho;
 
-        // Buscar o novo nível
         $novoNivel = Level::getNivelPorXp($this->xp_total);
         if ($novoNivel) {
             $this->nivel_atual = $novoNivel->nivel;
-            $proximoNivel = Level::where('nivel', $novoNivel->nivel + 1)->first();
-            $this->xp_proximo_nivel = $proximoNivel?->xp_requerido ?? 0;
+            $this->xp_proximo_nivel = $this->calcularXpProximoNivel($novoNivel->nivel);
         }
 
         $this->ultima_atualizacao = now();
@@ -53,28 +51,39 @@ class UserXp extends Model
     }
 
     /**
-     * Obtém o XP necessário para o próximo nível
+     * Retorna o XP cumulativo requerido para o próximo nível.
+     * Usado no frontend como denominador da barra: "{xp_total} / {xp_proximo_nivel} XP".
+     * Se estiver no nível máximo, retorna o xp_requerido do nível atual.
      */
     public function xpParaProximoNivel(): int
     {
-        $proximoNivel = Level::where('nivel', $this->nivel_atual + 1)->first();
-        return $proximoNivel ? $proximoNivel->xp_requerido - $this->xp_total : 0;
+        return $this->calcularXpProximoNivel($this->nivel_atual);
     }
 
     /**
-     * Percentagem de progressão no nível atual
+     * Percentagem de progresso dentro do nível atual (0–100).
+     * Mede a distância entre o limiar do nível atual e o do próximo nível.
      */
     public function percentagemNivel(): float
     {
-        $nivelAtual = Level::where('nivel', $this->nivel_atual)->first();
-        if (!$nivelAtual) return 0;
+        $currentLevel = Level::where('nivel', $this->nivel_atual)->first();
+        $nextLevel    = Level::where('nivel', $this->nivel_atual + 1)->first();
 
-        $xpNivelAtual = $nivelAtual->xp_requerido;
-        $xpNivelAnterior = Level::where('nivel', $this->nivel_atual - 1)->value('xp_requerido') ?? 0;
+        if (!$nextLevel) return 100.0; // nível máximo
 
-        $xpNeste = $this->xp_total - $xpNivelAnterior;
-        $xpTotal = $xpNivelAtual - $xpNivelAnterior;
+        $xpEntrada  = $currentLevel?->xp_requerido ?? 0; // XP para entrar no nível atual
+        $xpSaida    = $nextLevel->xp_requerido;           // XP para entrar no próximo nível
+        $xpNeste    = max(0, $this->xp_total - $xpEntrada);
+        $xpNeeded   = $xpSaida - $xpEntrada;
 
-        return $xpTotal > 0 ? ($xpNeste / $xpTotal) * 100 : 0;
+        return $xpNeeded > 0 ? min(($xpNeste / $xpNeeded) * 100.0, 100.0) : 0.0;
+    }
+
+    private function calcularXpProximoNivel(int $nivelAtual): int
+    {
+        $proximo = Level::where('nivel', $nivelAtual + 1)->value('xp_requerido');
+        if ($proximo !== null) return $proximo;
+        // Nível máximo: retorna o xp_requerido do nível atual
+        return Level::where('nivel', $nivelAtual)->value('xp_requerido') ?? $this->xp_total;
     }
 }

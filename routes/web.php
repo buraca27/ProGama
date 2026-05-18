@@ -12,13 +12,12 @@ use App\Http\Controllers\ProfessorTesteController;
 use App\Http\Controllers\GamificationController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\NotificacaoController;
+use App\Http\Controllers\LandingPageController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // --- 1. LANDING PAGE ---
-Route::get('/', function () {
-    return Inertia::render('LandingPage/LandingPage');
-});
+Route::get('/', [LandingPageController::class, 'index']);
 
 // --- 2. ÁREA AUTENTICADA ---
 Route::middleware(['auth', 'verified', 'force_password_change'])->group(function () {
@@ -32,8 +31,10 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
 
         Route::post('/testes', [ProfessorTesteController::class, 'storeTeste'])->name('testes.store');
         Route::put('/testes/{id}', [ProfessorTesteController::class, 'updateTeste'])->name('testes.update');
+        Route::get('/testes/{id}', fn() => redirect()->route('dashboard'))->name('testes.show');
         Route::post('/tarefas', [ProfessorTesteController::class, 'storeTarefa'])->name('tarefas.store');
         Route::put('/tarefas/{idTarefa}', [ProfessorTesteController::class, 'updateTarefa'])->name('tarefas.update');
+        Route::get('/tarefas/{idTarefa}', fn() => redirect()->route('dashboard'))->name('tarefas.show');
         Route::post('/tarefas/{idTarefa}/terminar', [ProfessorTesteController::class, 'terminarTarefa'])->name('tarefas.terminar');
         Route::delete('/tarefas/{idTarefa}', [ProfessorTesteController::class, 'destroyTarefa'])->name('tarefas.destroy');
         Route::put('/correcoes/{idTesteRealizado}', [ProfessorTesteController::class, 'updateCorrecao'])->name('correcoes.update');
@@ -55,6 +56,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
         Route::post('/{desafio}/iniciar-quiz', [DesafioAlunoController::class, 'iniciarQuiz'])->name('iniciar-quiz');
         Route::post('/{desafio}/submeter-quiz', [DesafioAlunoController::class, 'submeterQuiz'])->name('submeter-quiz');
         Route::post('/{desafio}/submeter-tarefa', [DesafioAlunoController::class, 'submeterTarefa'])->name('submeter-tarefa');
+        Route::get('/{desafio}/submeter-tarefa', fn() => redirect()->route('dashboard'))->name('submeter-tarefa.fallback');
         Route::get('/{desafio}/historico', [DesafioAlunoController::class, 'historicoSubmissoes'])->name('historico');
     });
 
@@ -66,6 +68,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
         Route::post('/aceitar/{usuario}', [SocialController::class, 'aceitarPedido'])->name('aceitar');
         Route::post('/recusar/{usuario}', [SocialController::class, 'recusarPedido'])->name('recusar');
         Route::delete('/seguir/{usuario}', [SocialController::class, 'deixarSeguir'])->name('deixar-seguir');
+        Route::delete('/seguidor/{usuario}', [SocialController::class, 'removerSeguidor'])->name('remover-seguidor');
     });
 
     Route::prefix('notificacoes')->name('notificacoes.')->group(function () {
@@ -87,6 +90,18 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
             Route::put('/{id}', [UserController::class, 'update'])->name('update');
             Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
         });
+
+        Route::get('/dashboard/update-landing-page', function () {
+            return redirect()->route('dashboard', [
+                'view' => 'updateLandingPage',
+            ]);
+        })->name('dashboard.update-landing-page');
+
+        Route::get('/admin/landing', [LandingPageController::class, 'edit'])
+            ->name('admin.landing.edit');
+
+        Route::put('/admin/landing', [LandingPageController::class, 'update'])
+            ->name('admin.landing.update');
 
         // Turmas (Criar, Editar, Apagar, Atribuir)
         Route::prefix('dashboard/turmas')->name('turmas.')->group(function () {
@@ -112,8 +127,8 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
         });
     });
     // --- 4. PERFIL DO UTILIZADOR ---
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/2fa', [ProfileController::class, 'toggle2FA'])->name('profile.2fa.toggle');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 

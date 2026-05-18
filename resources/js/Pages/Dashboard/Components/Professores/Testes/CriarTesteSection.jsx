@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import NovaPerguntaInline from "./NovaPerguntaInline";
 import { TIPO_DESAFIO_OPTIONS } from "./constants";
 import { CONTEXTO_AVALIACAO } from "./constants";
@@ -36,6 +36,15 @@ export default function CriarTesteSection({
         CONTEXTO_AVALIACAO[testeForm.data.tipo_avaliacao] ||
         CONTEXTO_AVALIACAO.Desafio;
     const isTarefa = testeForm.data.tipo_desafio === "Tarefa";
+
+    const [badgeImagePreview, setBadgeImagePreview] = useState(null);
+    useEffect(() => {
+        const file = testeForm.data.nova_badge_imagem;
+        if (!file) { setBadgeImagePreview(null); return; }
+        const url = URL.createObjectURL(file);
+        setBadgeImagePreview(url);
+        return () => URL.revokeObjectURL(url);
+    }, [testeForm.data.nova_badge_imagem]);
 
     const obterRespostaPergunta = (pergunta) => {
         const opcoes = Array.isArray(pergunta?.opcoes) ? pergunta.opcoes : [];
@@ -169,7 +178,7 @@ export default function CriarTesteSection({
                     <input
                         type="number"
                         min={0}
-                        value={testeForm.data.xp_base ?? 50}
+                        value={testeForm.data.xp_base ?? 1}
                         onChange={(e) =>
                             testeForm.setData("xp_base", e.target.value)
                         }
@@ -239,25 +248,50 @@ export default function CriarTesteSection({
                         className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         placeholder="Descrição curta da badge"
                     />
-                    <input
-                        type="file"
-                        accept="image/*"
+                    <select
+                        value={testeForm.data.nova_badge_raridade || "1"}
                         onChange={(e) =>
-                            testeForm.setData(
-                                "nova_badge_imagem",
-                                e.target.files?.[0] || null,
-                            )
+                            testeForm.setData("nova_badge_raridade", e.target.value)
                         }
                         className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    />
+                    >
+                        <option value="1">Bronze (Comum)</option>
+                        <option value="2">Prata (Incomum)</option>
+                        <option value="3">Ouro (Raro)</option>
+                        <option value="4">Lendária</option>
+                    </select>
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) =>
+                                testeForm.setData(
+                                    "nova_badge_imagem",
+                                    e.target.files?.[0] || null,
+                                )
+                            }
+                            className="flex-1 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        />
+                        {badgeImagePreview && (
+                            <img
+                                src={badgeImagePreview}
+                                alt="Preview badge"
+                                className="h-12 w-12 rounded-full object-cover border-2 border-gray-300 dark:border-gray-600 shrink-0"
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
 
             {testeForm.data.tipo_desafio === "Tarefa" && (
-                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-2">
+                <div className="rounded-lg border border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-900/10 p-4 space-y-4">
+                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                        Ficheiros do enunciado (opcional)
+                    </p>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Anexo da tarefa
+                            Ficheiro principal
                         </label>
                         <input
                             type="file"
@@ -270,9 +304,55 @@ export default function CriarTesteSection({
                             className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         />
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Adiciona um único ficheiro de apoio. Os alunos podem submeter um ficheiro ou um link.
+                            Ficheiro principal do enunciado (máx. 20MB). Os alunos vêem este como "Anexo principal".
                         </p>
                     </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Ficheiros adicionais
+                        </label>
+                        <input
+                            type="file"
+                            multiple
+                            onChange={(e) =>
+                                testeForm.setData(
+                                    "anexos_professor_ficheiros",
+                                    Array.from(e.target.files || []),
+                                )
+                            }
+                            className="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Podes selecionar vários ficheiros de apoio (máx. 20MB cada).
+                        </p>
+                        {Array.isArray(testeForm.data.anexos_professor_ficheiros) &&
+                            testeForm.data.anexos_professor_ficheiros.length > 0 && (
+                                <ul className="mt-2 space-y-1">
+                                    {testeForm.data.anexos_professor_ficheiros.map((f, i) => (
+                                        <li key={i} className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1">
+                                            <span className="truncate">{f.name}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const updated = testeForm.data.anexos_professor_ficheiros.filter((_, idx) => idx !== i);
+                                                    testeForm.setData("anexos_professor_ficheiros", updated);
+                                                }}
+                                                className="ml-2 text-red-500 hover:text-red-700 flex-shrink-0"
+                                            >
+                                                ✕
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                    </div>
+
+                    {(testeForm.errors.anexo_global_ficheiro || testeForm.errors["anexos_professor_ficheiros.0"]) && (
+                        <p className="text-xs text-red-600">
+                            {testeForm.errors.anexo_global_ficheiro || testeForm.errors["anexos_professor_ficheiros.0"]}
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -598,10 +678,17 @@ export default function CriarTesteSection({
                     )}
                 </>
             )}
-            {Object.values(testeForm.errors || {}).length > 0 && (
-                <p className="text-sm text-red-600">
-                    Não foi possível guardar. Verifica os dados preenchidos.
-                </p>
+            {Object.keys(testeForm.errors || {}).length > 0 && (
+                <div className="mb-4 p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-400 dark:border-red-800 rounded-lg text-sm">
+                    <strong className="flex items-center gap-2 mb-2 font-bold text-base">
+                        <span>❌</span> Não foi possível guardar. Verifica os dados preenchidos:
+                    </strong>
+                    <ul className="list-disc ml-8 space-y-1 font-medium">
+                        {Object.entries(testeForm.errors).map(([key, err]) => (
+                            <li key={key}>{err}</li>
+                        ))}
+                    </ul>
+                </div>
             )}
         </form>
     );

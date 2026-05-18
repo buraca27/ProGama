@@ -12,8 +12,10 @@ use App\Models\SubmissaoDesafioAluno;
 use App\Models\User;
 use App\Models\Notificacao;
 use App\Models\Pergunta;
+use App\Models\UserXp;
 use App\Services\GamificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -118,6 +120,7 @@ class DashboardController extends Controller
                             'id' => (int) $submissao->id,
                             'id_desafio' => (int) $submissao->id_desafio,
                             'estado' => (string) $submissao->estado,
+                            'feedback_professor' => $submissao->feedback_professor,
                             'data_ultima_tentativa' => $submissao->data_submissao ?? $submissao->updated_at,
                             'respostas' => collect($submissao->respostas ?? [])->map(function ($resposta) {
                                 $idsOpcoes = is_array($resposta->ids_opcoes_escolhidas ?? null)
@@ -133,6 +136,7 @@ class DashboardController extends Controller
                                     'resposta_texto' => $resposta->resposta_texto,
                                     'status_correcao' => $resposta->status_correcao ?? 'Por_Avaliar',
                                     'pontuacao_obtida' => (int) ($resposta->pontuacao_obtida ?? 0),
+                                    'comentario_formador' => $resposta->comentario_formador,
                                 ];
                             })->values()->all(),
                         ];
@@ -205,6 +209,32 @@ class DashboardController extends Controller
                 ->paginate(8, ['*'], 'perguntas_page')
                 ->withQueryString();
 
+            // Quando navegamos de uma notificação, garantir que a página certa é carregada
+            if ($request->filled('submissao_id') && !$request->has('correcoes_page')) {
+                $targetId = (int) $request->query('submissao_id');
+                $targetSub = SubmissaoDesafioAluno::select('id', 'estado', 'created_at')
+                    ->whereHas('desafio', fn($q) => $q->where('id_formador', $user->id))
+                    ->find($targetId);
+
+                if ($targetSub) {
+                    $estadoOrder = match ($targetSub->estado) {
+                        'Submetido'    => 0,
+                        'Em_Resolucao' => 1,
+                        default        => 2,
+                    };
+                    $posicao = SubmissaoDesafioAluno::whereHas('desafio', fn($q) => $q->where('id_formador', $user->id))
+                        ->where(function ($q) use ($estadoOrder, $targetSub) {
+                            $q->whereRaw("CASE WHEN estado = 'Submetido' THEN 0 WHEN estado = 'Em_Resolucao' THEN 1 ELSE 2 END < ?", [$estadoOrder])
+                              ->orWhere(function ($q2) use ($estadoOrder, $targetSub) {
+                                  $q2->whereRaw("CASE WHEN estado = 'Submetido' THEN 0 WHEN estado = 'Em_Resolucao' THEN 1 ELSE 2 END = ?", [$estadoOrder])
+                                     ->where('created_at', '>', $targetSub->created_at);
+                              });
+                        })
+                        ->count();
+                    $request->merge(['correcoes_page' => (int) floor($posicao / 10) + 1]);
+                }
+            }
+
             $correcoesProfessor = SubmissaoDesafioAluno::with([
                 'aluno:id,name,email',
                 'desafio:id,titulo,id_formador',
@@ -241,12 +271,16 @@ class DashboardController extends Controller
                         ];
                     })->values()->all();
 
+                    $metadata = $inscricao->metadata ?? [];
+                    $ficheiroCaminho = $metadata['ficheiro'] ?? null;
+
                     return [
                         'id' => (int) $inscricao->id,
                         'estado' => $inscricao->estado === 'Concluido'
                             ? 'Corrigido'
                             : ($inscricao->estado === 'Submetido' ? 'Aguardando_Correcao' : $inscricao->estado),
-                        'nota_final' => null,
+                        'nota_final' => $inscricao->nota !== null ? (float) $inscricao->nota : null,
+                        'feedback_professor' => $inscricao->feedback_professor,
                         'corrigido_em' => $inscricao->updated_at,
                         'publicado_em' => $inscricao->estado === 'Concluido' ? $inscricao->updated_at : null,
                         'corrigido_por' => [
@@ -257,9 +291,16 @@ class DashboardController extends Controller
                         'teste' => [
                             'id' => (int) ($inscricao->desafio?->id ?? 0),
                             'titulo' => (string) ($inscricao->desafio?->titulo ?? 'Desafio'),
+                            'tipo_desafio' => (string) ($inscricao->desafio?->tipo_desafio ?? 'Quiz'),
                             'perguntas' => $perguntas,
                         ],
                         'respostas' => $respostas,
+                        'submissao_ficheiro_url' => $ficheiroCaminho
+                            ? '/storage/' . $ficheiroCaminho
+                            : null,
+                        'submissao_ficheiro_nome' => $ficheiroCaminho ? basename($ficheiroCaminho) : null,
+                        'submissao_link' => $metadata['link_submissao'] ?? null,
+                        'submissao_mensagem' => $metadata['mensagem_submissao'] ?? null,
                     ];
                 });
 
@@ -300,6 +341,8 @@ class DashboardController extends Controller
             'boletim',
             'leaderboard',
             'notificacoes',
+            'social',
+            'updateLandingPage',
         ];
 
         if (!in_array($initialView, $allowedViews, true)) {
@@ -310,40 +353,42 @@ class DashboardController extends Controller
         $topNivel = $gamificationService->getTopNivel(10);
         $topBadges = $gamificationService->getTopBadgesPontuacao(10);
 
-        $podio = $topXp->take(3)->map(function ($userXp, $index) {
+        $mapRow = fn($row) => ['id' => $row->id, 'name' => $row->name, 'foto_perfil' => $row->foto_perfil ?? null];
+
+        $podio = $topXp->take(3)->map(function ($row, $index) use ($mapRow) {
             return [
-                'posicao' => $index + 1,
-                'usuario' => $userXp->usuario,
-                'xp_total' => $userXp->xp_total,
-                'nivel' => $userXp->nivel_atual,
+                'posicao'  => $index + 1,
+                'usuario'  => $mapRow($row),
+                'xp_total' => (int) $row->xp_total,
+                'nivel'    => (int) $row->nivel_atual,
             ];
         });
 
-        $rankingXp = $topXp->map(function ($userXp, $index) {
+        $rankingXp = $topXp->map(function ($row, $index) use ($mapRow) {
             return [
-                'posicao' => $index + 1,
-                'usuario' => $userXp->usuario,
-                'xp_total' => $userXp->xp_total,
-                'nivel' => $userXp->nivel_atual,
+                'posicao'  => $index + 1,
+                'usuario'  => $mapRow($row),
+                'xp_total' => (int) $row->xp_total,
+                'nivel'    => (int) $row->nivel_atual,
             ];
         });
 
         $rankingBadges = $topBadges->map(function ($row, $index) {
-            $usuario = User::find($row->id, ['*']);
             return [
-                'posicao' => $index + 1,
-                'usuario' => $usuario,
-                'total_badges' => $row->total_badges,
-                'badge_score' => $row->badge_score,
+                'posicao'      => $index + 1,
+                'usuario'      => ['id' => $row->id, 'name' => $row->name, 'foto_perfil' => $row->foto_perfil ?? null],
+                'nivel'        => (int) ($row->nivel_atual ?? 1),
+                'total_badges' => (int) $row->total_badges,
+                'badge_score'  => (int) $row->badge_score,
             ];
         });
 
-        $rankingNivel = $topNivel->map(function ($userXp, $index) {
+        $rankingNivel = $topNivel->map(function ($row, $index) use ($mapRow) {
             return [
-                'posicao' => $index + 1,
-                'usuario' => $userXp->usuario,
-                'nivel' => $userXp->nivel_atual,
-                'xp_total' => $userXp->xp_total,
+                'posicao'  => $index + 1,
+                'usuario'  => $mapRow($row),
+                'nivel'    => (int) $row->nivel_atual,
+                'xp_total' => (int) $row->xp_total,
             ];
         });
 
@@ -352,6 +397,7 @@ class DashboardController extends Controller
             'initialView' => $initialView,
             'initialSubmissaoId' => $initialSubmissaoId,
             'initialDesafioModalId' => $initialDesafioModalId,
+            'landingConteudo' => \App\Models\LandingPageContent::first()?->conteudo ?? [],
             'userRoleReal' => $cargoReal,
             'estatisticas' => $estatisticas,
             'utilizadores' => User::with(['turma', 'turmasLecionadas'])->orderBy('created_at', 'desc')->get(),
@@ -393,7 +439,7 @@ class DashboardController extends Controller
                             'instrucoes' => (string) ($desafio->descricao ?? ''),
                             'peso_avaliacao' => (float) ($desafio->peso_nota ?? 0),
                             'duracao_minutos' => $desafio->duracao_minutos,
-                            'xp_base' => (int) ($desafio->xp_base ?? 50),
+                            'xp_base' => (int) ($desafio->xp_base ?? 1),
                             'auto_award_xp' => (bool) ($desafio->auto_award_xp ?? true),
                             'badges_json' => $desafio->badges_json,
                             'url_anexo_global' => $desafio->url_anexo_global,
@@ -434,9 +480,190 @@ class DashboardController extends Controller
             'ranking_xp' => $rankingXp,
             'ranking_nivel' => $rankingNivel,
             'ranking_badges' => $rankingBadges,
+            'minhaPosicao' => (function() use ($user) {
+                // Apenas alunos têm posição no leaderboard
+                if ((int) $user->id_role !== 3) return null;
+
+                $myXp    = $user->getXpTotal();
+                $myNivel = $user->getNivelAtual();
+
+                // Conta apenas entre alunos (id_role = 3)
+                $posXp = DB::table('users')
+                    ->leftJoin('User_XP as ux', 'users.id', '=', 'ux.id_usuario')
+                    ->where('users.id_role', 3)
+                    ->where(DB::raw('COALESCE(ux.xp_total, 0)'), '>', $myXp)
+                    ->count() + 1;
+
+                $posNivel = DB::table('users')
+                    ->leftJoin('User_XP as ux', 'users.id', '=', 'ux.id_usuario')
+                    ->where('users.id_role', 3)
+                    ->where(function ($q) use ($myNivel, $myXp) {
+                        $q->where(DB::raw('COALESCE(ux.nivel_atual, 1)'), '>', $myNivel)
+                          ->orWhere(function ($q2) use ($myNivel, $myXp) {
+                              $q2->where(DB::raw('COALESCE(ux.nivel_atual, 1)'), $myNivel)
+                                 ->where(DB::raw('COALESCE(ux.xp_total, 0)'), '>', $myXp);
+                          });
+                    })
+                    ->count() + 1;
+
+                $myBadgeScore = DB::select("
+                    SELECT COALESCE(SUM(CASE
+                        WHEN b.raridade = 4 THEN 20
+                        WHEN b.raridade = 3 THEN 10
+                        WHEN b.raridade = 2 THEN 5
+                        WHEN b.raridade = 1 THEN 3
+                        ELSE 1 END), 0) as score
+                    FROM Inventario_Badges ib LEFT JOIN Badges b ON ib.id_badge = b.id
+                    WHERE ib.id_utilizador = ?
+                ", [$user->id])[0]->score ?? 0;
+
+                $posBadges = DB::select("
+                    SELECT COUNT(*) + 1 as posicao FROM (
+                        SELECT ib.id_utilizador, COALESCE(SUM(CASE
+                            WHEN b.raridade = 4 THEN 20
+                            WHEN b.raridade = 3 THEN 10
+                            WHEN b.raridade = 2 THEN 5
+                            WHEN b.raridade = 1 THEN 3
+                            ELSE 1 END), 0) as badge_score
+                        FROM Inventario_Badges ib
+                        JOIN users u ON ib.id_utilizador = u.id
+                        LEFT JOIN Badges b ON ib.id_badge = b.id
+                        WHERE u.id_role = 3
+                        GROUP BY ib.id_utilizador HAVING badge_score > ?
+                    ) sub
+                ", [$myBadgeScore])[0]->posicao ?? 1;
+
+                return [
+                    'xp'           => $posXp,
+                    'nivel'        => $posNivel,
+                    'badges'       => $posBadges,
+                    'xp_total'     => $myXp,
+                    'nivel_atual'  => $myNivel,
+                    'badge_score'  => $myBadgeScore,
+                    'total_badges' => $user->getContagemBadges(),
+                ];
+            })(),
+            'socialData' => (function () use ($user, $request) {
+                    $seguindoIds        = $user->seguindo()->pluck('users.id')->toArray();
+                    $pendingSentIds     = $user->solicitacoesEnviadas()->where('estado', 'pendente')->pluck('id_destinatario')->toArray();
+                    $pendingReceivedIds = $user->solicitacoesRecebidas()->where('estado', 'pendente')->pluck('id_solicitante')->toArray();
+
+                    $socialStats = [
+                        'seguidores' => $user->seguidores()->count(),
+                        'seguindo'   => $user->seguindo()->count(),
+                        'conexoes'   => $user->seguindo()
+                            ->whereIn('users.id', $user->seguidores()->pluck('users.id'))
+                            ->count(),
+                    ];
+
+                    // Mapeia utilizador para array — esconde XP/badges para não-alunos
+                    $mapUser = fn(User $u, array $extra = []) => array_merge([
+                        'id'               => $u->id,
+                        'name'             => $u->name,
+                        'foto_perfil'      => $u->foto_perfil,
+                        'id_role'          => (int) $u->id_role,
+                        'id_turma'         => $u->id_turma,
+                        'nivel'            => (int) $u->id_role === 3 ? $u->getNivelAtual() : null,
+                        'xp_total'         => (int) $u->id_role === 3 ? $u->getXpTotal() : null,
+                        'badges_count'     => (int) $u->id_role === 3 ? ($u->badges_count ?? 0) : null,
+                        'seguidores_count' => $u->seguidores_count ?? 0,
+                    ], $extra);
+
+                    // Aplica filtro de papel/turma ao query builder
+                    $filterKey = $request->string('social_filter')->toString();
+                    $applyFilter = function ($q) use ($filterKey, $user) {
+                        if ($filterKey === 'professores') {
+                            $q->where('id_role', 2);
+                        } elseif ($filterKey === 'secretaria') {
+                            $q->where('id_role', 1);
+                        } elseif ($filterKey === 'alunos') {
+                            $q->where('id_role', 3);
+                        } elseif ($filterKey === 'turma') {
+                            if ((int) $user->id_role === 3 && $user->id_turma) {
+                                $q->where('id_turma', $user->id_turma)->where('id_role', 3);
+                            } elseif ((int) $user->id_role === 2) {
+                                $turmaIds = $user->turmasLecionadas()->pluck('Turmas.id')->toArray();
+                                $q->whereIn('id_turma', $turmaIds)->where('id_role', 3);
+                            }
+                        }
+                    };
+
+                    $seguindo = $user->seguindo()
+                        ->with('userXp')
+                        ->withCount(['seguidores', 'badges'])
+                        ->get()
+                        ->map(fn(User $u) => $mapUser($u));
+
+                    $pedidosPendentes = User::query()
+                        ->whereIn('id', $pendingReceivedIds)
+                        ->with('userXp')
+                        ->withCount(['seguidores', 'badges'])
+                        ->get()
+                        ->map(fn(User $u) => $mapUser($u));
+
+                    $seguidores = $user->seguidores()
+                        ->with('userXp')
+                        ->withCount(['seguidores', 'badges'])
+                        ->get()
+                        ->map(fn(User $u) => $mapUser($u, [
+                            'is_following' => in_array($u->id, $seguindoIds, true),
+                        ]));
+
+                    if ($request->filled('social_search')) {
+                        $term = trim((string) $request->string('social_search'));
+                        $q = User::query()
+                            ->where('id', '!=', $user->id)
+                            ->where('name', 'like', '%' . $term . '%')
+                            ->with('userXp')
+                            ->withCount(['seguidores', 'seguindo', 'badges'])
+                            ->orderBy('name')
+                            ->limit(20);
+                        $applyFilter($q);
+                        $results = $q->get()->map(fn(User $u) => $mapUser($u, [
+                            'is_following'     => in_array($u->id, $seguindoIds, true),
+                            'request_sent'     => in_array($u->id, $pendingSentIds, true),
+                            'request_received' => in_array($u->id, $pendingReceivedIds, true),
+                        ]));
+
+                        return [
+                            'sugestoes'         => $results,
+                            'seguindo'          => $seguindo,
+                            'seguidores'        => $seguidores,
+                            'social_stats'      => $socialStats,
+                            'pedidos_pendentes' => $pedidosPendentes,
+                            'is_searching'      => true,
+                            'active_filter'     => $filterKey,
+                        ];
+                    }
+
+                    $q = User::query()
+                        ->where('id', '!=', $user->id)
+                        ->whereNotIn('id', $seguindoIds)
+                        ->whereNotIn('id', $pendingSentIds)
+                        ->whereNotIn('id', $pendingReceivedIds)
+                        ->with('userXp')
+                        ->withCount(['seguidores', 'seguindo', 'badges'])
+                        ->orderByDesc('id')
+                        ->limit(20);
+                    $applyFilter($q);
+                    $sugestoes = $q->get()->map(fn(User $u) => $mapUser($u, [
+                        'request_sent'     => in_array($u->id, $pendingSentIds, true),
+                        'request_received' => in_array($u->id, $pendingReceivedIds, true),
+                    ]));
+
+                    return [
+                        'sugestoes'         => $sugestoes,
+                        'seguindo'          => $seguindo,
+                        'seguidores'        => $seguidores,
+                        'social_stats'      => $socialStats,
+                        'pedidos_pendentes' => $pedidosPendentes,
+                        'is_searching'      => false,
+                        'active_filter'     => $filterKey,
+                    ];
+                })(),
             'notificacoesData' => in_array($cargoReal, ['aluno', 'professor'])
                 ? (function () use ($request, $user) {
-                    $tiposPermitidos = ['Novo_Desafio', 'Desafio_Corrigido', 'Teste_Corrigido', 'XP_Recebido', 'Novo_Nivel', 'Badge_Ganho', 'Submissao_Aluno', 'Alerta_Integridade', 'Alteracao_Datas'];
+                    $tiposPermitidos = ['Novo_Desafio', 'Desafio_Corrigido', 'Teste_Corrigido', 'XP_Recebido', 'Novo_Nivel', 'Badge_Ganho', 'Submissao_Aluno', 'Alerta_Integridade', 'Alteracao_Datas', 'Pedido_Conexao', 'Conexao_Aceite', 'Conexao_Recusada'];
                     $tipo  = in_array($request->query('notif_tipo'), $tiposPermitidos, true) ? $request->query('notif_tipo') : null;
                     $ordem = $request->query('notif_ordem') === 'asc' ? 'asc' : 'desc';
                     $query = Notificacao::where('id_utilizador', $user->id);
@@ -447,6 +674,46 @@ class DashboardController extends Controller
                 })()
                 : null,
             'notifFiltros' => ['tipo' => $request->query('notif_tipo'), 'ordem' => $request->query('notif_ordem', 'desc')],
+            'perfilPublicoData' => $request->filled('perfil_publico_id')
+                ? (function () use ($request, $user) {
+                    $alvo = User::find($request->integer('perfil_publico_id'));
+                    if (!$alvo) return null;
+                    $alvOEAluno = (int) $alvo->id_role === 3;
+                    return [
+                        'usuario'          => ['id' => $alvo->id, 'name' => $alvo->name, 'foto_perfil' => $alvo->foto_perfil, 'id_role' => (int) $alvo->id_role],
+                        'isAluno'          => $alvOEAluno,
+                        'xpTotal'          => $alvOEAluno ? $alvo->getXpTotal() : null,
+                        'nivelAtual'       => $alvOEAluno ? $alvo->getNivelAtual() : null,
+                        'percentagemNivel' => $alvOEAluno ? $alvo->getPercentagemNivel() : null,
+                        'xpProxNivel'      => $alvOEAluno ? $alvo->getXpProximoNivel() : null,
+                        'contagemBadges'   => $alvOEAluno ? $alvo->getContagemBadges() : 0,
+                        'badges'           => $alvOEAluno
+                            ? Badge::join('Inventario_Badges', 'Badges.id', '=', 'Inventario_Badges.id_badge')
+                                ->where('Inventario_Badges.id_utilizador', $alvo->id)
+                                ->select('Badges.id', 'Badges.nome', 'Badges.raridade', 'Badges.descricao', 'Badges.icone_url', 'Inventario_Badges.data_obtencao')
+                                ->limit(12)
+                                ->get()
+                                ->map(fn($b) => [
+                                    'id'       => $b->id,
+                                    'nome'     => $b->nome,
+                                    'raridade' => $b->raridade,
+                                    'descricao' => $b->descricao,
+                                    'icone_url' => $b->icone_url,
+                                    'pivot'    => ['data_obtencao' => $b->data_obtencao],
+                                ])
+                                ->values()
+                            : [],
+                        'social'           => [
+                            'seguidores'       => $alvo->seguidores()->count(),
+                            'seguindo'         => $alvo->seguindo()->count(),
+                            'is_self'          => $user->id === $alvo->id,
+                            'is_connected'     => $user->isConectadoCom($alvo->id),
+                            'request_sent'     => $user->hasSolicitacaoPendentePara($alvo->id),
+                            'request_received' => $user->hasSolicitacaoPendenteDe($alvo->id),
+                        ],
+                    ];
+                })()
+                : null,
         ]);
 
 

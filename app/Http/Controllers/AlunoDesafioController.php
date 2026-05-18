@@ -125,7 +125,8 @@ class AlunoDesafioController extends Controller
             }
         }
 
-        DB::transaction(function () use ($aluno, $desafio, $atribuicao, $validated, $finalizar, $perguntasDesafio, $tabSwitches) {
+        $inscricao = null;
+        DB::transaction(function () use ($aluno, $desafio, $atribuicao, $validated, $finalizar, $perguntasDesafio, $tabSwitches, &$inscricao) {
             $inscricao = SubmissaoDesafioAluno::where('id_desafio', (int) $desafio->id)
                 ->where('id_aluno', (int) $aluno->id)
                 ->latest('id')
@@ -256,7 +257,7 @@ class AlunoDesafioController extends Controller
                     (string) $aluno->name,
                     (int) $desafio->id,
                     $tituloNotif,
-                    null
+                    (int) $inscricao->id
                 );
 
                 if ($semConsulta && $tabSwitches > 3) {

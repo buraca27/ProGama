@@ -66,6 +66,29 @@ html {
     align-items: center;
 }
 
+.menu-hamburguer {
+    display: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    margin-left: 10px;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.menu-hamburguer span {
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+    background: #3a88ed;
+    display: block;
+}
+
+.nav-mobile {
+    display: none;
+}
+
 .login-btn {
     background-color: #3a88ed;
     color: white;
@@ -101,6 +124,28 @@ html {
 @media (max-width: 900px) {
     .nav-bar-center {
         display: none; /* Esconde menu em ecrãs pequenos (ideal seria um menu hambúrguer) */
+    }
+
+    .menu-hamburguer {
+        display: flex;
+    }
+
+    .nav-mobile {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #ffffff;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+        padding: 12px 5%;
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+        z-index: 1001;
+    }
+
+    .nav-mobile.aberto {
+        display: flex;
     }
 }
 

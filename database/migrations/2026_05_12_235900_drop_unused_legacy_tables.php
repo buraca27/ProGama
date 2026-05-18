@@ -28,16 +28,14 @@ return new class extends Migration
             }
         }
 
-        if (Schema::hasTable('Roles_Permissoes')) {
-            Schema::drop('Roles_Permissoes');
-        }
-
-        if (Schema::hasTable('Permissoes')) {
-            Schema::drop('Permissoes');
-        }
-
-        if (Schema::hasTable('Seguidores')) {
-            Schema::drop('Seguidores');
+        foreach (['Roles_Permissoes', 'Permissoes', 'Seguidores'] as $table) {
+            if (Schema::hasTable($table)) {
+                try {
+                    Schema::drop($table);
+                } catch (\Exception $e) {
+                    // sem permissão para DROP neste ambiente — ignorar
+                }
+            }
         }
     }
 

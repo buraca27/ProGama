@@ -22,19 +22,15 @@ class DesafioAlunoController extends Controller
         $this->notificacaoService = $notificacaoService;
     }
 
-    /**
-     * Lista os desafios atribuídos ao aluno autenticado
-     */
     public function index(Request $request)
     {
         $usuario = $request->user();
-        $filtro = $request->query('filtro', 'todos'); // todos, quiz, tarefa, ativos, concluidos
+        $filtro = $request->query('filtro', 'todos');
 
         $query = Desafio::whereHas('atribuicoes', function ($q) use ($usuario) {
             $q->where('id_aluno', $usuario->id);
         });
 
-        // Aplicar filtros
         if ($filtro === 'quiz') {
             $query->where('tipo_desafio', 'Quiz');
         } elseif ($filtro === 'tarefa') {
@@ -54,7 +50,6 @@ class DesafioAlunoController extends Controller
             $q->where('id_aluno', $usuario->id);
         }])->paginate(12);
 
-        // Adicionar status para cada desafio
         $desafios->each(function ($desafio) use ($usuario) {
             $submissaoRecente = $desafio->submissoes()
                 ->where('id_aluno', $usuario->id)
@@ -73,25 +68,35 @@ class DesafioAlunoController extends Controller
         ]);
     }
 
-    /**
-     * Exibe um desafio específico (Quiz ou Tarefa)
-     */
+    private function findAtribuicao(Desafio $desafio, $usuario): ?AtribuicaoDesafio
+    {
+        $idTurma = $usuario->id_turma ? (int) $usuario->id_turma : null;
+
+        return AtribuicaoDesafio::where('id_desafio', $desafio->id)
+            ->where(function ($q) use ($usuario, $idTurma) {
+                $q->where('id_aluno', $usuario->id)
+                    ->orWhere(function ($or) use ($idTurma) {
+                        $or->whereNull('id_aluno');
+                        if ($idTurma) {
+                            $or->where('id_turma', $idTurma);
+                        } else {
+                            $or->whereRaw('1 = 0');
+                        }
+                    });
+            })
+            ->first();
+    }
+
     public function show(Desafio $desafio, Request $request)
     {
         $usuario = $request->user();
 
-        // Verificar se tem atribuição
-        /** @var AtribuicaoDesafio|null $atribuicao */
-        $atribuicao = AtribuicaoDesafio::query()
-            ->where('id_desafio', '=', (int) $desafio->id, 'and')
-            ->where('id_aluno', '=', (int) $usuario->id, 'and')
-            ->first();
+        $atribuicao = $this->findAtribuicao($desafio, $usuario);
 
         if (!$atribuicao) {
             abort(403, 'Desafio não atribuído a este utilizador');
         }
 
-        // Carregar dados apropriados conforme tipo
         if ($desafio->isQuiz()) {
             return $this->showQuiz($desafio, $usuario, $atribuicao);
         } else {
@@ -99,9 +104,6 @@ class DesafioAlunoController extends Controller
         }
     }
 
-    /**
-     * Exibe quiz específico
-     */
     private function showQuiz(Desafio $desafio, $usuario, AtribuicaoDesafio $atribuicao)
     {
         $perguntas = $desafio->perguntas()
@@ -122,9 +124,6 @@ class DesafioAlunoController extends Controller
         ]);
     }
 
-    /**
-     * Exibe tarefa específica
-     */
     private function showTarefa(Desafio $desafio, $usuario, AtribuicaoDesafio $atribuicao)
     {
         $submissaoRecente = $desafio->submissoes()
@@ -141,27 +140,21 @@ class DesafioAlunoController extends Controller
                 ->filter(fn($anexo) => is_array($anexo) && !empty($anexo['caminho']))
                 ->map(fn($anexo) => [
                     'nome' => $anexo['nome'] ?? basename((string) $anexo['caminho']),
-                    'url' => \Illuminate\Support\Facades\Storage::disk('public')->url((string) $anexo['caminho']),
+                    'url' => '/storage/' . $anexo['caminho'],
                 ])
                 ->values()
                 ->all(),
-            'anexo_global_url' => $desafio->url_anexo_global
-                ? \Illuminate\Support\Facades\Storage::disk('public')->url($desafio->url_anexo_global)
+            'anexo_global_url' => $desafio->descricao_ficheiro
+                ? '/storage/' . $desafio->descricao_ficheiro
                 : null,
         ]);
     }
 
-    /**
-     * Inicia uma tentativa de quiz
-     */
     public function iniciarQuiz(Desafio $desafio, Request $request)
     {
         $usuario = $request->user();
 
-        // Verificar atribuição
-        $atribuicao = $desafio->atribuicoes()
-            ->where('id_aluno', $usuario->id)
-            ->first();
+        $atribuicao = $this->findAtribuicao($desafio, $usuario);
 
         if (!$atribuicao instanceof AtribuicaoDesafio) {
             return $request->expectsJson()
@@ -169,21 +162,18 @@ class DesafioAlunoController extends Controller
                 : back()->with('error', 'Desafio nao atribuido.');
         }
 
-        // Verificar tentativas
         if (!$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {
             return $request->expectsJson()
                 ? response()->json(['erro' => 'Sem tentativas disponíveis'], 403)
                 : back()->with('error', 'Sem tentativas disponiveis.');
         }
 
-        // Verificar período
         if (!$atribuicao->estaValida()) {
             return $request->expectsJson()
                 ? response()->json(['erro' => 'Fora do período atribuído'], 403)
                 : back()->with('error', 'Fora do periodo atribuido.');
         }
 
-        // Criar submissão
         $submissao = SubmissaoDesafioAluno::create([
             'id_desafio' => $desafio->id,
             'id_aluno' => $usuario->id,
@@ -203,9 +193,6 @@ class DesafioAlunoController extends Controller
             : back()->with('success', 'Quiz iniciado com sucesso.');
     }
 
-    /**
-     * Submete as respostas do quiz
-     */
     public function submeterQuiz(Desafio $desafio, Request $request)
     {
         $usuario = $request->user();
@@ -214,7 +201,6 @@ class DesafioAlunoController extends Controller
             'respostas' => 'required|array|min:1',
         ]);
 
-        // Validar tentativas
         $atribuicao = AtribuicaoDesafio::findOrFail($request->input('id_atribuicao'));
 
         if (!$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {
@@ -223,7 +209,7 @@ class DesafioAlunoController extends Controller
             ]);
         }
 
-        $respostas = $request->input('respostas'); // Array com id_pergunta => id_opcao ou resposta_texto
+        $respostas = $request->input('respostas');
 
         $submissao = SubmissaoDesafioAluno::create([
             'id_desafio' => $desafio->id,
@@ -233,7 +219,6 @@ class DesafioAlunoController extends Controller
             'data_submissao' => now(),
         ]);
 
-        // Gravar respostas individuais
         foreach ($respostas as $idPergunta => $resposta) {
             RespostaDesafioAluno::create([
                 'id_submissao' => $submissao->id,
@@ -242,7 +227,6 @@ class DesafioAlunoController extends Controller
             ]);
         }
 
-        // Se automático, calcular nota
         if ($desafio->pontuacao_automatica) {
             $this->calcularNotaQuiz($submissao);
         } else {
@@ -271,9 +255,6 @@ class DesafioAlunoController extends Controller
             : back()->with('success', 'Quiz submetido com sucesso.');
     }
 
-    /**
-     * Calcula automaticamente a nota do quiz
-     */
     private function calcularNotaQuiz(SubmissaoDesafioAluno $submissao)
     {
         $desafio = $submissao->desafio;
@@ -302,10 +283,7 @@ class DesafioAlunoController extends Controller
             }
         }
 
-        // Calcular nota em escala 0-20
         $nota = ($pontosMaximos > 0) ? ($pontosobtidos / $pontosMaximos) * 20 : 0;
-
-        // Determinar estado
         $estado = ($nota >= $desafio->nota_minima_passagem) ? SubmissaoDesafioAluno::CONCLUIDO : SubmissaoDesafioAluno::FALHADO;
 
         $submissao->update([
@@ -314,10 +292,11 @@ class DesafioAlunoController extends Controller
             'data_submissao' => now(),
         ]);
 
-        // Atribuir XP se configurado
         if ($desafio->auto_award_xp) {
             $this->gamificationService->atribuirXpSubmissao($submissao);
-            $this->gamificationService->processarBadgesAutomaticas($submissao);
+            if ($nota >= ($desafio->nota_minima_passagem ?? 10)) {
+                $this->gamificationService->processarBadgesAutomaticas($submissao);
+            }
         }
 
         $this->notificacaoService->notificarDesafioCorrigido(
@@ -327,24 +306,23 @@ class DesafioAlunoController extends Controller
         );
     }
 
-    /**
-     * Submete uma tarefa (ficheiro)
-     */
     public function submeterTarefa(Desafio $desafio, Request $request)
     {
         $usuario = $request->user();
 
         $validated = $request->validate([
-            'ficheiro' => 'nullable|required_without:link_submissao|file|max:10240',
-            'link_submissao' => 'nullable|required_without:ficheiro|url|max:2048',
+            'ficheiro' => 'nullable|file|max:20480',
+            'link_submissao' => 'nullable|url|max:2048',
             'mensagem_submissao' => 'nullable|string|max:5000',
         ]);
 
-        /** @var AtribuicaoDesafio|null $atribuicao */
-        $atribuicao = AtribuicaoDesafio::query()
-            ->where('id_desafio', '=', (int) $desafio->id, 'and')
-            ->where('id_aluno', '=', (int) $usuario->id, 'and')
-            ->first();
+        if (empty($validated['ficheiro']) && empty($validated['link_submissao'])) {
+            return back()->withErrors([
+                'ficheiro' => 'Deves submeter um ficheiro ou um link.',
+            ]);
+        }
+
+        $atribuicao = $this->findAtribuicao($desafio, $usuario);
 
         if (!$atribuicao || !$atribuicao->temTentativasDisponiveis((int) $usuario->id)) {
             return $request->expectsJson()
@@ -363,7 +341,6 @@ class DesafioAlunoController extends Controller
             'mensagem_submissao' => $validated['mensagem_submissao'] ?? null,
         ];
 
-        // Criar submissão
         $submissao = SubmissaoDesafioAluno::create([
             'id_desafio' => $desafio->id,
             'id_aluno' => $usuario->id,
@@ -372,12 +349,6 @@ class DesafioAlunoController extends Controller
             'numero_tentativa' => $atribuicao->submissoes()->count() + 1,
             'data_submissao' => now(),
             'metadata' => $metadata,
-        ]);
-
-        // Gravar submissão em formato compatível na resposta.
-        RespostaDesafioAluno::create([
-            'id_submissao' => $submissao->id,
-            'resposta_texto' => json_encode($metadata, JSON_UNESCAPED_SLASHES),
         ]);
 
         if ($desafio->id_formador) {
@@ -401,9 +372,6 @@ class DesafioAlunoController extends Controller
             : back()->with('success', 'Tarefa submetida com sucesso.');
     }
 
-    /**
-     * Obtém o histórico de submissões do aluno
-     */
     public function historicoSubmissoes(Desafio $desafio, Request $request)
     {
         $usuario = $request->user();

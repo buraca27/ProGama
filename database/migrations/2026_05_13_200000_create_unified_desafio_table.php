@@ -35,7 +35,7 @@ return new class extends Migration
             $table->enum('tipo_desafio', ['Quiz', 'Tarefa'])->default('Quiz');
 
             // Gamificação
-            $table->unsignedInteger('xp_base')->default(50);
+            $table->unsignedInteger('xp_base')->default(1);
             $table->json('badges_json')->nullable();
             $table->boolean('auto_award_xp')->default(true);
 

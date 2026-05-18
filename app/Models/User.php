@@ -19,11 +19,13 @@ class User extends Authenticatable
         'foto_perfil',
         'password',
         'id_role',
-        'id_nivel',
         'id_turma',
         'must_change_password',
         'nif',
         'data_nascimento',
+        'twofa_totp_enabled',
+        'twofa_code',
+        'twofa_expires',
     ];
 
     protected $hidden = [
@@ -36,6 +38,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'twofa_expires' => 'datetime',
         ];
     }
 
@@ -80,7 +83,7 @@ class User extends Authenticatable
     public function badges()
     {
         return $this->belongsToMany(Badge::class, 'Inventario_Badges', 'id_utilizador', 'id_badge')
-            ->withPivot('id_desafio_origem', 'data_aquisicao')
+            ->withPivot('id_desafio_origem', 'data_obtencao')
             ->withTimestamps();
     }
 
@@ -153,7 +156,7 @@ class User extends Authenticatable
     /**
      * Retorna a contagem de badges por raridade
      */
-    public function getBadgesPorRaridade(string $raridade): int
+    public function getBadgesPorRaridade(int $raridade): int
     {
         return $this->badges()
             ->where('raridade', $raridade)

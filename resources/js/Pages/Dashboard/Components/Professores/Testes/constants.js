@@ -30,13 +30,15 @@ export const createTesteFormDefaults = () => ({
     pontuacao_por_pergunta: {},
     novas_perguntas: [],
     instrucoes: "",
-    xp_base: 50,
+    xp_base: 1,
     auto_award_xp: true,
     badge_existente_id: "",
     nova_badge_nome: "",
     nova_badge_descricao: "",
     nova_badge_imagem: null,
+    nova_badge_raridade: "1",
     anexo_global_ficheiro: null,
+    anexos_professor_ficheiros: [],
 });
 
 export const createNovaPerguntaTesteDefaults = () => ({
@@ -49,7 +51,7 @@ export const CONTEXTO_AVALIACAO = {
         nome: "Desafio",
         placeholderTitulo: "Ex: Desafio de Logica - Semana 3",
         temInstrucoes: true,
-        escalaFixa20: false,
+        escalaFixa20: true,
         semPesoNota: true,
     },
 };

@@ -97,17 +97,16 @@ class SocialController extends Controller
             return back()->with('error', 'Nao pode enviar pedido para o proprio utilizador.');
         }
 
-        if ($authUser->isConectadoCom($usuario->id)) {
-            return back()->with('success', 'Ja existe conexao com ' . $usuario->name . '.');
+        if ($authUser->isSeguindo($usuario->id)) {
+            return back()->with('success', 'Ja segues ' . $usuario->name . '.');
         }
 
         $existingRequest = SolicitacaoConexao::query()
             ->where('id_solicitante', $authUser->id)
             ->where('id_destinatario', $usuario->id)
-            ->where('estado', 'pendente')
             ->first();
 
-        if ($existingRequest) {
+        if ($existingRequest && $existingRequest->estado === 'pendente') {
             return back()->with('success', 'Pedido de conexao ja enviado para ' . $usuario->name . '.');
         }
 
@@ -121,10 +120,10 @@ class SocialController extends Controller
             return $this->aceitarPedido($usuario, $request);
         }
 
-        SolicitacaoConexao::create([
-            'id_solicitante' => $authUser->id,
-            'id_destinatario' => $usuario->id,
-        ]);
+        SolicitacaoConexao::updateOrCreate(
+            ['id_solicitante' => $authUser->id, 'id_destinatario' => $usuario->id],
+            ['estado' => 'pendente']
+        );
 
         $this->notificacaoService->criarParaUtilizador(
             $usuario->id,
@@ -134,7 +133,7 @@ class SocialController extends Controller
             $authUser->id
         );
 
-        return back()->with('success', 'Pedido de conexao enviado a ' . $usuario->name . '.');
+        return back()->with('success', 'Pedido de conexao enviado a ' . $usuario->name . '.')->with('preserveState', true);
     }
 
     public function aceitarPedido(User $usuario, Request $request)
@@ -152,7 +151,7 @@ class SocialController extends Controller
         }
 
         DB::transaction(function () use ($authUser, $usuario, $solicitacao) {
-            $authUser->seguindo()->syncWithoutDetaching([$usuario->id]);
+            // Apenas o solicitante passa a seguir o destinatário (follow assimétrico)
             $usuario->seguindo()->syncWithoutDetaching([$authUser->id]);
             $solicitacao->update(['estado' => 'aceite']);
         });
@@ -165,7 +164,7 @@ class SocialController extends Controller
             $authUser->id
         );
 
-        return back()->with('success', 'Conexao aceite com ' . $usuario->name . '.');
+        return back()->with('success', 'Conexao aceite com ' . $usuario->name . '.')->with('reload_social', true);
     }
 
     public function recusarPedido(User $usuario, Request $request)
@@ -199,12 +198,18 @@ class SocialController extends Controller
     {
         $authUser = $request->user();
 
-        DB::transaction(function () use ($authUser, $usuario) {
-            // Ao desconectar, removemos os dois sentidos para manter simetria.
-            $authUser->seguindo()->detach($usuario->id);
-            $usuario->seguindo()->detach($authUser->id);
-        });
+        $authUser->seguindo()->detach($usuario->id);
 
-        return back()->with('success', 'conexão removida com ' . $usuario->name . '.');
+        return back()->with('success', 'Deixaste de seguir ' . $usuario->name . '.');
+    }
+
+    public function removerSeguidor(User $usuario, Request $request)
+    {
+        $authUser = $request->user();
+
+        // Remove o follow do seguidor em relação ao utilizador autenticado
+        $usuario->seguindo()->detach($authUser->id);
+
+        return back()->with('success', $usuario->name . ' foi removido dos teus seguidores.');
     }
 }

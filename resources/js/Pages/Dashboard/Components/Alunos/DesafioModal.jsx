@@ -51,14 +51,6 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
         return Math.max(0, duracaoSegundos - Math.floor((Date.now() - startTime) / 1000));
     });
 
-    useEffect(() => {
-        if (duracaoSegundos === null) return;
-        const intervalo = setInterval(() => {
-            setTempoRestante(Math.max(0, duracaoSegundos - Math.floor((Date.now() - startTime) / 1000)));
-        }, 1000);
-        return () => clearInterval(intervalo);
-    }, [duracaoSegundos, startTime]);
-
     // --- Timer do prazo absoluto (data_fim do professor) ---
     const calcDataFimRestante = useCallback(() => {
         if (!desafio?.data_fim) return null;
@@ -118,8 +110,18 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
     // Sincroniza tabSwitchesRef com o estado para uso no auto-submit
     useEffect(() => { tabSwitchesRef.current = tabSwitches; }, [tabSwitches]);
 
-    // --- Form ---
+    const isTarefa = desafio?.tipo_desafio === "Tarefa";
+
+    // --- Form (quiz) ---
     const form = useForm({ respostas: {} });
+    const [submitting, setSubmitting] = useState(false);
+
+    // --- Form (tarefa: file upload) ---
+    const [tarefaFicheiro, setTarefaFicheiro] = useState(null);
+    const [tarefaLink, setTarefaLink] = useState("");
+    const [tarefaMensagem, setTarefaMensagem] = useState("");
+    const [tarefaErrors, setTarefaErrors] = useState({});
+    const [tarefaSubmitting, setTarefaSubmitting] = useState(false);
 
     useEffect(() => {
         if (!atribuicao) return;
@@ -185,9 +187,18 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
     const fechou = desafio?.data_fim ? new Date(desafio.data_fim) : null;
     const bloqueadoPorData = (abriu && now < abriu) || (fechou && now > fechou);
     const desafioFechado = Boolean(
-        inscricao && ["Avaliado", "Concluido"].includes(inscricao.estado),
+        inscricao && ["Submetido", "Avaliado", "Concluido", "Falhado"].includes(inscricao.estado),
     );
     const tempoEsgotado = tempoRestante !== null && tempoRestante <= 0;
+
+    useEffect(() => {
+        if (duracaoSegundos === null || desafioFechado || bloqueadoPorData) return;
+        const intervalo = setInterval(() => {
+            setTempoRestante(Math.max(0, duracaoSegundos - Math.floor((Date.now() - startTime) / 1000)));
+        }, 1000);
+        return () => clearInterval(intervalo);
+    }, [duracaoSegundos, startTime, desafioFechado, bloqueadoPorData]);
+
     const podeInteragir = !!atribuicao
         && perguntas.length > 0
         && !bloqueadoPorData
@@ -252,7 +263,8 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
     buildPayloadRef.current = buildPayload;
 
     const handleGuardarRascunho = () => {
-        if (!atribuicao) return;
+        if (!atribuicao || submitting) return;
+        setSubmitting(true);
         form.clearErrors();
         router.post(
             route("aluno.desafios.submeter", atribuicao.id),
@@ -264,12 +276,14 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
                     form.setError(erros);
                     showToast("Erro ao guardar! Verifica os avisos.");
                 },
+                onFinish: () => setSubmitting(false),
             },
         );
     };
 
     const handleSubmeterFinal = () => {
-        if (!atribuicao) return;
+        if (!atribuicao || submitting) return;
+        setSubmitting(true);
         form.clearErrors();
         router.post(
             route("aluno.desafios.submeter", atribuicao.id),
@@ -280,10 +294,39 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
                 return_view: returnView || "dashboard",
             },
             {
-                onError: (erros) => form.setError(erros),
                 onSuccess: () => {
                     if (storageKey) sessionStorage.removeItem(storageKey);
                 },
+                onError: (erros) => form.setError(erros),
+                onFinish: () => setSubmitting(false),
+            },
+        );
+    };
+
+    const handleSubmeterTarefa = () => {
+        if (!desafio || tarefaSubmitting) return;
+        setTarefaSubmitting(true);
+        setTarefaErrors({});
+
+        const formData = new FormData();
+        if (tarefaFicheiro) formData.append("ficheiro", tarefaFicheiro);
+        if (tarefaLink) formData.append("link_submissao", tarefaLink);
+        if (tarefaMensagem) formData.append("mensagem_submissao", tarefaMensagem);
+
+        router.post(
+            route("desafios.submeter-tarefa", desafio.id),
+            formData,
+            {
+                forceFormData: true,
+                onSuccess: () => {
+                    if (storageKey) sessionStorage.removeItem(storageKey);
+                    showToast("Tarefa submetida com sucesso!");
+                },
+                onError: (erros) => {
+                    setTarefaErrors(erros);
+                    showToast("Erro ao submeter. Verifica os ficheiros.");
+                },
+                onFinish: () => setTarefaSubmitting(false),
             },
         );
     };
@@ -340,7 +383,7 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
                             </h2>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                            {tempoRestante !== null && (
+                            {tempoRestante !== null && !desafioFechado && !bloqueadoPorData && (
                                 <div className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 tabular-nums text-sm font-bold ${bgTimer}`}>
                                     <span>⏱</span>
                                     <span className={corTimer}>
@@ -426,7 +469,16 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
 
                         {desafioFechado && (
                             <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                                Este desafio já foi corrigido e fechado pelo professor. Não podes submeter novamente.
+                                Este desafio já foi fechado pelo professor. Não podes submeter novamente.
+                            </div>
+                        )}
+
+                        {desafioFechado && inscricao?.feedback_professor && (
+                            <div className="rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 p-4">
+                                <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-1">Feedback do Professor</h3>
+                                <p className="text-sm text-blue-700 dark:text-blue-400 whitespace-pre-wrap">
+                                    {inscricao.feedback_professor}
+                                </p>
                             </div>
                         )}
 
@@ -443,79 +495,162 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
                             </div>
                         )}
 
-                        {perguntas.length === 0 && !bloqueadoPorData && (
+                        {/* ── TAREFA: formulário de submissão de ficheiro ── */}
+                        {isTarefa && !bloqueadoPorData && !desafioFechado && (
+                            <div className="space-y-4">
+                                {(desafio?.descricao_ficheiro?.includes('/') || (Array.isArray(desafio?.anexos_professor_json) && desafio.anexos_professor_json.length > 0)) && (
+                                    <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4 space-y-2">
+                                        <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                                            Materiais do Professor
+                                        </p>
+                                        {desafio.descricao_ficheiro?.includes('/') && (
+                                            <a
+                                                href={`/storage/${desafio.descricao_ficheiro}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="block text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                                            >
+                                                📎 Abrir anexo principal
+                                            </a>
+                                        )}
+                                        {desafio.anexos_professor_json?.map((anexo, i) => (
+                                            <a
+                                                key={i}
+                                                href={anexo.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="block text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                                            >
+                                                📎 {anexo.nome || `Anexo ${i + 1}`}
+                                            </a>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Submeter ficheiro <span className="text-xs text-gray-400">(máx. 20MB)</span>
+                                        </label>
+                                        <input
+                                            type="file"
+                                            onChange={(e) => setTarefaFicheiro(e.target.files?.[0] || null)}
+                                            disabled={bloqueadoPorData}
+                                            className="block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
+                                        />
+                                        {tarefaErrors.ficheiro && (
+                                            <p className="mt-1 text-xs text-red-600">{tarefaErrors.ficheiro}</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Ou enviar link <span className="text-xs text-gray-400">(OneDrive, GitHub, Google Drive…)</span>
+                                        </label>
+                                        <input
+                                            type="url"
+                                            value={tarefaLink}
+                                            onChange={(e) => setTarefaLink(e.target.value)}
+                                            disabled={bloqueadoPorData}
+                                            placeholder="https://..."
+                                            className="block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
+                                        />
+                                        {tarefaErrors.link_submissao && (
+                                            <p className="mt-1 text-xs text-red-600">{tarefaErrors.link_submissao}</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Mensagem para o professor <span className="text-xs text-gray-400">(opcional)</span>
+                                        </label>
+                                        <textarea
+                                            rows={3}
+                                            value={tarefaMensagem}
+                                            onChange={(e) => setTarefaMensagem(e.target.value)}
+                                            disabled={bloqueadoPorData}
+                                            className="block w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 resize-y"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ── QUIZ: perguntas ── */}
+                        {!isTarefa && perguntas.length === 0 && !bloqueadoPorData && (
                             <p className="text-sm text-gray-500 dark:text-gray-400">
                                 Este desafio não tem perguntas configuradas.
                             </p>
                         )}
 
-                        {/* Perguntas */}
-                        <div className="space-y-4">
-                            {perguntas.map((pergunta, index) => {
-                                const resposta = form.data.respostas?.[pergunta.id] || {};
-                                return (
-                                    <div
-                                        key={pergunta.id}
-                                        className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-4"
-                                    >
-                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                                            Pergunta {index + 1}
-                                        </p>
-                                        <h4 className="mt-1 font-semibold text-gray-900 dark:text-gray-100">
-                                            {pergunta.texto}
-                                        </h4>
+                        {!isTarefa && (
+                            <div className="space-y-4">
+                                {perguntas.map((pergunta, index) => {
+                                    const resposta = form.data.respostas?.[pergunta.id] || {};
+                                    return (
+                                        <div
+                                            key={pergunta.id}
+                                            className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-4"
+                                        >
+                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                                                Pergunta {index + 1}
+                                            </p>
+                                            <h4 className="mt-1 font-semibold text-gray-900 dark:text-gray-100">
+                                                {pergunta.texto}
+                                            </h4>
 
-                                        {pergunta.url_anexo_pergunta && (
-                                            <img
-                                                src={pergunta.url_anexo_pergunta}
-                                                alt="Anexo"
-                                                className="mt-3 max-h-48 rounded-lg object-contain border border-gray-200 dark:border-gray-700"
-                                            />
-                                        )}
+                                            {pergunta.url_anexo_pergunta && (
+                                                <img
+                                                    src={pergunta.url_anexo_pergunta}
+                                                    alt="Anexo"
+                                                    className="mt-3 max-h-48 rounded-lg object-contain border border-gray-200 dark:border-gray-700"
+                                                />
+                                            )}
 
-                                        {pergunta.tipo_pergunta === "Dissertativa" ? (
-                                            <textarea
-                                                value={resposta.resposta_texto || ""}
-                                                onChange={(e) => onChangeTexto(pergunta.id, e.target.value)}
-                                                rows={4}
-                                                disabled={!podeInteragir || form.processing}
-                                                placeholder="Escreve a tua resposta..."
-                                                className="mt-3 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-blue-500 disabled:opacity-60"
-                                            />
-                                        ) : (
-                                            <div className="mt-3 space-y-2">
-                                                {(pergunta.opcoes || []).map((opcao) => {
-                                                    const checked =
-                                                        Number(resposta.id_opcao_escolhida) === Number(opcao.id);
-                                                    return (
-                                                        <label
-                                                            key={opcao.id}
-                                                            className={`flex items-start gap-3 rounded-lg border px-3 py-2 transition ${
-                                                                checked
-                                                                    ? "border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20"
-                                                                    : "border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800/60"
-                                                            } ${!podeInteragir ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-                                                        >
-                                                            <input
-                                                                type="radio"
-                                                                name={`modal_p_${pergunta.id}`}
-                                                                checked={checked}
-                                                                onChange={() => onSelectOption(pergunta.id, opcao.id)}
-                                                                disabled={!podeInteragir || form.processing}
-                                                                className="mt-0.5 text-blue-600 focus:ring-blue-500"
-                                                            />
-                                                            <span className="text-sm text-gray-700 dark:text-gray-200">
-                                                                {opcao.texto_opcao}
-                                                            </span>
-                                                        </label>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                            {pergunta.tipo_pergunta === "Dissertativa" ? (
+                                                <textarea
+                                                    value={resposta.resposta_texto || ""}
+                                                    onChange={(e) => onChangeTexto(pergunta.id, e.target.value)}
+                                                    rows={4}
+                                                    disabled={!podeInteragir || form.processing}
+                                                    placeholder="Escreve a tua resposta..."
+                                                    className="mt-3 w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-blue-500 focus:ring-blue-500 disabled:opacity-60"
+                                                />
+                                            ) : (
+                                                <div className="mt-3 space-y-2">
+                                                    {(pergunta.opcoes || []).map((opcao) => {
+                                                        const checked =
+                                                            Number(resposta.id_opcao_escolhida) === Number(opcao.id);
+                                                        return (
+                                                            <label
+                                                                key={opcao.id}
+                                                                className={`flex items-start gap-3 rounded-lg border px-3 py-2 transition ${
+                                                                    checked
+                                                                        ? "border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20"
+                                                                        : "border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800/60"
+                                                                } ${!podeInteragir ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                                                            >
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`modal_p_${pergunta.id}`}
+                                                                    checked={checked}
+                                                                    onChange={() => onSelectOption(pergunta.id, opcao.id)}
+                                                                    disabled={!podeInteragir || form.processing}
+                                                                    className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                                                                />
+                                                                <span className="text-sm text-gray-700 dark:text-gray-200">
+                                                                    {opcao.texto_opcao}
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {/* Rodapé */}
@@ -528,23 +663,45 @@ export default function DesafioModal({ atribuicao, inscricao, onClose, returnVie
                                     </span>
                                 )}
                         </div>
-                        {podeInteragir && (
+                        {isTarefa && !bloqueadoPorData && !desafioFechado && (
+                            <button
+                                type="button"
+                                onClick={handleSubmeterTarefa}
+                                disabled={tarefaSubmitting || (!tarefaFicheiro && !tarefaLink)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            >
+                                {tarefaSubmitting && (
+                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                    </svg>
+                                )}
+                                {tarefaSubmitting ? "A submeter..." : "Submeter tarefa"}
+                            </button>
+                        )}
+                        {!isTarefa && podeInteragir && (
                             <div className="flex items-center gap-3">
                                 <button
                                     type="button"
                                     onClick={handleGuardarRascunho}
-                                    disabled={form.processing}
-                                    className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-sm hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-60 transition"
+                                    disabled={submitting}
+                                    className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-sm hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed transition"
                                 >
-                                    {form.processing ? "A guardar..." : "Guardar rascunho"}
+                                    {submitting ? "A guardar..." : "Guardar rascunho"}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleSubmeterFinal}
-                                    disabled={form.processing}
-                                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-60 transition"
+                                    disabled={submitting}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-60 disabled:cursor-not-allowed transition"
                                 >
-                                    {form.processing ? "A submeter..." : "Submeter desafio"}
+                                    {submitting && (
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                        </svg>
+                                    )}
+                                    {submitting ? "A submeter..." : "Submeter desafio"}
                                 </button>
                             </div>
                         )}

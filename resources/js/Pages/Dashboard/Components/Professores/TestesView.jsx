@@ -233,7 +233,7 @@ export default function TestesView({
     };
 
     const totalPontuacaoTeste = calcularTotalPontuacaoTeste();
-    const excedePontuacaoMaxima = totalPontuacaoTeste > 20;
+    const excedePontuacaoMaxima = totalPontuacaoTeste !== 20;
 
     const montarPayloadPontuacoes = () =>
         (testeForm.data.pergunta_ids || []).reduce((acc, idPergunta) => {
@@ -291,20 +291,11 @@ export default function TestesView({
         if (configAtual?.semPesoNota) {
             testeForm.setData("peso_avaliacao", "0");
         }
-        if (configAtual?.escalaFixa20 && totalPontuacaoTeste < 20) {
-            mostrarToast(
-                `O teste tem de ter exatamente 20 valores. Atualmente tem ${totalPontuacaoTeste} valor(es).`,
-            );
-            return;
-        }
-        if (excedePontuacaoMaxima) {
-            mostrarToast(
-                "A soma da pontuação das perguntas não pode ultrapassar 20. Ajusta os valores antes de guardar.",
-            );
-            testeForm.setError(
-                "total_pontuacao",
-                "A soma da pontuação das perguntas não pode ultrapassar 20. Ajusta os valores antes de guardar.",
-            );
+        const isTarefaForm = testeForm.data.tipo_desafio === "Tarefa";
+        if (!isTarefaForm && configAtual?.escalaFixa20 && totalPontuacaoTeste !== 20) {
+            const msg = `A pontuação total tem de ser exatamente 20. Atualmente tem ${totalPontuacaoTeste} valor(es).`;
+            mostrarToast(msg);
+            testeForm.setError("total_pontuacao", msg);
             return;
         }
         testeForm.clearErrors("total_pontuacao");
@@ -366,7 +357,7 @@ export default function TestesView({
                 {},
             ),
             novas_perguntas: [],
-            xp_base: teste.xp_base ?? 50,
+            xp_base: teste.xp_base ?? 1,
             auto_award_xp: teste.auto_award_xp ?? true,
             badge_existente_id:
                 typeof primeiraBadge === "object" && primeiraBadge?.id
@@ -377,6 +368,7 @@ export default function TestesView({
             nova_badge_nome: "",
             nova_badge_descricao: "",
             nova_badge_imagem: null,
+            nova_badge_raridade: "1",
             anexo_global_ficheiro: null,
         });
 

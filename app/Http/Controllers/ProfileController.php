@@ -3,30 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProfileController extends Controller
 {
     /**
-     * Display the user's profile form.
-     */
-    public function edit(Request $request): Response
-    {
-        // Altera 'Profile/Edit' para o caminho correto do ficheiro a partir da pasta Pages
-        return Inertia::render('Dashboard/Components/Profile/Edit', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
-            'status' => session('status'),
-        ]);
-    }
-
-    /**
-     * Update the user's profile information.
+     * Atualiza as informações do perfil.
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
@@ -38,11 +24,33 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
-        return Redirect::route('profile.edit');
+        // Redireciona de volta para o Dashboard mantendo a vista atual
+        return back()->with('success', 'Perfil atualizado com sucesso.');
     }
 
     /**
-     * Delete the user's account.
+     * Ligar / Desligar o 2FA via Email
+     */
+    public function toggle2FA(Request $request)
+    {
+        $user = $request->user();
+        $novoEstado = !$user->twofa_totp_enabled;
+
+        $user->update([
+            'twofa_totp_enabled' => $novoEstado,
+            'twofa_code' => null,
+            'twofa_expires' => null,
+        ]);
+
+        $mensagem = $novoEstado
+            ? 'Autenticação de Dois Fatores (2FA) foi ativada com sucesso.'
+            : 'Autenticação de Dois Fatores (2FA) foi desativada.';
+
+        return back()->with('success', $mensagem);
+    }
+    
+    /**
+     * Eliminar a conta do utilizador.
      */
     public function destroy(Request $request): RedirectResponse
     {
@@ -51,14 +59,12 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
-
         Auth::logout();
-
         $user->delete();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return Redirect::to('/');
+        return redirect('/');
     }
 }

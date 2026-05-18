@@ -3,7 +3,7 @@ import { useForm, router } from "@inertiajs/react";
 import TurmaAdminEditor from "./TurmaAdminEditor";
 import SearchBar from "@/Components/UI/SearchBar";
 
-export default function TurmasView({ turmas, utilizadores, userRole }) {
+export default function TurmasView({ turmas, utilizadores, userRole, onOpenPerfil }) {
     // ==========================================
     // ESTADOS DOS MODAIS E FILTRO
     // ==========================================
@@ -218,29 +218,29 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                                                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold text-sm shadow-sm overflow-hidden shrink-0">
                                                                 {professor.foto_perfil ? (
                                                                     <img
-                                                                        src={
-                                                                            professor.foto_perfil
-                                                                        }
-                                                                        alt={
-                                                                            professor.name
-                                                                        }
+                                                                        src={professor.foto_perfil}
+                                                                        alt={professor.name}
                                                                         className="w-full h-full object-cover"
                                                                     />
                                                                 ) : (
-                                                                    professor.name.charAt(
-                                                                        0,
-                                                                    )
+                                                                    professor.name.charAt(0)
                                                                 )}
                                                             </div>
-                                                            <div className="min-w-0">
+                                                            <div className="min-w-0 flex-1">
                                                                 <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-                                                                    {
-                                                                        professor.name
-                                                                    }
+                                                                    {professor.name}
                                                                 </p>
                                                                 <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-tighter">
                                                                     Professor
                                                                 </p>
+                                                                {onOpenPerfil && (
+                                                                    <button
+                                                                        onClick={() => onOpenPerfil(professor.id)}
+                                                                        className="text-[10px] font-semibold text-blue-600 hover:underline"
+                                                                    >
+                                                                        Ver perfil
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     ),
@@ -268,27 +268,29 @@ export default function TurmasView({ turmas, utilizadores, userRole }) {
                                                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm shadow-sm overflow-hidden shrink-0">
                                                             {aluno.foto_perfil ? (
                                                                 <img
-                                                                    src={
-                                                                        aluno.foto_perfil
-                                                                    }
-                                                                    alt={
-                                                                        aluno.name
-                                                                    }
+                                                                    src={aluno.foto_perfil}
+                                                                    alt={aluno.name}
                                                                     className="w-full h-full object-cover"
                                                                 />
                                                             ) : (
-                                                                aluno.name.charAt(
-                                                                    0,
-                                                                )
+                                                                aluno.name.charAt(0)
                                                             )}
                                                         </div>
-                                                        <div className="min-w-0">
+                                                        <div className="min-w-0 flex-1">
                                                             <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
                                                                 {aluno.name}
                                                             </p>
                                                             <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-tighter">
                                                                 Estudante
                                                             </p>
+                                                            {onOpenPerfil && (
+                                                                <button
+                                                                    onClick={() => onOpenPerfil(aluno.id)}
+                                                                    className="text-[10px] font-semibold text-blue-600 hover:underline"
+                                                                >
+                                                                    Ver perfil
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 ))

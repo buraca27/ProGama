@@ -24,45 +24,42 @@ class Badge extends Model
         'ativa' => 'boolean',
     ];
 
-    const RARIDADES = ['comum', 'rara', 'epica', 'lendaria'];
+    const RARIDADES = [
+        1 => 'Bronze',
+        2 => 'Prata',
+        3 => 'Ouro',
+        4 => 'Lendária',
+    ];
 
-    /**
-     * Utilizadores que conquistaram esta badge
-     */
     public function utilizadores(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'Inventario_Badges', 'id_badge', 'id_utilizador')
-            ->withPivot('id_desafio_origem', 'data_aquisicao')
+            ->withPivot('id_desafio_origem', 'data_obtencao')
             ->withTimestamps();
     }
 
-    /**
-     * Relação Polimórfica: Obtém todos os registos de histórico onde este badge aparece.
-     */
     public function historicos(): MorphMany
     {
         return $this->morphMany(HistoricoAtividade::class, 'referencia');
     }
 
-    /**
-     * Verifica se a badge está ativa
-     */
     public function isAtiva(): bool
     {
         return $this->ativa;
     }
 
-    /**
-     * Obtém a cor/classe CSS da raridade
-     */
+    public function getNomeRaridade(): string
+    {
+        return self::RARIDADES[(int) $this->raridade] ?? 'Bronze';
+    }
+
     public function getClasseRaridade(): string
     {
-        return match ($this->raridade) {
-            'comum' => 'bg-gray-400',
-            'rara' => 'bg-blue-400',
-            'epica' => 'bg-purple-600',
-            'lendaria' => 'bg-yellow-500',
-            default => 'bg-gray-400',
+        return match ((int) $this->raridade) {
+            2 => 'bg-slate-400',
+            3 => 'bg-amber-500',
+            4 => 'bg-purple-600',
+            default => 'bg-orange-400',
         };
     }
 }
