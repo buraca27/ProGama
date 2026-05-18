@@ -60,6 +60,11 @@ class UserXp extends Model
         return $this->calcularXpProximoNivel($this->nivel_atual);
     }
 
+    public function xpNivelAtual(): int
+    {
+        return Level::where('nivel', $this->nivel_atual)->value('xp_requerido') ?? 0;
+    }
+
     /**
      * Percentagem de progresso dentro do nível atual (0–100).
      * Mede a distância entre o limiar do nível atual e o do próximo nível.

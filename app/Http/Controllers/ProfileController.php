@@ -6,8 +6,7 @@ use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
-use Inertia\Response;
+use Illuminate\Support\Facades\Password;
 
 class ProfileController extends Controller
 {
@@ -49,6 +48,22 @@ class ProfileController extends Controller
         return back()->with('success', $mensagem);
     }
     
+    /**
+     * Envia link de redefinição de palavra-passe para o utilizador autenticado.
+     */
+    public function sendPasswordReset(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if (empty($user->email_pessoal)) {
+            return back()->withErrors(['reset' => 'Não tens email pessoal configurado. Pede ao administrador para redefinir a tua palavra-passe.']);
+        }
+
+        Password::sendResetLink(['email' => $user->email]);
+
+        return back()->with('status', 'reset-link-sent');
+    }
+
     /**
      * Eliminar a conta do utilizador.
      */

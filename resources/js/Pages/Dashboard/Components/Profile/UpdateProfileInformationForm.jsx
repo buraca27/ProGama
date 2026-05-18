@@ -2,9 +2,9 @@ import InputError from "@/Components/InputError";
 import InputLabel from "@/Components/InputLabel";
 import PrimaryButton from "@/Components/PrimaryButton";
 import TextInput from "@/Components/TextInput";
+import ImageCropModal from "@/Components/ImageCropModal";
 import { Link, useForm, usePage } from "@inertiajs/react";
-import { useRef } from "react";
-import { compressImageToBase64 } from "@/utils";
+import { useRef, useState } from "react";
 
 export default function UpdateProfileInformation({
     mustVerifyEmail,
@@ -13,6 +13,8 @@ export default function UpdateProfileInformation({
 }) {
     const user = usePage().props.auth.user;
     const fileInputRef = useRef(null);
+
+    const [cropSrc, setCropSrc] = useState(null);
 
     const { data, setData, patch, errors, processing, recentlySuccessful } =
         useForm({
@@ -24,9 +26,23 @@ export default function UpdateProfileInformation({
 
     const handleFotoUpload = (e) => {
         const file = e.target.files[0];
-        compressImageToBase64(file, (base64String) => {
-            setData("foto_perfil", base64String);
-        });
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => setCropSrc(reader.result);
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
+
+    const handleCropConfirm = async (blobUrl) => {
+        const res = await fetch(blobUrl);
+        const blob = await res.blob();
+        const reader = new FileReader();
+        reader.onload = () => {
+            setData("foto_perfil", reader.result);
+            setCropSrc(null);
+            URL.revokeObjectURL(blobUrl);
+        };
+        reader.readAsDataURL(blob);
     };
 
     const submit = (e) => {
@@ -36,6 +52,14 @@ export default function UpdateProfileInformation({
 
     return (
         <section className={className}>
+            {cropSrc && (
+                <ImageCropModal
+                    imageSrc={cropSrc}
+                    onConfirm={handleCropConfirm}
+                    onCancel={() => setCropSrc(null)}
+                />
+            )}
+
             <header>
                 <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                     Informação do Perfil
@@ -73,8 +97,8 @@ export default function UpdateProfileInformation({
                         >
                             Alterar Fotografia
                         </button>
-                        <p className="text-xs text-gray-500">
-                            Imagens pesadas serão automaticamente otimizadas.
+                        <p className="text-xs text-gray-500 mt-0.5">
+                            Podes ajustar o zoom e cortar após selecionar.
                         </p>
                         <input
                             type="file"
