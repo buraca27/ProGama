@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Desafio;
 use App\Models\User;
 use App\Models\UserXp;
 use App\Models\Level;
@@ -78,19 +77,84 @@ class GamificationService
     public function processarBadgesAutomaticas(SubmissaoDesafioAluno $submissao): void
     {
         $desafio = $submissao->desafio;
-        $badgeIds = $desafio->getBadgeIds();
+        $badgesComCriterio = $desafio->getBadgesComCriterio();
 
-        if (empty($badgeIds)) {
+        if (empty($badgesComCriterio)) {
             return;
         }
 
         $usuario = $submissao->aluno;
+        $nota = (float) $submissao->nota;
 
-        foreach ($badgeIds as $badgeId) {
-            $badge = Badge::find($badgeId);
+        foreach ($badgesComCriterio as $badgeEntry) {
+            if ($badgeEntry['criterio'] === 'nota_intervalo') {
+                $min = $badgeEntry['nota_minima'] ?? 0;
+                $max = $badgeEntry['nota_maxima'] ?? 20;
+                if ($nota < $min || $nota > $max) {
+                    continue;
+                }
+            }
+
+            $badge = Badge::find($badgeEntry['id']);
             if ($badge && $badge->ativa) {
                 $this->atribuirBadgeUsuario($usuario, $badge, $desafio->id);
             }
+        }
+    }
+
+    public function atualizarBadgesPorNota(SubmissaoDesafioAluno $submissao): void
+    {
+        $desafio = $submissao->desafio;
+        $badgesIntervalo = array_filter(
+            $desafio->getBadgesComCriterio(),
+            fn($b) => $b['criterio'] === 'nota_intervalo'
+        );
+
+        if (empty($badgesIntervalo)) {
+            return;
+        }
+
+        $usuario = $submissao->aluno;
+        $nota = (float) $submissao->nota;
+        $colunaUtilizador = $this->colunaUtilizadorInventarioBadges();
+        $idsIntervalo = array_column(array_values($badgesIntervalo), 'id');
+
+        DB::table('Inventario_Badges')
+            ->where($colunaUtilizador, $usuario->id)
+            ->where('id_desafio_origem', $desafio->id)
+            ->whereIn('id_badge', $idsIntervalo)
+            ->delete();
+
+        foreach ($badgesIntervalo as $badgeEntry) {
+            $min = $badgeEntry['nota_minima'] ?? 0;
+            $max = $badgeEntry['nota_maxima'] ?? 20;
+            if ($nota < $min || $nota > $max) {
+                continue;
+            }
+
+            $badge = Badge::find($badgeEntry['id']);
+            if (!$badge || !$badge->ativa) {
+                break;
+            }
+
+            DB::table('Inventario_Badges')->insert([
+                $colunaUtilizador   => $usuario->id,
+                'id_badge'          => $badge->id,
+                'id_desafio_origem' => $desafio->id,
+                'data_obtencao'     => now(),
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+
+            $this->criarRegistoHistorico($usuario->id, 'badge_conquistada', [
+                'xp'         => 0,
+                'id_badge'   => $badge->id,
+                'nome_badge' => $badge->nome,
+                'raridade'   => $badge->raridade,
+                'id_desafio' => $desafio->id,
+            ]);
+
+            break;
         }
     }
 

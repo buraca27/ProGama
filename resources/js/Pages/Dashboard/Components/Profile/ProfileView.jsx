@@ -22,6 +22,7 @@ export default function ProfileView({
     const percentagemNivel = user.percentagem_nivel ?? 0;
     const xpProximoNivel = user.xp_proximo_nivel ?? 0;
     const badgesCount = user.badges_count ?? 0;
+    const badgesLendaria = user.badges_lendaria_count ?? 0;
     const badgesOuro = user.badges_ouro_count ?? 0;
     const badgesPrata = user.badges_prata_count ?? 0;
     const badgesBronze = user.badges_bronze_count ?? 0;
@@ -104,7 +105,11 @@ export default function ProfileView({
                                                 Badges Conquistadas (
                                                 {badgesCount})
                                             </p>
-                                            <div className="mt-2 flex items-center justify-around">
+                                            <div className="mt-2 grid grid-cols-4 gap-1">
+                                                <MedalStat
+                                                    type="lendaria"
+                                                    count={badgesLendaria}
+                                                />
                                                 <MedalStat
                                                     type="ouro"
                                                     count={badgesOuro}

@@ -20,8 +20,20 @@ export default function Verify2FA() {
             <Head title="Verificação de 2 Passos" />
 
             <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                Para tua segurança, enviámos um código de 6 dígitos para o teu email. 
+                Para tua segurança, enviámos um código de 6 dígitos para o teu email.
                 Por favor, introduz o código abaixo para concluir a tua sessão.
+            </div>
+
+            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                Não encontras o email?{' '}
+                <a
+                    href="https://progama.pt:2096/webmail"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300"
+                >
+                    Abre o teu Webmail
+                </a>
             </div>
 
             <form onSubmit={submit}>

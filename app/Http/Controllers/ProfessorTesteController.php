@@ -34,6 +34,94 @@ class ProfessorTesteController extends Controller
         'Dissertativa',
     ];
 
+    public function storeBadge(Request $request)
+    {
+        $this->assertProfessor();
+
+        $validated = $request->validate([
+            'nome'      => 'required|string|max:100',
+            'descricao' => 'nullable|string|max:500',
+            'raridade'  => 'required|integer|in:1,2,3,4',
+            'imagem'    => 'nullable|image|max:4096',
+        ], [
+            'nome.required'  => 'O nome da badge é obrigatório.',
+            'nome.max'       => 'O nome não pode ter mais de 100 caracteres.',
+            'raridade.in'    => 'Raridade inválida.',
+            'imagem.image'   => 'O ficheiro tem de ser uma imagem.',
+            'imagem.max'     => 'A imagem não pode ter mais de 4MB.',
+        ]);
+
+        $payload = [
+            'nome'          => trim($validated['nome']),
+            'descricao'     => $validated['descricao'] ?? null,
+            'ativa'         => true,
+            'raridade'      => (int) $validated['raridade'],
+            'tipo_criterio' => 'Pontuacao',
+            'valor_criterio' => 0,
+        ];
+
+        if ($request->hasFile('imagem')) {
+            $payload['icone_url'] = $request->file('imagem')->store('badges/professor', 'public');
+        }
+
+        Badge::create($payload);
+
+        return redirect()->back()->with('success', 'Badge criada com sucesso.');
+    }
+
+    public function updateBadge(Request $request, Badge $badge)
+    {
+        $this->assertProfessor();
+
+        $validated = $request->validate([
+            'nome'      => 'required|string|max:100',
+            'descricao' => 'nullable|string|max:500',
+            'raridade'  => 'required|integer|in:1,2,3,4',
+            'imagem'    => 'nullable|image|max:4096',
+        ], [
+            'nome.required' => 'O nome da badge é obrigatório.',
+            'nome.max'      => 'O nome não pode ter mais de 100 caracteres.',
+            'raridade.in'   => 'Raridade inválida.',
+            'imagem.image'  => 'O ficheiro tem de ser uma imagem.',
+            'imagem.max'    => 'A imagem não pode ter mais de 4MB.',
+        ]);
+
+        $payload = [
+            'nome'      => trim($validated['nome']),
+            'descricao' => $validated['descricao'] ?? null,
+            'raridade'  => (int) $validated['raridade'],
+        ];
+
+        if ($request->hasFile('imagem')) {
+            if ($badge->icone_url) {
+                Storage::disk('public')->delete($badge->icone_url);
+            }
+            $payload['icone_url'] = $request->file('imagem')->store('badges/professor', 'public');
+        }
+
+        $badge->update($payload);
+
+        return redirect()->back()->with('success', 'Badge actualizada com sucesso.');
+    }
+
+    public function destroyBadge(Badge $badge)
+    {
+        $this->assertProfessor();
+
+        $emUso = DB::table('Inventario_Badges')->where('id_badge', $badge->id)->exists();
+
+        if ($emUso) {
+            $badge->update(['ativa' => false]);
+        } else {
+            if ($badge->icone_url) {
+                Storage::disk('public')->delete($badge->icone_url);
+            }
+            $badge->delete();
+        }
+
+        return redirect()->back()->with('success', 'Badge removida com sucesso.');
+    }
+
     public function storePergunta(Request $request)
     {
         $this->assertProfessor();
@@ -141,18 +229,6 @@ class ProfessorTesteController extends Controller
 
     private function validarTeste(Request $request): array
     {
-        $badgeExistenteId = $request->input('badge_existente_id');
-
-        if ($badgeExistenteId === '' || $badgeExistenteId === 'null') {
-            $request->merge([
-                'badge_existente_id' => null,
-            ]);
-        } elseif (is_string($badgeExistenteId) && is_numeric($badgeExistenteId)) {
-            $request->merge([
-                'badge_existente_id' => (int) $badgeExistenteId,
-            ]);
-        }
-
         return $request->validate([
             'titulo' => 'required|string|max:150',
             'tipo_desafio' => 'required|string|in:Quiz,Tarefa',
@@ -180,11 +256,15 @@ class ProfessorTesteController extends Controller
             'novas_perguntas.*.resposta_verdadeiro_falso' => 'nullable|boolean',
             'xp_base' => 'nullable|integer|min:0|max:100000',
             'auto_award_xp' => 'nullable|boolean',
-            'badge_existente_id' => 'nullable|integer|exists:Badges,id',
-            'nova_badge_nome' => 'nullable|string|max:100|required_with:nova_badge_imagem',
-            'nova_badge_descricao' => 'nullable|string|max:500',
-            'nova_badge_imagem' => 'nullable|image|max:4096',
-            'nova_badge_raridade' => 'nullable|integer|in:1,2,3,4',
+            'badges' => 'nullable|array',
+            'badges.*.badge_id' => 'nullable|integer|exists:Badges,id',
+            'badges.*.criterio' => 'nullable|string|in:conclusao,nota_intervalo',
+            'badges.*.nota_minima' => 'nullable|numeric|min:0|max:20',
+            'badges.*.nota_maxima' => 'nullable|numeric|min:0|max:20',
+            'badges.*.nova_nome' => 'nullable|string|max:100',
+            'badges.*.nova_descricao' => 'nullable|string|max:500',
+            'badges.*.nova_raridade' => 'nullable|integer|in:1,2,3,4',
+            'badges.*.nova_imagem' => 'nullable|image|max:4096',
             'anexo_global_ficheiro' => 'nullable|file|max:20480',
             'anexo_global_url_atual' => 'nullable|string',
             'anexos_professor_ficheiros' => 'nullable|array',
@@ -218,14 +298,17 @@ class ProfessorTesteController extends Controller
             'novas_perguntas.*.opcoes.*.max' => 'Cada opção da nova pergunta não pode exceder 255 caracteres.',
             'xp_base.min' => 'O XP base tem de ser no mínimo 0.',
             'xp_base.max' => 'O XP base não pode exceder 100000.',
-            'badge_existente_id.integer' => 'A badge selecionada é inválida.',
-            'badge_existente_id.exists' => 'A badge selecionada não foi encontrada.',
-            'nova_badge_nome.required_with' => 'O nome da nova badge é obrigatório quando uma imagem é fornecida.',
-            'nova_badge_nome.max' => 'O nome da nova badge não pode ter mais de 100 caracteres.',
-            'nova_badge_descricao.max' => 'A descrição da nova badge não pode ter mais de 500 caracteres.',
-            'nova_badge_imagem.image' => 'O ficheiro da nova badge tem de ser uma imagem válida.',
-            'nova_badge_imagem.max' => 'A imagem da nova badge não pode ter mais de 4MB.',
-            'nova_badge_raridade.in' => 'A raridade da nova badge é inválida.',
+            'badges.*.badge_id.exists' => 'Uma das badges selecionadas não existe.',
+            'badges.*.criterio.in' => 'O critério de uma badge é inválido.',
+            'badges.*.nota_minima.min' => 'A nota mínima de uma badge não pode ser inferior a 0.',
+            'badges.*.nota_minima.max' => 'A nota mínima de uma badge não pode exceder 20.',
+            'badges.*.nota_maxima.min' => 'A nota máxima de uma badge não pode ser inferior a 0.',
+            'badges.*.nota_maxima.max' => 'A nota máxima de uma badge não pode exceder 20.',
+            'badges.*.nova_nome.max' => 'O nome da nova badge não pode ter mais de 100 caracteres.',
+            'badges.*.nova_descricao.max' => 'A descrição da nova badge não pode ter mais de 500 caracteres.',
+            'badges.*.nova_raridade.in' => 'A raridade da nova badge é inválida.',
+            'badges.*.nova_imagem.image' => 'O ficheiro da badge tem de ser uma imagem válida.',
+            'badges.*.nova_imagem.max' => 'A imagem da badge não pode ter mais de 4MB.',
             'anexo_global_ficheiro.max' => 'O anexo global não pode ter mais de 20MB.',
             'anexos_professor_ficheiros.*.max' => 'Cada anexo do professor não pode ter mais de 20MB.',
         ]);
@@ -415,6 +498,7 @@ class ProfessorTesteController extends Controller
             $publicar = (bool) ($validated['publicar'] ?? false);
             $agora = now();
             $notaFinal = round((float) $validated['nota_final'], 2);
+            $jaFoiConcluido = $submissao->estado === 'Concluido';
 
             $submissao->update([
                 'estado' => $publicar ? 'Concluido' : 'Submetido',
@@ -431,8 +515,13 @@ class ProfessorTesteController extends Controller
                     (float) $notaFinal,
                 );
 
-                if ($notaFinal >= ($submissao->desafio->nota_minima_passagem ?? 10)) {
-                    $this->gamificationService->processarBadgesAutomaticas($submissao);
+                if (!$jaFoiConcluido && $submissao->desafio->auto_award_xp) {
+                    $this->gamificationService->atribuirXpSubmissao($submissao);
+                    if ($notaFinal >= ($submissao->desafio->nota_minima_passagem ?? 10)) {
+                        $this->gamificationService->processarBadgesAutomaticas($submissao);
+                    }
+                } elseif ($jaFoiConcluido) {
+                    $this->gamificationService->atualizarBadgesPorNota($submissao);
                 }
             }
 
@@ -449,6 +538,7 @@ class ProfessorTesteController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $submissao) {
+            $jaFoiConcluido = $submissao->estado === 'Concluido';
             $respostasPayload = collect($validated['respostas'])
                 ->keyBy(fn($item) => (int) $item['id']);
 
@@ -524,8 +614,13 @@ class ProfessorTesteController extends Controller
                     (float) $notaFinal,
                 );
 
-                if ($notaFinal >= ($submissao->desafio->nota_minima_passagem ?? 10)) {
-                    $this->gamificationService->processarBadgesAutomaticas($submissao);
+                if (!$jaFoiConcluido && $submissao->desafio->auto_award_xp) {
+                    $this->gamificationService->atribuirXpSubmissao($submissao);
+                    if ($notaFinal >= ($submissao->desafio->nota_minima_passagem ?? 10)) {
+                        $this->gamificationService->processarBadgesAutomaticas($submissao);
+                    }
+                } elseif ($jaFoiConcluido) {
+                    $this->gamificationService->atualizarBadgesPorNota($submissao);
                 }
             }
         });
@@ -733,7 +828,7 @@ class ProfessorTesteController extends Controller
 
     private function montarPayloadDesafioCriacao(array $validated): array
     {
-        $badgeSelecionada = $this->resolverBadgeDesafio($validated);
+        $badgesResolvidas = $this->resolverBadgesDesafio($validated);
         $anexoGlobal = $this->armazenarAnexoGlobal($validated, null);
         $anexosProfessor = $this->armazenarAnexosProfessor($validated, []);
         $payload = [
@@ -746,7 +841,7 @@ class ProfessorTesteController extends Controller
             'data_fim' => now()->addDays(30),
             'xp_base' => (int) ($validated['xp_base'] ?? 1),
             'auto_award_xp' => (bool) ($validated['auto_award_xp'] ?? true),
-            'badges_json' => $badgeSelecionada ? [$badgeSelecionada] : null,
+            'badges_json' => !empty($badgesResolvidas) ? $badgesResolvidas : null,
             'descricao_ficheiro' => $anexoGlobal,
             'anexos_professor_json' => !empty($anexosProfessor) ? $anexosProfessor : null,
             'ativa' => true,
@@ -757,7 +852,7 @@ class ProfessorTesteController extends Controller
 
     private function montarPayloadDesafioAtualizacao(array $validated, Desafio $desafio): array
     {
-        $badgeSelecionada = $this->resolverBadgeDesafio($validated);
+        $badgesResolvidas = $this->resolverBadgesDesafio($validated);
         $anexoGlobalExistente = array_key_exists('anexo_global_url_atual', $validated)
             ? ($validated['anexo_global_url_atual'] ?: null)
             : ($desafio->descricao_ficheiro);
@@ -782,55 +877,92 @@ class ProfessorTesteController extends Controller
             'anexos_professor_json' => !empty($anexosProfessor) ? $anexosProfessor : null,
         ];
 
-        if ($badgeSelecionada) {
-            $payload['badges_json'] = [$badgeSelecionada];
+        if (!empty($badgesResolvidas)) {
+            $payload['badges_json'] = $badgesResolvidas;
         }
 
         return $this->filtrarPayloadPorColunasDesafio($payload);
     }
 
-    private function resolverBadgeDesafio(array $validated): ?array
+    private function resolverBadgesDesafio(array $validated): array
     {
-        if (!empty($validated['badge_existente_id'])) {
-            $badge = Badge::find((int) $validated['badge_existente_id'], ['*']);
-            if (!$badge) {
-                return null;
+        $entradas = $validated['badges'] ?? [];
+        if (empty($entradas)) {
+            return [];
+        }
+
+        $resultado = [];
+
+        foreach ($entradas as $entrada) {
+            $criterio = $entrada['criterio'] ?? 'conclusao';
+
+            if (!empty($entrada['badge_id'])) {
+                $badge = Badge::find((int) $entrada['badge_id']);
+                if (!$badge) {
+                    continue;
+                }
+
+                $item = [
+                    'id'         => (int) $badge->id,
+                    'nome'       => (string) $badge->nome,
+                    'imagem_url' => $badge->icone_url ?? null,
+                    'raridade'   => (int) $badge->raridade,
+                    'origem'     => 'existente',
+                    'criterio'   => $criterio,
+                ];
+            } elseif (!empty($entrada['nova_nome'])) {
+                $payloadBadge = [
+                    'nome'          => trim((string) $entrada['nova_nome']),
+                    'descricao'     => $entrada['nova_descricao'] ?? null,
+                    'ativa'         => true,
+                    'raridade'      => isset($entrada['nova_raridade']) ? (int) $entrada['nova_raridade'] : 1,
+                    'tipo_criterio' => 'Pontuacao',
+                    'valor_criterio' => (int) ($validated['xp_base'] ?? 1),
+                ];
+
+                if (!empty($entrada['nova_imagem'])) {
+                    $payloadBadge['icone_url'] = $entrada['nova_imagem']->store('badges/professor', 'public');
+                }
+
+                $badge = Badge::create($payloadBadge);
+
+                $item = [
+                    'id'         => (int) $badge->id,
+                    'nome'       => (string) $badge->nome,
+                    'imagem_url' => $badge->icone_url ?? null,
+                    'raridade'   => (int) $badge->raridade,
+                    'origem'     => 'professor',
+                    'criterio'   => $criterio,
+                ];
+            } else {
+                continue;
             }
 
-            return [
-                'id' => (int) $badge->id,
-                'nome' => (string) $badge->nome,
-                'imagem_url' => $badge->icone_url ?? null,
-                'origem' => 'existente',
-            ];
+            if ($criterio === 'nota_intervalo') {
+                $item['nota_minima'] = isset($entrada['nota_minima']) ? (float) $entrada['nota_minima'] : 0;
+                $item['nota_maxima'] = isset($entrada['nota_maxima']) ? (float) $entrada['nota_maxima'] : 20;
+            } else {
+                $item['nota_minima'] = null;
+                $item['nota_maxima'] = null;
+            }
+
+            $resultado[] = $item;
         }
 
-        if (empty($validated['nova_badge_nome']) && empty($validated['nova_badge_imagem'])) {
-            return null;
+        $intervalos = array_values(array_filter($resultado, fn($b) => $b['criterio'] === 'nota_intervalo'));
+        for ($i = 0; $i < count($intervalos); $i++) {
+            for ($j = $i + 1; $j < count($intervalos); $j++) {
+                $a = $intervalos[$i];
+                $b = $intervalos[$j];
+                if (max($a['nota_minima'], $b['nota_minima']) <= min($a['nota_maxima'], $b['nota_maxima'])) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'badges' => 'Dois badges têm intervalos de nota sobrepostos. Cada intervalo deve ser distinto.',
+                    ]);
+                }
+            }
         }
 
-        $payloadBadge = [
-            'nome' => trim((string) ($validated['nova_badge_nome'] ?? 'Nova Badge')),
-            'descricao' => $validated['nova_badge_descricao'] ?? null,
-            'ativa' => true,
-            'raridade' => isset($validated['nova_badge_raridade']) ? (int) $validated['nova_badge_raridade'] : 1,
-            'tipo_criterio' => 'Pontuacao',
-            'valor_criterio' => isset($validated['xp_base']) ? (int) $validated['xp_base'] : 1,
-        ];
-
-        if (!empty($validated['nova_badge_imagem'])) {
-            $caminhoImagem = $validated['nova_badge_imagem']->store('badges/professor', 'public');
-            $payloadBadge['icone_url'] = $caminhoImagem;
-        }
-
-        $badge = Badge::create($payloadBadge);
-
-        return [
-            'id' => (int) $badge->id,
-            'nome' => (string) $badge->nome,
-            'imagem_url' => $badge->icone_url ?? null,
-            'origem' => 'professor',
-        ];
+        return $resultado;
     }
 
     private function armazenarAnexoGlobal(array $validated, ?string $existente): ?string

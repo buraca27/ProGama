@@ -32,11 +32,7 @@ export const createTesteFormDefaults = () => ({
     instrucoes: "",
     xp_base: 1,
     auto_award_xp: true,
-    badge_existente_id: "",
-    nova_badge_nome: "",
-    nova_badge_descricao: "",
-    nova_badge_imagem: null,
-    nova_badge_raridade: "1",
+    badges: [],
     anexo_global_ficheiro: null,
     anexos_professor_ficheiros: [],
 });

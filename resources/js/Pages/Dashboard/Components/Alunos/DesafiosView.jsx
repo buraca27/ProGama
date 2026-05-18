@@ -571,6 +571,64 @@ export default function DesafiosView({
                                 </div>
                             )}
 
+                            {desafioFechado && (inscricaoAtual?.nota != null || inscricaoAtual?.xp_ganho != null || (desafio?.badges_detalhes?.length > 0)) && (
+                                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900/60 p-5 space-y-4">
+                                    <h4 className="text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                                        Resultado
+                                    </h4>
+                                    <div className="flex flex-wrap gap-4">
+                                        {inscricaoAtual?.nota != null && (
+                                            <div className="flex flex-col items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-800 px-6 py-4 min-w-[90px]">
+                                                <span className="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">Nota</span>
+                                                <span className="mt-1 text-3xl font-black text-slate-900 dark:text-white">
+                                                    {Number(inscricaoAtual.nota).toFixed(1)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {inscricaoAtual?.xp_ganho != null && inscricaoAtual.xp_ganho > 0 && (
+                                            <div className="flex flex-col items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-900/30 px-6 py-4 min-w-[90px]">
+                                                <span className="text-xs uppercase tracking-widest text-blue-500 dark:text-blue-400">XP Ganho</span>
+                                                <span className="mt-1 text-3xl font-black text-blue-700 dark:text-blue-300">
+                                                    +{inscricaoAtual.xp_ganho}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {desafio?.badges_detalhes?.length > 0 && (
+                                        <div>
+                                            <p className="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">
+                                                Badges do Desafio
+                                            </p>
+                                            <div className="flex flex-wrap gap-3">
+                                                {desafio.badges_detalhes.map((badge) => {
+                                                    const raridadeMap = {
+                                                        1: { label: "Bronze",   bg: "bg-orange-100 dark:bg-orange-900/30",  text: "text-orange-700 dark:text-orange-300" },
+                                                        2: { label: "Prata",    bg: "bg-slate-100 dark:bg-slate-700",       text: "text-slate-600 dark:text-slate-300" },
+                                                        3: { label: "Ouro",     bg: "bg-amber-100 dark:bg-amber-900/30",    text: "text-amber-700 dark:text-amber-300" },
+                                                        4: { label: "Lendária", bg: "bg-purple-100 dark:bg-purple-900/30",  text: "text-purple-700 dark:text-purple-300" },
+                                                    };
+                                                    const r = raridadeMap[parseInt(badge.raridade)] || raridadeMap[1];
+                                                    return (
+                                                        <div key={badge.id} className={`flex items-center gap-2 rounded-2xl border px-3 py-2 ${r.bg}`}>
+                                                            {badge.icone_url ? (
+                                                                <img src={`/storage/${badge.icone_url}`} alt={badge.nome} className="h-8 w-8 object-contain" />
+                                                            ) : (
+                                                                <span className="text-xl">🏅</span>
+                                                            )}
+                                                            <div>
+                                                                <p className={`text-sm font-bold ${r.text}`}>{badge.nome}</p>
+                                                                <p className={`text-xs ${r.text} opacity-75`}>{r.label}</p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {(form.errors.desafio || form.errors.respostas) && (
                                 <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
                                     {form.errors.desafio ||

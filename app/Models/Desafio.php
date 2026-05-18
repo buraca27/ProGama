@@ -173,6 +173,26 @@ class Desafio extends Model
             ->all();
     }
 
+    public function getBadgesComCriterio(): array
+    {
+        return collect($this->badges_json ?? [])
+            ->map(function ($badge) {
+                if (!is_array($badge)) {
+                    return ['id' => (int) $badge, 'criterio' => 'conclusao', 'nota_minima' => null, 'nota_maxima' => null];
+                }
+
+                return [
+                    'id'          => (int) ($badge['id'] ?? 0),
+                    'criterio'    => $badge['criterio'] ?? 'conclusao',
+                    'nota_minima' => isset($badge['nota_minima']) ? (float) $badge['nota_minima'] : null,
+                    'nota_maxima' => isset($badge['nota_maxima']) ? (float) $badge['nota_maxima'] : null,
+                ];
+            })
+            ->filter(fn($b) => $b['id'] > 0)
+            ->values()
+            ->all();
+    }
+
     /**
      * Calcula XP baseado na nota obtida
      */

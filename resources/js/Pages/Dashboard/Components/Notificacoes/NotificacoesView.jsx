@@ -104,6 +104,8 @@ export default function NotificacoesView({ notificacoesData }) {
             onSuccess: () => {
                 if (tipo === "Submissao_Aluno" && idSubmissao) {
                     router.visit(route("dashboard", { view: "avaliacoes", submissao_id: idSubmissao }));
+                } else if (tipo === "Desafio_Corrigido" && idDesafio) {
+                    router.visit(route("dashboard", { view: "desafios" }));
                 } else if (idDesafio) {
                     router.visit(route("dashboard", { view: "notificacoes", desafio_modal_id: idDesafio }));
                 }
@@ -259,7 +261,11 @@ export default function NotificacoesView({ notificacoesData }) {
                                             </p>
                                             {(n.id_desafio_relacionado || n.id_submissao_relacionada) && (
                                                 <p className="mt-1 text-xs font-semibold text-blue-500 dark:text-blue-400">
-                                                    {n.tipo_notificacao === "Submissao_Aluno" ? "Ver respostas →" : "Iniciar desafio →"}
+                                                    {n.tipo_notificacao === "Submissao_Aluno"
+                                                        ? "Ver respostas →"
+                                                        : n.tipo_notificacao === "Desafio_Corrigido"
+                                                          ? "Ver nota do desafio →"
+                                                          : "Iniciar desafio →"}
                                                 </p>
                                             )}
                                         </div>

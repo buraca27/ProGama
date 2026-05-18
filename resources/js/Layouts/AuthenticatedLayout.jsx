@@ -154,6 +154,8 @@ export default function AuthenticatedLayout({
                                 submissao_id: idSubmissao,
                             }),
                         );
+                    } else if (tipo === "Desafio_Corrigido" && idDesafio) {
+                        router.visit(route("dashboard", { view: "desafios" }));
                     } else if (idDesafio) {
                         const params = { desafio_modal_id: idDesafio };
                         if (activeView && activeView !== "dashboard")
@@ -383,10 +385,11 @@ export default function AuthenticatedLayout({
                                         </p>
                                         {item.id_desafio_relacionado && (
                                             <p className="mt-1 text-[10px] opacity-60">
-                                                {item.tipo_notificacao ===
-                                                "Submissao_Aluno"
+                                                {item.tipo_notificacao === "Submissao_Aluno"
                                                     ? "Clica para corrigir a submissão →"
-                                                    : "Clica para iniciar o desafio →"}
+                                                    : item.tipo_notificacao === "Desafio_Corrigido"
+                                                      ? "Ver nota do desafio →"
+                                                      : "Clica para iniciar o desafio →"}
                                             </p>
                                         )}
                                     </button>
@@ -635,10 +638,11 @@ export default function AuthenticatedLayout({
                                             </p>
                                             {item.id_desafio_relacionado && (
                                                 <p className="mt-1 text-[10px] opacity-60">
-                                                    {item.tipo_notificacao ===
-                                                    "Submissao_Aluno"
+                                                    {item.tipo_notificacao === "Submissao_Aluno"
                                                         ? "Toca para corrigir a submissão →"
-                                                        : "Toca para iniciar o desafio →"}
+                                                        : item.tipo_notificacao === "Desafio_Corrigido"
+                                                          ? "Ver nota do desafio →"
+                                                          : "Toca para iniciar o desafio →"}
                                                 </p>
                                             )}
                                         </button>

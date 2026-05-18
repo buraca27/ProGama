@@ -291,6 +291,19 @@ export default function TestesView({
         if (configAtual?.semPesoNota) {
             testeForm.setData("peso_avaliacao", "0");
         }
+        const badges = testeForm.data.badges || [];
+        const intervalos = badges
+            .filter((b) => b.criterio === "nota_intervalo")
+            .map((b) => ({ min: parseFloat(b.nota_minima ?? 0), max: parseFloat(b.nota_maxima ?? 20) }));
+        for (let i = 0; i < intervalos.length; i++) {
+            for (let j = i + 1; j < intervalos.length; j++) {
+                if (Math.max(intervalos[i].min, intervalos[j].min) <= Math.min(intervalos[i].max, intervalos[j].max)) {
+                    mostrarToast("Dois ou mais badges têm intervalos de nota sobrepostos. Corrige antes de guardar.");
+                    return;
+                }
+            }
+        }
+
         const isTarefaForm = testeForm.data.tipo_desafio === "Tarefa";
         if (!isTarefaForm && configAtual?.escalaFixa20 && totalPontuacaoTeste !== 20) {
             const msg = `A pontuação total tem de ser exatamente 20. Atualmente tem ${totalPontuacaoTeste} valor(es).`;
@@ -310,15 +323,15 @@ export default function TestesView({
             tipo_avaliacao: "Desafio",
             peso_avaliacao: configAtual?.semPesoNota ? 0 : data.peso_avaliacao,
             xp_base: Number(data.xp_base || 0),
-            auto_award_xp: Boolean(data.auto_award_xp),
+            auto_award_xp: true,
             novas_perguntas: novasPerguntasLimpas,
             pontuacao_por_pergunta: pontuacoesNormalizadas,
             pontuacoes_perguntas: pontuacoesExplicitas,
         });
 
         if (editingTesteId) {
-            testeForm.transform(transformFn);
-            testeForm.put(route("professor.testes.update", editingTesteId), {
+            testeForm.transform((data) => ({ ...transformFn(data), _method: "PUT" }));
+            testeForm.post(route("professor.testes.update", editingTesteId), {
                 preserveScroll: true,
                 forceFormData: true,
                 onSuccess,
@@ -337,9 +350,16 @@ export default function TestesView({
     };
 
     const carregarTesteNoEditor = (teste) => {
-        const primeiraBadge = Array.isArray(teste.badges_json)
-            ? teste.badges_json[0]
-            : null;
+        const badgesCarregadas = Array.isArray(teste.badges_json)
+            ? teste.badges_json
+                .filter((b) => b && (b.id || typeof b === "number"))
+                .map((b) => ({
+                    badge_id: String(typeof b === "object" ? b.id : b),
+                    criterio: b.criterio ?? "conclusao",
+                    nota_minima: b.nota_minima ?? "",
+                    nota_maxima: b.nota_maxima ?? "",
+                }))
+            : [];
 
         testeForm.setData({
             titulo: teste.titulo || "",
@@ -359,16 +379,7 @@ export default function TestesView({
             novas_perguntas: [],
             xp_base: teste.xp_base ?? 1,
             auto_award_xp: teste.auto_award_xp ?? true,
-            badge_existente_id:
-                typeof primeiraBadge === "object" && primeiraBadge?.id
-                    ? String(primeiraBadge.id)
-                    : Number.isFinite(Number(primeiraBadge))
-                      ? String(primeiraBadge)
-                      : "",
-            nova_badge_nome: "",
-            nova_badge_descricao: "",
-            nova_badge_imagem: null,
-            nova_badge_raridade: "1",
+            badges: badgesCarregadas,
             anexo_global_ficheiro: null,
         });
 

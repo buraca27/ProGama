@@ -101,9 +101,10 @@ export function BadgeChip({ badge }) {
 
 export function MedalStat({ type, count }) {
     const map = {
-        ouro:   { bg: "bg-amber-100 dark:bg-amber-900/40",   symbol: "🥇", label: "Ouro" },
-        prata:  { bg: "bg-slate-100 dark:bg-slate-700",      symbol: "🥈", label: "Prata" },
-        bronze: { bg: "bg-orange-100 dark:bg-orange-900/40", symbol: "🥉", label: "Bronze" },
+        lendaria: { bg: "bg-purple-100 dark:bg-purple-900/40", symbol: "💎", label: "Lendária" },
+        ouro:     { bg: "bg-amber-100 dark:bg-amber-900/40",   symbol: "🥇", label: "Ouro" },
+        prata:    { bg: "bg-slate-100 dark:bg-slate-700",      symbol: "🥈", label: "Prata" },
+        bronze:   { bg: "bg-orange-100 dark:bg-orange-900/40", symbol: "🥉", label: "Bronze" },
     };
     const s = map[type];
     return (

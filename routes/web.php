@@ -26,6 +26,9 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
 
     // --- 2.1. ÁREA PROFESSOR (PERGUNTAS / TESTES) ---
     Route::prefix('dashboard/professor')->name('professor.')->group(function () {
+        Route::post('/badges', [ProfessorTesteController::class, 'storeBadge'])->name('badges.store');
+        Route::put('/badges/{badge}', [ProfessorTesteController::class, 'updateBadge'])->name('badges.update');
+        Route::delete('/badges/{badge}', [ProfessorTesteController::class, 'destroyBadge'])->name('badges.destroy');
         Route::post('/perguntas', [ProfessorTesteController::class, 'storePergunta'])->name('perguntas.store');
         Route::put('/perguntas/{id}', [ProfessorTesteController::class, 'updatePergunta'])->name('perguntas.update');
 

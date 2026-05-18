@@ -14,12 +14,13 @@ export default function UpdateProfileInformation({
     const user = usePage().props.auth.user;
     const fileInputRef = useRef(null);
 
-    const { data, setData, patch, errors, processing, recentlySuccessful } =
+    const { data, setData, post, errors, processing, recentlySuccessful } =
         useForm({
             name: user.name,
             email: user.email,
             email_pessoal: user.email_pessoal || "",
             foto_perfil: user.foto_perfil || "",
+            _method: "PATCH",
         });
 
     const handleFotoUpload = (e) => {
@@ -31,7 +32,7 @@ export default function UpdateProfileInformation({
 
     const submit = (e) => {
         e.preventDefault();
-        patch(route("profile.update"));
+        post(route("profile.update"), { forceFormData: true });
     };
 
     return (

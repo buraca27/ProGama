@@ -110,16 +110,22 @@ class DashboardController extends Controller
                 ->values();
 
             if ($idsDesafiosAtribuidos->isNotEmpty()) {
-                $submissoesAluno = SubmissaoDesafioAluno::with(['respostas'])
+                $submissoesAluno = SubmissaoDesafioAluno::with(['respostas', 'desafio'])
                     ->where('id_aluno', (int) $user->id)
                     ->whereIn('id_desafio', $idsDesafiosAtribuidos->all())
                     ->orderByDesc('created_at')
                     ->get()
                     ->map(function (SubmissaoDesafioAluno $submissao) {
+                        $xpGanho = ($submissao->nota !== null && $submissao->desafio)
+                            ? $submissao->desafio->calcularXpParaNota((float) $submissao->nota)
+                            : null;
+
                         return [
                             'id' => (int) $submissao->id,
                             'id_desafio' => (int) $submissao->id_desafio,
                             'estado' => (string) $submissao->estado,
+                            'nota' => $submissao->nota !== null ? (float) $submissao->nota : null,
+                            'xp_ganho' => $xpGanho,
                             'feedback_professor' => $submissao->feedback_professor,
                             'data_ultima_tentativa' => $submissao->data_submissao ?? $submissao->updated_at,
                             'respostas' => collect($submissao->respostas ?? [])->map(function ($resposta) {
@@ -145,7 +151,37 @@ class DashboardController extends Controller
                     ->all();
             }
 
-            $desafiosAluno = $tarefasAluno;
+            // Load badge details for all desafios in one query
+            $allBadgeIds = $tarefasAluno
+                ->map(fn($a) => $a->desafio?->getBadgeIds() ?? [])
+                ->flatten()
+                ->unique()
+                ->filter()
+                ->values();
+
+            $badgeModels = $allBadgeIds->isNotEmpty()
+                ? Badge::whereIn('id', $allBadgeIds->all())
+                    ->get()
+                    ->keyBy('id')
+                : collect();
+
+            $desafiosAluno = $tarefasAluno->map(function ($atribuicao) use ($badgeModels) {
+                $arr = $atribuicao->toArray();
+                $badgeIds = $atribuicao->desafio?->getBadgeIds() ?? [];
+                $arr['desafio']['badges_detalhes'] = collect($badgeIds)
+                    ->map(fn($id) => $badgeModels->get($id))
+                    ->filter()
+                    ->map(fn($b) => [
+                        'id'        => (int) $b->id,
+                        'nome'      => $b->nome,
+                        'icone_url' => $b->icone_url,
+                        'raridade'  => $b->raridade,
+                    ])
+                    ->values()
+                    ->all();
+                return $arr;
+            })->values()->all();
+
             $inscricoesDesafiosAluno = $submissoesAluno;
 
             $notasAluno = SubmissaoDesafioAluno::with(['desafio.disciplina'])
@@ -313,10 +349,11 @@ class DashboardController extends Controller
                 ->orderBy('nome')
                 ->get()
                 ->map(fn(Badge $badge) => [
-                    'id' => (int) $badge->id,
-                    'nome' => (string) $badge->nome,
-                    'descricao' => (string) ($badge->descricao ?? ''),
+                    'id'         => (int) $badge->id,
+                    'nome'       => (string) $badge->nome,
+                    'descricao'  => (string) ($badge->descricao ?? ''),
                     'imagem_url' => $badge->imagem_url ?? $badge->icone_url ?? null,
+                    'raridade'   => (int) $badge->raridade,
                 ])
                 ->values();
         }
