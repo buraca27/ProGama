@@ -44,6 +44,7 @@ class HandleInertiaRequests extends Middleware
                         'nivel_atual' => $user->getNivelAtual(),
                         'percentagem_nivel' => $user->getPercentagemNivel(),
                         'xp_proximo_nivel' => $user->getXpProximoNivel(),
+                        'xp_nivel_atual' => $user->getXpNivelAtual(),
                         'badges_count' => $user->getContagemBadges(),
                         'badges_bronze_count' => $user->getBadgesPorRaridade(1),
                         'badges_prata_count' => $user->getBadgesPorRaridade(2),

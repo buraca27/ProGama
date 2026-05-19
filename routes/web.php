@@ -132,6 +132,7 @@ Route::middleware(['auth', 'verified', 'force_password_change'])->group(function
     // --- 4. PERFIL DO UTILIZADOR ---
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/2fa', [ProfileController::class, 'toggle2FA'])->name('profile.2fa.toggle');
+    Route::post('/profile/password-reset', [ProfileController::class, 'sendPasswordReset'])->name('profile.password.reset');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 

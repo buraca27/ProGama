@@ -253,10 +253,6 @@ export default function AuthenticatedLayout({
                                 label="Gestão de Categorias"
                             />
                             <MenuButton
-                                id="definicoes"
-                                label="Definições do Sistema"
-                            />
-                            <MenuButton
                                 id="updateLandingPage"
                                 label="Modificar Landing Page"
                             />

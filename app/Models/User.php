@@ -145,6 +145,11 @@ class User extends Authenticatable
         return $this->userXp?->xpParaProximoNivel() ?? 0;
     }
 
+    public function getXpNivelAtual(): int
+    {
+        return $this->userXp?->xpNivelAtual() ?? 0;
+    }
+
     /**
      * Retorna a contagem de badges
      */
@@ -161,6 +166,21 @@ class User extends Authenticatable
         return $this->badges()
             ->where('raridade', $raridade)
             ->count();
+    }
+
+    /**
+     * Envia notificações de password reset para o email pessoal, se disponível.
+     */
+    public function routeNotificationForMail($notification = null): array|string
+    {
+        if (
+            $notification instanceof \Illuminate\Auth\Notifications\ResetPassword
+            && !empty($this->email_pessoal)
+        ) {
+            return $this->email_pessoal;
+        }
+
+        return $this->email;
     }
 
     // --- RELAÇÕES SOCIAIS ---

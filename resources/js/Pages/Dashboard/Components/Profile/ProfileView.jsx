@@ -19,8 +19,11 @@ export default function ProfileView({
     const isAluno = (user.id_role ?? 3) === 3;
     const xpTotal = user.xp_total ?? 0;
     const nivelAtual = user.nivel_atual ?? 1;
-    const percentagemNivel = user.percentagem_nivel ?? 0;
+    const percentagemNivel = Math.min(Math.max(user.percentagem_nivel ?? 0, 0), 100);
     const xpProximoNivel = user.xp_proximo_nivel ?? 0;
+    const xpNivelAtual = user.xp_nivel_atual ?? 0;
+    const xpNoNivel = Math.max(0, xpTotal - xpNivelAtual);
+    const xpNecessarioNivel = Math.max(1, xpProximoNivel - xpNivelAtual);
     const badgesCount = user.badges_count ?? 0;
     const badgesLendaria = user.badges_lendaria_count ?? 0;
     const badgesOuro = user.badges_ouro_count ?? 0;
@@ -134,12 +137,9 @@ export default function ProfileView({
                                                     nível
                                                 </p>
                                                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                    {xpTotal} / {xpProximoNivel}{" "}
+                                                    {xpNoNivel} / {xpNecessarioNivel}{" "}
                                                     XP &nbsp;·&nbsp;{" "}
-                                                    {Math.round(
-                                                        percentagemNivel,
-                                                    )}
-                                                    %
+                                                    {Math.round(percentagemNivel)}%
                                                 </p>
                                             </div>
                                             <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -148,10 +148,8 @@ export default function ProfileView({
                                         </div>
                                         <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                                             <div
-                                                className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-500"
-                                                style={{
-                                                    width: `${Math.min(Math.max(percentagemNivel, 0), 100)}%`,
-                                                }}
+                                                className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 transition-[width] duration-500"
+                                                style={{ width: `${percentagemNivel}%` }}
                                             />
                                         </div>
                                     </div>
