@@ -123,11 +123,15 @@ html {
 /* Responsividade */
 @media (max-width: 900px) {
     .nav-bar-center {
-        display: none; /* Esconde menu em ecrãs pequenos (ideal seria um menu hambúrguer) */
+        display: none;
     }
 
     .menu-hamburguer {
         display: flex;
+    }
+
+    .mascote-img {
+        display: none;
     }
 
     .nav-mobile {
@@ -443,6 +447,27 @@ html {
     right: 15px;
 }
 
+/* Botão CTA do carrossel */
+.carrousel-cta {
+    display: inline-block;
+    margin-top: 28px;
+    padding: 14px 36px;
+    background-color: #ffffff;
+    color: #3a88ed;
+    font-weight: 800;
+    font-size: 1rem;
+    border-radius: 50px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.carrousel-cta:hover {
+    background-color: #f0f7ff;
+    transform: scale(1.05);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+}
+
 @media (max-width: 900px) {
     .carrousel-container {
         flex-direction: column;
@@ -571,6 +596,19 @@ html {
     .info-perfil-card {
         width: 100%;
         max-width: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .informacoes-section .titulo-seccao {
+        font-size: 2rem;
+        letter-spacing: -0.5px;
+    }
+    .informacoes-section {
+        padding: 40px 5%;
+    }
+    .informacoes-subtitle {
+        font-size: 1rem;
     }
 }
 
@@ -942,6 +980,42 @@ html {
     }
 }
 
+@media (max-width: 480px) {
+    .desafios-section {
+        padding: 60px 5%;
+        gap: 28px;
+    }
+    .titulo-desafios-especial {
+        font-size: 1.6rem;
+    }
+    .desafios-main-container {
+        padding: 28px 16px;
+        border-radius: 24px;
+    }
+    .resultados-wrapper-integrado {
+        padding: 28px 16px;
+        border-radius: 24px;
+    }
+    .nivel-circulo {
+        width: 46px;
+        height: 46px;
+        font-size: 1.2rem;
+    }
+    .nivel-nome {
+        font-size: 0.7rem;
+    }
+    .feedback-mini-card {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 20px;
+    }
+    .feedback-icon-box {
+        margin-right: 0;
+        margin-bottom: 16px;
+        min-width: unset;
+    }
+}
+
 /* SECÇÃO TESTES ONLINE */
 
 .testes-section {
@@ -1166,5 +1240,17 @@ html {
     .card-perfil-horizontal,
     .feedback-mini-card {
         width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .testes-section {
+        padding: 60px 5%;
+    }
+    .testes-section .titulo-seccao {
+        font-size: 2rem;
+    }
+    .testes-subtitle {
+        font-size: 1rem;
     }
 }

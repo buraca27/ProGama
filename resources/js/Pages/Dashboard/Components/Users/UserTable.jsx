@@ -21,21 +21,21 @@ export default function UserTable({ utilizadores, onView, onEdit, onDelete, requ
                         <th className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm w-12">
                             Foto
                         </th>
-                        <th 
-                            onClick={() => requestSort('name')} 
+                        <th
+                            onClick={() => requestSort('name')}
                             className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer group hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors select-none"
                         >
                             Nome {getSortIcon('name')}
                         </th>
-                        <th 
-                            onClick={() => requestSort('email')} 
-                            className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer group hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors select-none"
+                        <th
+                            onClick={() => requestSort('email')}
+                            className="hidden sm:table-cell py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer group hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors select-none"
                         >
                             Email Institucional {getSortIcon('email')}
                         </th>
-                        <th 
-                            onClick={() => requestSort('id_role')} 
-                            className="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer group hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors select-none"
+                        <th
+                            onClick={() => requestSort('id_role')}
+                            className="hidden md:table-cell py-3 px-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer group hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors select-none"
                         >
                             Cargo {getSortIcon('id_role')}
                         </th>
@@ -65,12 +65,13 @@ export default function UserTable({ utilizadores, onView, onEdit, onDelete, requ
                                     </div>
                                 </td>
                                 <td className="py-3 px-4 font-medium text-gray-900 dark:text-gray-200">
-                                    {u.name}
+                                    <span>{u.name}</span>
+                                    <p className="sm:hidden text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-[140px]">{u.email}</p>
                                 </td>
-                                <td className="py-3 px-4 text-gray-500 dark:text-gray-400 text-sm">
+                                <td className="hidden sm:table-cell py-3 px-4 text-gray-500 dark:text-gray-400 text-sm">
                                     {u.email}
                                 </td>
-                                <td className="py-3 px-4 text-gray-500 dark:text-gray-400 text-sm capitalize">
+                                <td className="hidden md:table-cell py-3 px-4 text-gray-500 dark:text-gray-400 text-sm capitalize">
                                     <span
                                         className={`px-2 py-1 rounded-full text-xs font-bold ${u.id_role === 1 ? "bg-red-100 text-red-800" : u.id_role === 2 ? "bg-indigo-100 text-indigo-800" : "bg-green-100 text-green-800"}`}
                                     >
@@ -81,37 +82,38 @@ export default function UserTable({ utilizadores, onView, onEdit, onDelete, requ
                                               : "Aluno"}
                                     </span>
                                 </td>
-                                <td className="py-3 px-4 flex justify-end gap-3 items-center">
-                                    <button
-                                        onClick={() => {
-                                            if (confirm(`Enviar pedido de recuperação de password para ${u.name}? (Será enviado para o email pessoal).`)) {
-                                                router.post(route('utilizadores.reset-password', u.id));
-                                            }
-                                        }}
-                                        title="Enviar pedido de reset para o Email Pessoal"
-                                        className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 text-sm font-bold transition-colors"
-                                    >
-                                        Reset PW
-                                    </button>
-                                    <span className="text-gray-300 dark:text-gray-600">|</span>
-                                    <button
-                                        onClick={() => onView(u)}
-                                        className="text-blue-600 hover:text-blue-800 dark:hover:text-blue-400 text-sm font-bold transition-colors"
-                                    >
-                                        Ver
-                                    </button>
-                                    <button
-                                        onClick={() => onEdit(u)}
-                                        className="text-amber-600 hover:text-amber-800 dark:hover:text-amber-400 text-sm font-bold transition-colors"
-                                    >
-                                        Editar
-                                    </button>
-                                    <button
-                                        onClick={() => onDelete(u)}
-                                        className="text-red-600 hover:text-red-800 dark:hover:text-red-400 text-sm font-bold transition-colors"
-                                    >
-                                        Apagar
-                                    </button>
+                                <td className="py-3 px-4">
+                                    <div className="flex justify-end flex-wrap gap-2 items-center">
+                                        <button
+                                            onClick={() => {
+                                                if (confirm(`Enviar pedido de recuperação de password para ${u.name}? (Será enviado para o email pessoal).`)) {
+                                                    router.post(route('utilizadores.reset-password', u.id));
+                                                }
+                                            }}
+                                            title="Enviar pedido de reset para o Email Pessoal"
+                                            className="hidden sm:inline text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 text-sm font-bold transition-colors"
+                                        >
+                                            Reset PW
+                                        </button>
+                                        <button
+                                            onClick={() => onView(u)}
+                                            className="text-blue-600 hover:text-blue-800 dark:hover:text-blue-400 text-sm font-bold transition-colors"
+                                        >
+                                            Ver
+                                        </button>
+                                        <button
+                                            onClick={() => onEdit(u)}
+                                            className="text-amber-600 hover:text-amber-800 dark:hover:text-amber-400 text-sm font-bold transition-colors"
+                                        >
+                                            Editar
+                                        </button>
+                                        <button
+                                            onClick={() => onDelete(u)}
+                                            className="text-red-600 hover:text-red-800 dark:hover:text-red-400 text-sm font-bold transition-colors"
+                                        >
+                                            Apagar
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))
